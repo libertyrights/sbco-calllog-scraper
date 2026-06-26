@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+runtime/
+secrets.local.json
+.state/
+snapshots/
+server_calllog.csv
+input.html
+scraper_master.log
+daily_release_list.log
