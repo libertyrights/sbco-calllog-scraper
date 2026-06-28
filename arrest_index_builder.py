@@ -17,6 +17,8 @@ CALLLOG_CSV = BASE_DIR / "calllog.csv"
 OUTPUT_JSON = BASE_DIR / "calllog_arrest_index.json"
 CACHE_DIR = BASE_DIR / ".cache" / "localcrimenews"
 CITY_MAP_PATH = BASE_DIR / "city_map.json"
+DOWNLOADED_ARREST_LOG_NAME = "all_records.json"
+DOWNLOADED_DEATH_INDEX_NAME = "death_index.csv"
 
 LCN_BASE_URL = "https://www.localcrimenews.com"
 LCN_MAP_URL = f"{LCN_BASE_URL}/welcome/ArrestMap"
@@ -111,6 +113,11 @@ STOPWORDS = {
     "ST",
     "STATE",
     "W",
+}
+
+SBSD_SOURCE_HINTS = {
+    "san bernardino county sheriff",
+    "san bernardino county sd",
 }
 
 DEATH_REGISTER_COLUMNS = [
@@ -224,6 +231,20 @@ def revision_number(call_number: Any) -> int:
         return 0
     suffix = text.rsplit(".", 1)[-1]
     return int(suffix) if suffix.isdigit() else 0
+
+
+def call_base_from_linked_value(value: Any) -> str:
+    text = normalize_space(value).upper()
+    if not text:
+        return ""
+    match = re.search(r"\b([A-Z]{2}\d{9})(?:\.\d+)?\b", text)
+    if match:
+        return base_call_number(match.group(1))
+    return ""
+
+
+def normalize_report_number(value: Any) -> str:
+    return normalize_space(value).upper()
 
 
 def location_suffix(location: Any) -> str:
@@ -477,6 +498,177 @@ def load_recent_call_chains(calllog_path: Path) -> list[dict[str, Any]]:
     return calls
 
 
+def calllog_data_dir(calllog_path: Path) -> Path:
+    return calllog_path.resolve().parent
+
+
+def downloaded_arrest_log_path(calllog_path: Path) -> Path:
+    return calllog_data_dir(calllog_path) / DOWNLOADED_ARREST_LOG_NAME
+
+
+def downloaded_death_index_path(calllog_path: Path) -> Path:
+    return calllog_data_dir(calllog_path) / DOWNLOADED_DEATH_INDEX_NAME
+
+
+def detail_id_from_url(detail_url: Any) -> str:
+    text = normalize_space(detail_url)
+    match = re.search(r"/detail/(\d+)/", text)
+    return match.group(1) if match else ""
+
+
+def looks_like_sbsd_source(source_agency: Any, county_of_arrest: Any = "") -> bool:
+    source_text = normalize_space(source_agency).lower()
+    county_text = normalize_space(county_of_arrest).lower()
+    if source_text in SBSD_SOURCE_HINTS:
+        return True
+    if "san bernardino" in source_text and ("sheriff" in source_text or source_text.endswith(" sd")):
+        return True
+    if "san bernardino" in county_text and ("sheriff" in source_text or source_text.endswith(" sd")):
+        return True
+    return False
+
+
+def load_downloaded_death_lookup(calllog_path: Path) -> dict[str, dict[str, Any]]:
+    path = downloaded_death_index_path(calllog_path)
+    if not path.exists():
+        return {}
+
+    lookup: dict[str, dict[str, Any]] = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            case_display = normalize_space(row.get("caseNumberDisplay") or row.get("CaseNumberDisplay"))
+            case_year = normalize_space(row.get("caseYear") or row.get("CaseYear"))
+            case_number_value = normalize_space(row.get("caseNumber") or row.get("CaseNumber"))
+            if not case_display or not case_year or not case_number_value.isdigit():
+                continue
+            case_number_int = int(case_number_value)
+            report_number = f"COR{case_year[-2:]}{case_number_int:05d}"
+            lookup[report_number] = {
+                "caseNumberDisplay": case_display,
+                "caseYear": case_year,
+                "caseNumber": case_number_int,
+                "decedentName": normalize_space(row.get("decedentName") or row.get("DecedentName")),
+                "dateOfDeath": normalize_space(row.get("dateOfDeath") or row.get("DateOfDeath")),
+                "placeOfDeath": normalize_space(row.get("placeOfDeath") or row.get("PlaceOfDeath")),
+                "podCity": normalize_space(row.get("podCity") or row.get("PodCity")),
+                "ageDisplay": normalize_space(row.get("ageDisplay") or row.get("AgeDisplay")),
+                "sex": normalize_space(row.get("sex") or row.get("Sex")),
+                "currentMode": normalize_space(row.get("currentMode") or row.get("CurrentMode")),
+                "decedentCity": normalize_space(row.get("decedentCity") or row.get("DecedentCity")),
+                "injuryCity": normalize_space(row.get("injuryCity") or row.get("InjuryCity")),
+            }
+    return lookup
+
+
+def map_downloaded_record_to_candidate(record: dict[str, Any]) -> dict[str, Any] | None:
+    details = record.get("details")
+    if not isinstance(details, dict):
+        details = {}
+
+    source_agency = normalize_space(details.get("source_agency") or record.get("source_agency"))
+    county_of_arrest = normalize_space(details.get("county_of_arrest") or record.get("county_of_arrest"))
+    if not looks_like_sbsd_source(source_agency, county_of_arrest):
+        return None
+
+    arrest_id = normalize_space(record.get("arrest_id")) or detail_id_from_url(record.get("detail_url"))
+    if not arrest_id:
+        return None
+
+    arrest_name = normalize_space(record.get("arrest_name") or record.get("name"))
+    arrest_location = normalize_space(details.get("arrest_location") or record.get("arrest_location"))
+    arrest_date_text = normalize_space(details.get("arrest_date_full") or record.get("arrest_date"))
+    arrest_date_dt = parse_arrest_date(arrest_date_text)
+    resident_city_state = normalize_space(record.get("resident_city_state") or details.get("city_state"))
+
+    resident_tags = [normalize_tag(item) for item in (record.get("resident_tags") or [])]
+    resident_tags = sorted({item for item in resident_tags if item})
+    if not resident_tags and resident_city_state:
+        resident_tags = sorted({normalize_tag(resident_city_state.split(",", 1)[0])} - {""})
+
+    area_tags = [normalize_tag(item) for item in (record.get("area_tags") or [])]
+    area_tags = sorted({item for item in area_tags if item})
+
+    charge = normalize_space(details.get("arrested_for") or record.get("charge"))
+    linked_call_bases = sorted(
+        {
+            call_base_from_linked_value(value)
+            for value in (
+                details.get("cad_number"),
+                details.get("linked_cad_number"),
+                details.get("call_number"),
+            )
+            if call_base_from_linked_value(value)
+        }
+    )
+    linked_report_numbers = sorted(
+        {
+            normalize_report_number(value)
+            for value in (
+                details.get("report_number"),
+                details.get("linked_report_number"),
+            )
+            if normalize_report_number(value)
+        }
+    )
+
+    return {
+        "arrest_id": arrest_id,
+        "arrest_name": arrest_name,
+        "detail_url": normalize_space(record.get("detail_url") or details.get("detail_url")),
+        "arrest_date": arrest_date_text,
+        "arrest_date_dt": arrest_date_dt,
+        "arrest_date_key": date_key(arrest_date_dt),
+        "charge": charge,
+        "map_charge_codes": sorted(extract_code_variants(charge)),
+        "detail_charge_codes": sorted(extract_code_variants(charge)),
+        "resident_city_state": resident_city_state,
+        "resident_tags": resident_tags,
+        "area_tags": area_tags,
+        "is_local_resident": bool(record.get("is_local_resident") or resident_tags),
+        "arrest_location": arrest_location,
+        "has_explicit_location": bool(record.get("has_explicit_location")) or has_specific_location(arrest_location),
+        "reasons": [],
+        "score": 0,
+        "map_county": county_of_arrest,
+        "map_source_agency": source_agency,
+        "map_record": record,
+        "details": details,
+        "overlap_tokens": [],
+        "source_kinds": ["downloaded_daily"],
+        "linked_call_bases": linked_call_bases,
+        "linked_report_numbers": linked_report_numbers,
+    }
+
+
+def load_downloaded_arrest_log_candidates(calllog_path: Path) -> dict[str, dict[str, Any]]:
+    path = downloaded_arrest_log_path(calllog_path)
+    if not path.exists():
+        return {}
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    records = payload.get("records") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        return {}
+
+    candidates: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        candidate = map_downloaded_record_to_candidate(record)
+        if not candidate:
+            continue
+        arrest_id = candidate["arrest_id"]
+        if arrest_id in candidates:
+            candidates[arrest_id] = merge_candidate(candidates[arrest_id], candidate)
+        else:
+            candidates[arrest_id] = candidate
+    return candidates
+
+
 def cache_path(kind: str, key: str) -> Path:
     slug = re.sub(r"[^a-z0-9]+", "-", key.lower()).strip("-") or "default"
     return CACHE_DIR / kind / f"{slug}.json"
@@ -621,7 +813,7 @@ class LocalCrimeNewsClient:
 
 
 class DeathRegisterClient:
-    def __init__(self) -> None:
+    def __init__(self, local_lookup: dict[str, dict[str, Any]] | None = None) -> None:
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -634,6 +826,7 @@ class DeathRegisterClient:
             }
         )
         self._page_primed = False
+        self.local_lookup = {normalize_report_number(key): value for key, value in (local_lookup or {}).items()}
 
     def request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
         last_error: Exception | None = None
@@ -658,12 +851,16 @@ class DeathRegisterClient:
         self._page_primed = True
 
     def fetch_match_for_report(self, report_number: str) -> dict[str, Any] | None:
-        parsed = parse_coroner_report_number(report_number)
+        normalized_report = normalize_report_number(report_number)
+        if normalized_report and normalized_report in self.local_lookup:
+            return parse_death_register_match_row(self.local_lookup[normalized_report], normalized_report)
+
+        parsed = parse_coroner_report_number(normalized_report)
         if not parsed:
             return None
 
         case_year_2, case_number = parsed
-        cache_file = cache_path("death", report_number)
+        cache_file = cache_path("death", normalized_report)
         cached, is_fresh = read_json_cache(cache_file, DEATH_REGISTER_CACHE_TTL_SECONDS)
         if is_fresh and isinstance(cached, dict) and cached:
             return cached or None
@@ -707,7 +904,7 @@ class DeathRegisterClient:
                 if row_case_number == case_number or row_display == case_display:
                     match_row = row
                     break
-            result = parse_death_register_match_row(match_row, report_number) if match_row else {}
+            result = parse_death_register_match_row(match_row, normalized_report) if match_row else {}
             write_json_cache(cache_file, result)
             return result or None
         except Exception:
@@ -882,15 +1079,38 @@ def map_record_to_candidate(record: dict[str, Any], town: str) -> dict[str, Any]
 
 
 def merge_candidate(base: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
-    for key in ("arrest_name", "detail_url", "arrest_date", "charge", "resident_city_state", "map_county", "map_source_agency"):
+    for key in (
+        "arrest_name",
+        "detail_url",
+        "arrest_date",
+        "charge",
+        "resident_city_state",
+        "map_county",
+        "map_source_agency",
+        "arrest_location",
+    ):
         if not base.get(key) and incoming.get(key):
             base[key] = incoming[key]
     if not base.get("arrest_date_dt") and incoming.get("arrest_date_dt"):
         base["arrest_date_dt"] = incoming["arrest_date_dt"]
+    if not base.get("arrest_date_key") and incoming.get("arrest_date_key"):
+        base["arrest_date_key"] = incoming["arrest_date_key"]
     base["resident_tags"] = sorted(set(base.get("resident_tags", [])) | set(incoming.get("resident_tags", [])))
     base["area_tags"] = sorted(set(base.get("area_tags", [])) | set(incoming.get("area_tags", [])))
     base["map_charge_codes"] = sorted(set(base.get("map_charge_codes", [])) | set(incoming.get("map_charge_codes", [])))
+    base["detail_charge_codes"] = sorted(
+        set(base.get("detail_charge_codes", [])) | set(incoming.get("detail_charge_codes", []))
+    )
     base["source_kinds"] = sorted(set(base.get("source_kinds", [])) | set(incoming.get("source_kinds", [])))
+    base["linked_call_bases"] = sorted(
+        set(base.get("linked_call_bases", [])) | set(incoming.get("linked_call_bases", []))
+    )
+    base["linked_report_numbers"] = sorted(
+        set(base.get("linked_report_numbers", [])) | set(incoming.get("linked_report_numbers", []))
+    )
+    if not base.get("details") and incoming.get("details"):
+        base["details"] = incoming["details"]
+    base["has_explicit_location"] = bool(base.get("has_explicit_location") or incoming.get("has_explicit_location"))
     base["is_local_resident"] = bool(base.get("resident_tags"))
     return base
 
@@ -1072,6 +1292,15 @@ def resident_region_match(call_town: str, resident_tags: list[str], area_tags: l
 def score_map_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
+
+    if call["base_call_number"] in set(candidate.get("linked_call_bases", [])):
+        score += 20
+        reasons.append("linked_call_number_match")
+
+    call_report_number = normalize_report_number(call.get("report_number"))
+    if call_report_number and call_report_number in set(candidate.get("linked_report_numbers", [])):
+        score += 18
+        reasons.append("linked_report_number_match")
 
     date_score, date_reason = score_date_delta(call["call_dt"], candidate.get("arrest_date_dt"))
     if date_score < 0:
@@ -1265,6 +1494,8 @@ def build_daily_arrest_record(candidate: dict[str, Any]) -> dict[str, Any] | Non
         "has_explicit_location": candidate.get("has_explicit_location", False),
         "source_agency": source_agency,
         "county_of_arrest": county_of_arrest,
+        "linked_call_bases": candidate.get("linked_call_bases", []),
+        "linked_report_numbers": candidate.get("linked_report_numbers", []),
     }
 
 
@@ -1468,6 +1699,8 @@ def build_matches(
 ) -> dict[str, list[dict[str, Any]]]:
     def is_confident(edge: dict[str, Any], second_best_score: int, call: dict[str, Any]) -> bool:
         reasons = set(edge["reasons"])
+        if "linked_call_number_match" in reasons or "linked_report_number_match" in reasons:
+            return True
         if "charge_code_match" in reasons or "detail_charge_code_match" in reasons:
             return True
         if "strong_location_overlap" in reasons:
@@ -1500,6 +1733,8 @@ def build_matches(
             "has_explicit_location": candidate.get("has_explicit_location", False),
             "source_agency": (candidate.get("details", {}) or {}).get("source_agency", "") or candidate.get("map_source_agency", ""),
             "county_of_arrest": (candidate.get("details", {}) or {}).get("county_of_arrest", "") or candidate.get("map_county", ""),
+            "linked_call_bases": candidate.get("linked_call_bases", []),
+            "linked_report_numbers": candidate.get("linked_report_numbers", []),
             "overlap_tokens": overlap,
             "reasons": reasons,
             "score": score,
@@ -1553,15 +1788,20 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
     arrest_calls = load_recent_arrest_calls(calllog_path)
     coroner_calls = load_recent_coroner_calls(calllog_path)
     recent_calls = load_recent_call_chains(calllog_path)
-    client = LocalCrimeNewsClient()
-    candidates = collect_agency_candidates(client, pages_per_run=AGENCY_PAGES_PER_RUN)
+    candidates = load_downloaded_arrest_log_candidates(calllog_path)
+    candidate_source = "downloaded_daily"
     if not candidates:
-        candidates = collect_map_candidates(client, arrest_calls)
-        enrich_candidates_for_calls(client, arrest_calls, candidates)
-    else:
-        enrich_candidates_with_details_all(client, candidates)
+        client = LocalCrimeNewsClient()
+        candidates = collect_agency_candidates(client, pages_per_run=AGENCY_PAGES_PER_RUN)
+        if not candidates:
+            candidates = collect_map_candidates(client, arrest_calls)
+            enrich_candidates_for_calls(client, arrest_calls, candidates)
+            candidate_source = "live_map"
+        else:
+            enrich_candidates_with_details_all(client, candidates)
+            candidate_source = "live_agency_pages"
     matches_by_call = build_matches(arrest_calls, candidates)
-    death_client = DeathRegisterClient()
+    death_client = DeathRegisterClient(load_downloaded_death_lookup(calllog_path))
     death_matches_by_call = build_death_matches(coroner_calls, death_client)
     coroner_associations = build_coroner_associations(coroner_calls, recent_calls, death_matches_by_call)
     daily_arrests = build_daily_arrest_index(candidates)
@@ -1613,6 +1853,7 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         "generated_at": iso_now(),
         "lookback_days": LOOKBACK_DAYS,
         "agency_pages_per_run": AGENCY_PAGES_PER_RUN,
+        "candidate_source": candidate_source,
         "arr_row_count": len(arrest_calls),
         "coroner_row_count": len(coroner_calls),
         "matched_call_count": len(payload_calls),

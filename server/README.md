@@ -30,3 +30,4 @@ The receiver enforces that whitelist against the server's current UTC time when 
 - Upload batches are written into `incoming/<batch-id>/`
 - Live files are promoted in timestamp order
 - Successfully processed batch directories are deleted
+- Optional daily-support files such as `death_index.csv` and `all_records.json` can be included in the same signed batch as long as they are listed in `allowed_remote_names`

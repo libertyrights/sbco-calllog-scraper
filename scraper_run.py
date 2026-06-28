@@ -8,8 +8,11 @@ import json
 import os
 import re
 import socket
+import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from ftplib import FTP
 from pathlib import Path
 
@@ -33,6 +36,8 @@ FORMATTED_CSV = os.path.join(BASE_DIR, "calllog_formatted.csv")
 SERVER_COPY = os.path.join(BASE_DIR, "server_calllog.csv")
 CALLLOG_JSON = os.path.join(BASE_DIR, "calllog.json")
 CALLLOG_ARREST_INDEX_JSON = os.path.join(BASE_DIR, "calllog_arrest_index.json")
+DEATH_INDEX_CSV = os.path.join(BASE_DIR, "death_index.csv")
+ARREST_LOG_JSON = os.path.join(BASE_DIR, "all_records.json")
 SECRET_CONFIG_PATH = os.environ.get("SBCO_SECRET_CONFIG", os.path.join(BASE_DIR, "secrets.local.json"))
 
 BACKUP_DIR = os.path.join(BASE_DIR, "snapshots", "calllog")
@@ -42,6 +47,16 @@ RELEASES_CSV = os.path.join(BASE_DIR, "releases.csv")
 LEGACY_RELEASES_CSV = os.path.join(BASE_DIR, "daily_release_list.csv")
 DAILY_RELEASE_LOG = os.path.join(BASE_DIR, "daily_release_list.log")
 RELEASE_LOG_URL = "https://jimsnetil.shr.sbcounty.gov/bookingsearch.aspx/GetReleaseLog"
+DEATH_INDEX_PAGE_URL = "https://xcore.sbcounty.gov/sheriff/SheriffCMS/DeathRegister"
+DEATH_INDEX_GRID_URL = DEATH_INDEX_PAGE_URL + "/DataGrid"
+DEATH_INDEX_PAGE_SIZE = int(os.environ.get("SBCO_DEATH_INDEX_PAGE_SIZE", "100"))
+DEATH_INDEX_DELAY_SECONDS = float(os.environ.get("SBCO_DEATH_INDEX_DELAY_SECONDS", "0.4"))
+ARREST_LOG_SCRIPT = os.path.join(os.path.dirname(__file__), "scrape-sbco-arr-log.py")
+ARREST_LOG_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_ARREST_LOG_REFRESH_TIMEOUT_SECONDS", "900"))
+ARREST_LOG_REQUEST_DELAY_SECONDS = float(os.environ.get("SBCO_ARREST_LOG_REQUEST_DELAY_SECONDS", "2.0"))
+ARREST_LOG_MAX_PAGES = int(os.environ.get("SBCO_ARREST_LOG_MAX_PAGES", "3"))
+DAILY_REMOTE_FILE_FRESHNESS_HOURS = float(os.environ.get("SBCO_DAILY_REMOTE_FILE_FRESHNESS_HOURS", "20"))
+PUBLIC_FILE_TIMEOUT_SECONDS = int(os.environ.get("SBCO_PUBLIC_FILE_TIMEOUT_SECONDS", "60"))
 
 KEEP_RECENT_HOURS = 48
 KEEP_DAILY_DAYS = 30
@@ -106,6 +121,13 @@ def load_secret_config(path):
 SECRET_CONFIG = load_secret_config(SECRET_CONFIG_PATH)
 
 
+def env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"", "0", "false", "no", "off"}
+
+
 def secret_value(env_name, config_key, default=""):
     value = os.environ.get(env_name)
     if value not in [None, ""]:
@@ -119,6 +141,11 @@ FTP_USER = secret_value("SBCO_FTP_USER", "ftp_user", "")
 FTP_PASS = secret_value("SBCO_FTP_PASS", "ftp_pass", "")
 REMOTE_DB_REBUILD_TOKEN = secret_value("SBCO_REMOTE_DB_REBUILD_TOKEN", "remote_db_rebuild_token", "")
 HTTP_UPLOAD_SECRET = secret_value("SBCO_HTTP_UPLOAD_SECRET", "http_upload_secret", "")
+REMOTE_BACKED_DAILY_FILES = env_flag(
+    "SBCO_REMOTE_BACKED_DAILY_FILES",
+    default=(os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true"),
+)
+ENABLE_DAILY_RELEASES = env_flag("SBCO_ENABLE_DAILY_RELEASES", default=True)
 
 
 def log(msg):
@@ -157,6 +184,96 @@ def revision_scrape_timestamp():
 
 def today_str():
     return datetime.now().date().isoformat()
+
+
+def parse_generated_timestamp(text):
+    value = (text or "").strip()
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            parsed = datetime.strptime(value, fmt)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def public_base_url():
+    if not SERVER_CALLLOG_URL:
+        return ""
+    return SERVER_CALLLOG_URL.rsplit("/", 1)[0].rstrip("/")
+
+
+def public_file_url(remote_name):
+    base_url = public_base_url()
+    if not base_url:
+        return ""
+    return "{}/{}".format(base_url, remote_name)
+
+
+def parse_public_file_timestamp(remote_name, content, headers):
+    if remote_name.lower().endswith(".json"):
+        try:
+            payload = json.loads(content.decode("utf-8"))
+        except Exception:
+            payload = None
+        if isinstance(payload, dict):
+            generated_at = parse_generated_timestamp(payload.get("generated_at"))
+            if generated_at:
+                return generated_at
+
+    last_modified = headers.get("Last-Modified", "")
+    if last_modified:
+        try:
+            parsed = parsedate_to_datetime(last_modified)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except Exception:
+            pass
+    return None
+
+
+def public_file_usable(remote_name, content):
+    text = content.decode("utf-8", errors="ignore")
+    if remote_name == "death_index.csv":
+        return "caseNumberDisplay" in text and "," in text
+    if remote_name.lower().endswith(".json"):
+        try:
+            payload = json.loads(text)
+        except Exception:
+            return False
+        return isinstance(payload, dict) and isinstance(payload.get("records"), list)
+    return bool(text.strip())
+
+
+def write_bytes(path, payload):
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "wb") as f:
+        f.write(payload)
+    os.replace(tmp_path, path)
+
+
+def fetch_public_file(remote_name):
+    url = public_file_url(remote_name)
+    if not url:
+        return None
+    response = requests.get(url, timeout=PUBLIC_FILE_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    content = response.content
+    return {
+        "remote_name": remote_name,
+        "url": url,
+        "content": content,
+        "usable": public_file_usable(remote_name, content),
+        "timestamp": parse_public_file_timestamp(remote_name, content, response.headers),
+    }
+
+
+def remote_file_is_fresh(timestamp, max_age_hours):
+    if not timestamp:
+        return False
+    age_seconds = (utc_now() - timestamp.astimezone(timezone.utc)).total_seconds()
+    return age_seconds <= max(1.0, float(max_age_hours)) * 3600.0
 
 
 def ensure_dirs():
@@ -315,6 +432,140 @@ def write_text(path, text):
     with open(tmp_path, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp_path, path)
+
+
+def refresh_death_index_csv(output_path):
+    session = requests.Session()
+    session.headers.update(
+        {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": "https://xcore.sbcounty.gov",
+            "Referer": DEATH_INDEX_PAGE_URL,
+        }
+    )
+    session.get(DEATH_INDEX_PAGE_URL, timeout=60).raise_for_status()
+
+    fieldnames = None
+    total_rows = 0
+    current_year = datetime.now().year
+    tmp_path = output_path + ".tmp"
+    with open(tmp_path, "w", newline="", encoding="utf-8") as f:
+        writer = None
+        for year in range(current_year, 2000, -1):
+            start = 0
+            draw = 1
+            while True:
+                response = session.post(
+                    DEATH_INDEX_GRID_URL,
+                    data={
+                        "draw": str(draw),
+                        "start": str(start),
+                        "length": str(DEATH_INDEX_PAGE_SIZE),
+                        "search[value]": "",
+                        "search[regex]": "false",
+                        "caseYear": str(year),
+                    },
+                    timeout=60,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                rows = payload.get("data") if isinstance(payload, dict) else []
+                if not rows:
+                    break
+
+                if fieldnames is None:
+                    fieldnames = list(rows[0].keys())
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+
+                for row in rows:
+                    writer.writerow(row)
+                    total_rows += 1
+
+                start += len(rows)
+                draw += 1
+                records_total = int(payload.get("recordsFiltered") or payload.get("recordsTotal") or 0)
+                if start >= records_total:
+                    break
+                time.sleep(DEATH_INDEX_DELAY_SECONDS)
+
+    if total_rows <= 0:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        raise RuntimeError("death index refresh returned no rows")
+
+    os.replace(tmp_path, output_path)
+    log("death_index.csv refreshed locally ({} rows)".format(total_rows))
+
+
+def refresh_arrest_log_json(output_path):
+    command = [
+        sys.executable,
+        ARREST_LOG_SCRIPT,
+        "--output-json",
+        output_path,
+        "--request-delay",
+        str(ARREST_LOG_REQUEST_DELAY_SECONDS),
+        "--max-pages",
+        str(ARREST_LOG_MAX_PAGES),
+    ]
+    result = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=ARREST_LOG_REFRESH_TIMEOUT_SECONDS,
+    )
+    stdout = " ".join((result.stdout or "").split())
+    stderr = " ".join((result.stderr or "").split())
+    if stdout:
+        log("Arrest log refresh stdout: {}".format(stdout[:1000]))
+    if stderr:
+        log("Arrest log refresh stderr: {}".format(stderr[:1000]))
+    if not os.path.exists(output_path):
+        raise RuntimeError("arrest log refresh did not create {}".format(output_path))
+    log("all_records.json refreshed locally")
+
+
+def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback):
+    downloaded_fallback = False
+
+    if REMOTE_BACKED_DAILY_FILES:
+        try:
+            remote_file = fetch_public_file(remote_name)
+        except Exception as e:
+            log("WARNING: public {} fetch failed: {}".format(remote_name, e))
+            remote_file = None
+
+        if remote_file and remote_file.get("usable"):
+            write_bytes(local_path, remote_file["content"])
+            downloaded_fallback = True
+            if remote_file_is_fresh(remote_file.get("timestamp"), DAILY_REMOTE_FILE_FRESHNESS_HOURS):
+                log(
+                    "Reused fresh public {} from {}".format(
+                        remote_name,
+                        remote_file.get("url", ""),
+                    )
+                )
+                return []
+            log("Public {} is stale; refreshing locally".format(remote_name))
+        elif remote_file:
+            log("Public {} is present but unusable; refreshing locally".format(remote_name))
+
+    try:
+        refresh_callback(local_path)
+        return [(remote_name, local_path)]
+    except Exception as e:
+        if downloaded_fallback or os.path.exists(local_path):
+            log("WARNING: {} refresh failed; keeping fallback copy: {}".format(remote_name, e))
+            return []
+        log("WARNING: {} refresh failed with no fallback: {}".format(remote_name, e))
+        return []
 
 
 def rebuild_calllog_arrest_index():
@@ -689,6 +940,25 @@ def fetch_server_rows():
             pass
 
 
+def build_publish_file_specs(extra_file_specs=None):
+    specs = [
+        ("calllog.csv", LOCAL_CSV),
+        ("calllog.json", CALLLOG_JSON),
+    ]
+    if os.path.exists(CALLLOG_ARREST_INDEX_JSON):
+        specs.append(("calllog_arrest_index.json", CALLLOG_ARREST_INDEX_JSON))
+
+    seen_names = {remote_name for remote_name, _ in specs}
+    for remote_name, local_path in extra_file_specs or []:
+        if not remote_name or not local_path or not os.path.exists(local_path):
+            continue
+        if remote_name in seen_names:
+            continue
+        specs.append((remote_name, local_path))
+        seen_names.add(remote_name)
+    return specs
+
+
 def build_http_upload_manifest(run_id, file_specs):
     files = []
     for index, (remote_name, local_path) in enumerate(file_specs):
@@ -711,17 +981,12 @@ def build_http_upload_manifest(run_id, file_specs):
     }
 
 
-def publish_outputs_via_http():
+def publish_outputs_via_http(extra_file_specs=None):
     if not HTTP_UPLOAD_URL or not HTTP_UPLOAD_SECRET:
         raise RuntimeError("HTTP upload endpoint or secret is not configured")
 
     run_id = build_publish_run_id()
-    file_specs = [
-        ("calllog.csv", LOCAL_CSV),
-        ("calllog.json", CALLLOG_JSON),
-    ]
-    if os.path.exists(CALLLOG_ARREST_INDEX_JSON):
-        file_specs.append(("calllog_arrest_index.json", CALLLOG_ARREST_INDEX_JSON))
+    file_specs = build_publish_file_specs(extra_file_specs)
 
     manifest = build_http_upload_manifest(run_id, file_specs)
     manifest_json = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
@@ -774,7 +1039,7 @@ def publish_outputs_via_http():
                 pass
 
 
-def publish_outputs_via_ftp():
+def publish_outputs_via_ftp(extra_file_specs=None):
     with open(LOCAL_CSV, "rb") as f:
         local_bytes = f.read()
     needs_db_rebuild = False
@@ -813,6 +1078,11 @@ def publish_outputs_via_ftp():
             log("calllog_arrest_index.json uploaded with remote lock")
         else:
             log("calllog_arrest_index.json missing locally; skipping upload")
+        for remote_name, local_path in extra_file_specs or []:
+            if not remote_name or not local_path or not os.path.exists(local_path):
+                continue
+            ftp_atomic_replace(ftp, local_path, remote_name, run_id)
+            log("{} uploaded with remote lock".format(remote_name))
     except Exception as e:
         log("WARNING: ftp publish failed: {}".format(e))
     finally:
@@ -829,16 +1099,16 @@ def publish_outputs_via_ftp():
         trigger_remote_db_rebuild()
 
 
-def publish_outputs():
+def publish_outputs(extra_file_specs=None):
     if HTTP_UPLOAD_URL:
         try:
-            publish_outputs_via_http()
+            publish_outputs_via_http(extra_file_specs)
             return
         except Exception as e:
             log("WARNING: http publish failed: {}".format(e))
             if not FTP_USER or not FTP_PASS:
                 return
-    publish_outputs_via_ftp()
+    publish_outputs_via_ftp(extra_file_specs)
 
 
 def get_hidden_fields(soup):
@@ -1015,6 +1285,9 @@ def fetch_daily_release_rows():
 
 
 def run_daily_release_if_due():
+    if not ENABLE_DAILY_RELEASES:
+        log("Daily release fetch is disabled")
+        return
     if not should_run_daily("daily_release_list"):
         return
 
@@ -1108,8 +1381,15 @@ def main():
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
         json.dump(barstow, f, indent=2)
 
+    extra_file_specs = []
+    extra_file_specs.extend(
+        ensure_remote_backed_daily_file("death_index.csv", DEATH_INDEX_CSV, refresh_death_index_csv)
+    )
+    extra_file_specs.extend(
+        ensure_remote_backed_daily_file("all_records.json", ARREST_LOG_JSON, refresh_arrest_log_json)
+    )
     rebuild_calllog_arrest_index()
-    publish_outputs()
+    publish_outputs(extra_file_specs)
     run_daily_release_if_due()
     log("Run completed successfully")
 

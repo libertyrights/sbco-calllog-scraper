@@ -31,6 +31,8 @@ Add these repository secrets before enabling scheduled runs:
 ## Notes
 
 - The GitHub job runs hourly at minute `17`.
+- The GitHub job reuses the already-published public `all_records.json` and `death_index.csv` when those files are still fresh, and only refreshes them locally when they are stale.
+- The GitHub job disables the unrelated daily release-list fetch so the hourly schedule does not create extra background traffic.
 - The server-side receiver should use matching UTC hour and minute whitelists so it only accepts expected uploads.
 - The server queue processor promotes files in timestamp order and deletes processed temp batches after a successful apply.
 - The repo includes only example server config. Live serv00 secrets should stay in an untracked `calllog_server_config.php` on the server.

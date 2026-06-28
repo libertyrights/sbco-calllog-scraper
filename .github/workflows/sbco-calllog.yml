@@ -40,6 +40,10 @@ jobs:
           SBCO_HTTP_UPLOAD_SECRET: ${{ secrets.SBCO_HTTP_UPLOAD_SECRET }}
           SBCO_HTTP_UPLOAD_SOURCE: github-actions
           SBCO_RUNNER_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
+          SBCO_REMOTE_BACKED_DAILY_FILES: '1'
+          SBCO_ENABLE_DAILY_RELEASES: '0'
+          SBCO_ARREST_LOG_REQUEST_DELAY_SECONDS: '2.0'
+          SBCO_ARREST_LOG_MAX_PAGES: '3'
         run: python scraper_run.py
 
       - name: Upload runtime artifacts
