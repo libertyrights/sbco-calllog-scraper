@@ -27,6 +27,7 @@ DROPDOWN_EVENT_TARGET = "ctl00$MainContent$ddCity"
 GRIDVIEW_ID = "GridView1"
 
 BARSTOW_CODE = "BA"
+PRIMARY_AGENCY_CODE = os.environ.get("SBCO_PRIMARY_AGENCY_CODE", "SBSO").strip() or "SBSO"
 
 BASE_DIR = os.environ.get("SBCO_BASE_DIR", "/home/mark/python")
 STATE_DIR = os.path.join(BASE_DIR, ".state")
@@ -38,6 +39,7 @@ CALLLOG_JSON = os.path.join(BASE_DIR, "calllog.json")
 CALLLOG_ARREST_INDEX_JSON = os.path.join(BASE_DIR, "calllog_arrest_index.json")
 DEATH_INDEX_CSV = os.path.join(BASE_DIR, "death_index.csv")
 ARREST_LOG_JSON = os.path.join(BASE_DIR, "all_records.json")
+CALLLOG_UPLOAD_META_JSON = os.path.join(BASE_DIR, "calllog_upload_meta.json")
 SECRET_CONFIG_PATH = os.environ.get("SBCO_SECRET_CONFIG", os.path.join(BASE_DIR, "secrets.local.json"))
 
 BACKUP_DIR = os.path.join(BASE_DIR, "snapshots", "calllog")
@@ -74,10 +76,15 @@ SERVER_CALLLOG_URL = os.environ.get("SBCO_SERVER_CALLLOG_URL", "").strip()
 HTTP_UPLOAD_URL = os.environ.get("SBCO_HTTP_UPLOAD_URL", "").strip()
 HTTP_UPLOAD_TIMEOUT_SECONDS = int(os.environ.get("SBCO_HTTP_UPLOAD_TIMEOUT_SECONDS", "180"))
 HTTP_UPLOAD_SOURCE = os.environ.get("SBCO_HTTP_UPLOAD_SOURCE", "scraper_run")
+UPLOAD_TRACE_SOURCE = (
+    os.environ.get("SBCO_UPLOAD_TRACE_SOURCE")
+    or ("github" if (os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true") else "pc")
+).strip() or "pc"
 
 CSV_FIELDS = [
     "date/time",
     "agency",
+    "station",
     "call number",
     "report number",
     "call type",
@@ -89,6 +96,7 @@ CSV_FIELDS = [
 FORMATTED_FIELDS = [
     "date/time",
     "agency",
+    "station",
     "division",
     "call number",
     "report number",
@@ -304,10 +312,36 @@ def clean_location_field(value):
     return value.strip()
 
 
+def looks_like_agency_code(value):
+    text = (value or "").strip().upper()
+    return text in {"SBSO", "CHP", "CALFIRE", "CAL FIRE", "BPD", "SBPD", "BLM", "USFS", "BNSF"}
+
+
+def normalize_agency_and_station(record):
+    raw_agency = (record.get("agency", "") or "").strip()
+    raw_station = (record.get("station", "") or "").strip()
+
+    if raw_station:
+        station = raw_station
+        agency = raw_agency or PRIMARY_AGENCY_CODE
+        if not raw_agency and looks_like_agency_code(station):
+            agency = station
+            station = ""
+        return agency.upper(), station
+
+    if looks_like_agency_code(raw_agency):
+        return raw_agency.upper(), ""
+
+    station = raw_agency
+    agency = PRIMARY_AGENCY_CODE if station else raw_agency.upper()
+    return agency.upper(), station
+
+
 def normalize_record(record):
     normalized = {}
     for field in CSV_FIELDS:
         normalized[field] = (record.get(field, "") or "").strip()
+    normalized["agency"], normalized["station"] = normalize_agency_and_station(record)
     normalized["location"] = clean_location_field(normalized.get("location", ""))
     return normalized
 
@@ -404,6 +438,7 @@ def write_formatted_csv(rows, output_path):
                 "_dt": parsed_dt,
                 "date/time": dt_str,
                 "agency": row.get("agency", ""),
+                "station": row.get("station", ""),
                 "division": extract_division(row.get("call number", "")),
                 "call number": row.get("call number", ""),
                 "report number": row.get("report number", ""),
@@ -758,6 +793,19 @@ def build_publish_owner():
     return " ".join(part for part in parts if part)
 
 
+def write_upload_trace_file(path, run_id, transport):
+    payload = {
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "source": UPLOAD_TRACE_SOURCE,
+        "transport": transport,
+        "run_id": run_id,
+        "publisher": build_publish_owner(),
+        "host": socket.gethostname() or "unknown-host",
+    }
+    write_text(path, json.dumps(payload, indent=2, sort_keys=True))
+    return payload
+
+
 def build_lock_payload(run_id):
     return {
         "run_id": run_id,
@@ -977,6 +1025,7 @@ def build_http_upload_manifest(run_id, file_specs):
         "batch_timestamp": utc_now_text(),
         "run_id": run_id,
         "source": HTTP_UPLOAD_SOURCE,
+        "publisher": build_publish_owner(),
         "files": files,
     }
 
@@ -1054,6 +1103,7 @@ def publish_outputs_via_ftp(extra_file_specs=None):
     try:
         lock_state = ftp_acquire_publish_lock(ftp)
         run_id = lock_state["run_id"]
+        trace_meta = write_upload_trace_file(CALLLOG_UPLOAD_META_JSON, run_id, "ftp-direct")
         files = ftp.nlst()
         remote_bytes = ftp_download_bytes(ftp, "calllog.csv")
         if "calllog.sqlite" not in files:
@@ -1078,6 +1128,13 @@ def publish_outputs_via_ftp(extra_file_specs=None):
             log("calllog_arrest_index.json uploaded with remote lock")
         else:
             log("calllog_arrest_index.json missing locally; skipping upload")
+        ftp_atomic_replace(ftp, CALLLOG_UPLOAD_META_JSON, "calllog_upload_meta.json", run_id)
+        log(
+            "calllog_upload_meta.json uploaded with remote lock (source={}, run_id={})".format(
+                trace_meta.get("source", ""),
+                trace_meta.get("run_id", ""),
+            )
+        )
         for remote_name, local_path in extra_file_specs or []:
             if not remote_name or not local_path or not os.path.exists(local_path):
                 continue
@@ -1377,7 +1434,11 @@ def main():
     formatted_count = write_formatted_csv(merged, FORMATTED_CSV)
     log("Local calllog_formatted.csv written ({} rows)".format(formatted_count))
 
-    barstow = [row for row in merged if row.get("agency") == BARSTOW_CODE]
+    barstow = [
+        row
+        for row in merged
+        if row.get("agency") == PRIMARY_AGENCY_CODE and row.get("station") == BARSTOW_CODE
+    ]
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
         json.dump(barstow, f, indent=2)
 

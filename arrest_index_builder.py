@@ -305,6 +305,16 @@ def resolve_call_town(location: Any, city_map: dict[str, str]) -> tuple[str, str
     return town, suffix
 
 
+def normalize_call_row_source(row: dict[str, Any]) -> tuple[str, str]:
+    agency = normalize_space(row.get("agency"))
+    station = normalize_space(row.get("station"))
+    if station:
+        return agency, station
+    if agency in SBSD_SOURCE_HINTS or agency in {"SBSO", "CHP", "CALFIRE", "CAL FIRE", "BLM"}:
+        return agency, ""
+    return "SBSO" if agency else "", agency
+
+
 def load_recent_arrest_calls(calllog_path: Path) -> list[dict[str, Any]]:
     city_map = load_city_map()
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -314,9 +324,11 @@ def load_recent_arrest_calls(calllog_path: Path) -> list[dict[str, Any]]:
             dt = parse_call_datetime(row.get("date/time"))
             if not dt:
                 continue
+            agency, station = normalize_call_row_source(row)
             entry = {
                 "date/time": normalize_space(row.get("date/time")),
-                "agency": normalize_space(row.get("agency")),
+                "agency": agency,
+                "station": station,
                 "call number": normalize_space(row.get("call number")),
                 "report number": normalize_space(row.get("report number")),
                 "call type": normalize_space(row.get("call type")),
@@ -342,6 +354,8 @@ def load_recent_arrest_calls(calllog_path: Path) -> list[dict[str, Any]]:
             {
                 "base_call_number": base,
                 "call_number": latest["call number"],
+                "agency": latest["agency"],
+                "station": latest["station"],
                 "date_time": latest["date/time"],
                 "report_number": latest["report number"],
                 "call_type": latest["call type"],
@@ -370,9 +384,11 @@ def load_recent_coroner_calls(calllog_path: Path) -> list[dict[str, Any]]:
             dt = parse_call_datetime(row.get("date/time"))
             if not dt:
                 continue
+            agency, station = normalize_call_row_source(row)
             entry = {
                 "date/time": normalize_space(row.get("date/time")),
-                "agency": normalize_space(row.get("agency")),
+                "agency": agency,
+                "station": station,
                 "call number": normalize_space(row.get("call number")),
                 "report number": normalize_space(row.get("report number")),
                 "call type": normalize_space(row.get("call type")),
@@ -406,6 +422,8 @@ def load_recent_coroner_calls(calllog_path: Path) -> list[dict[str, Any]]:
             {
                 "base_call_number": base,
                 "call_number": latest["call number"],
+                "agency": latest["agency"],
+                "station": latest["station"],
                 "date_time": latest["date/time"],
                 "report_number": best_report,
                 "call_type": latest["call type"],
@@ -436,9 +454,11 @@ def load_recent_call_chains(calllog_path: Path) -> list[dict[str, Any]]:
             dt = parse_call_datetime(row.get("date/time"))
             if not dt:
                 continue
+            agency, station = normalize_call_row_source(row)
             entry = {
                 "date/time": normalize_space(row.get("date/time")),
-                "agency": normalize_space(row.get("agency")),
+                "agency": agency,
+                "station": station,
                 "call number": normalize_space(row.get("call number")),
                 "report number": normalize_space(row.get("report number")),
                 "call type": normalize_space(row.get("call type")),
@@ -477,6 +497,8 @@ def load_recent_call_chains(calllog_path: Path) -> list[dict[str, Any]]:
             {
                 "base_call_number": base,
                 "call_number": latest["call number"],
+                "agency": latest["agency"],
+                "station": latest["station"],
                 "date_time": latest["date/time"],
                 "report_number": latest["report number"],
                 "call_type": latest["call type"],

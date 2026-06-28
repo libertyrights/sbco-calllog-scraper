@@ -46,6 +46,11 @@ function calllog_atomic_write(string $path, string $contents): void
     rename($tmp, $path);
 }
 
+function calllog_upload_trace_path(array $config): string
+{
+    return rtrim((string) $config['live_dir'], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'calllog_upload_meta.json';
+}
+
 function calllog_signature_for_manifest(string $manifestJson, string $secret): string
 {
     return hash_hmac('sha256', $manifestJson, $secret);
@@ -248,7 +253,13 @@ function calllog_store_upload_batch(array $config, array $manifest, array $files
     );
     calllog_atomic_write($batchDir . DIRECTORY_SEPARATOR . 'complete.json', json_encode(['ok' => true]));
 
-    calllog_log($config, 'Stored upload batch ' . $batchId);
+    calllog_log(
+        $config,
+        'Stored upload batch ' . $batchId
+        . ' source=' . ((string) ($manifest['source'] ?? ''))
+        . ' run_id=' . ((string) ($manifest['run_id'] ?? ''))
+        . ' publisher=' . ((string) ($manifest['publisher'] ?? ''))
+    );
     return [
         'batch_id' => $batchId,
         'batch_dir' => $batchDir,
@@ -291,6 +302,22 @@ function calllog_trigger_rebuild(array $config): ?array
         'url' => $target,
         'response' => $body === false ? '' : trim($body),
     ];
+}
+
+function calllog_write_upload_trace(array $config, array $manifest): void
+{
+    $payload = [
+        'processed_at' => gmdate('c'),
+        'batch_timestamp' => (string) ($manifest['batch_timestamp'] ?? ''),
+        'batch_id' => calllog_build_batch_id($manifest),
+        'source' => (string) ($manifest['source'] ?? ''),
+        'run_id' => (string) ($manifest['run_id'] ?? ''),
+        'publisher' => (string) ($manifest['publisher'] ?? ''),
+    ];
+    calllog_atomic_write(
+        calllog_upload_trace_path($config),
+        json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+    );
 }
 
 function calllog_process_queue(array $config): array
@@ -373,9 +400,20 @@ function calllog_process_queue(array $config): array
             $processed[] = [
                 'batch_id' => calllog_build_batch_id($manifest),
                 'file_count' => count($manifest['files']),
+                'source' => (string) ($manifest['source'] ?? ''),
+                'run_id' => (string) ($manifest['run_id'] ?? ''),
+                'publisher' => (string) ($manifest['publisher'] ?? ''),
             ];
+            calllog_write_upload_trace($config, $manifest);
             calllog_delete_tree($batchDir);
-            calllog_log($config, 'Processed upload batch ' . end($processed)['batch_id']);
+            $processedEntry = end($processed);
+            calllog_log(
+                $config,
+                'Processed upload batch ' . $processedEntry['batch_id']
+                . ' source=' . $processedEntry['source']
+                . ' run_id=' . $processedEntry['run_id']
+                . ' publisher=' . $processedEntry['publisher']
+            );
         }
 
         if ($processed) {
