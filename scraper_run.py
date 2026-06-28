@@ -11,9 +11,11 @@ import socket
 import time
 from datetime import datetime, timedelta, timezone
 from ftplib import FTP
+from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+from arrest_index_builder import build_arrest_index
 
 # ================= CONFIG =================
 
@@ -313,6 +315,19 @@ def write_text(path, text):
     with open(tmp_path, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp_path, path)
+
+
+def rebuild_calllog_arrest_index():
+    try:
+        build_arrest_index(Path(LOCAL_CSV), Path(CALLLOG_ARREST_INDEX_JSON))
+        log("Local calllog_arrest_index.json rebuilt")
+    except Exception as e:
+        if os.path.exists(CALLLOG_ARREST_INDEX_JSON):
+            try:
+                os.remove(CALLLOG_ARREST_INDEX_JSON)
+            except Exception:
+                pass
+        log("WARNING: calllog_arrest_index rebuild failed: {}".format(e))
 
 
 def sha256_bytes(data):
@@ -1093,6 +1108,7 @@ def main():
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
         json.dump(barstow, f, indent=2)
 
+    rebuild_calllog_arrest_index()
     publish_outputs()
     run_daily_release_if_due()
     log("Run completed successfully")

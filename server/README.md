@@ -16,14 +16,14 @@ Files:
 
 - Signed manifest using `upload_secret`
 - Upload timestamp age limit
-- Optional UTC upload window whitelist for expected 4-hour runs
+- Optional UTC upload window whitelist for expected hourly runs
 - Optional separate `process_token` for manual/cron processor invocation
 
 The upload window can be configured either as:
 - Explicit `allowed_hours` and `allowed_minutes` lists
 - A fallback `hour_modulo` plus `minute_start` and `minute_end` range
 
-The receiver enforces that whitelist against the server's current UTC time when the batch arrives. For the GitHub Actions 4-hour schedule, the recommended setup is explicit hour and minute whitelists so the receiver only accepts batches that arrive inside the expected cadence.
+The receiver enforces that whitelist against the server's current UTC time when the batch arrives. For the GitHub Actions hourly schedule, the recommended setup is explicit hour and minute whitelists so the receiver only accepts batches that arrive inside the expected cadence.
 
 ## Queue Behavior
 

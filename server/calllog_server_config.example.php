@@ -6,7 +6,7 @@ return [
     'upload_max_age_seconds' => 7200,
     'accepted_upload_window_utc' => [
         'enabled' => true,
-        'allowed_hours' => [0, 4, 8, 12, 16, 20],
+        'allowed_hours' => range(0, 23),
         'allowed_minutes' => range(10, 55),
     ],
     'queue_root' => __DIR__ . '/runtime/calllog-queue',
