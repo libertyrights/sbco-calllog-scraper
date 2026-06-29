@@ -96,6 +96,7 @@ CSV_FIELDS = [
     "disposition",
     "location",
     "revision_scraped_at",
+    "extra_json",
 ]
 
 FORMATTED_FIELDS = [
@@ -113,7 +114,7 @@ FORMATTED_FIELDS = [
 
 RELEASE_FIELDS = ["Name", "Sex", "Age", "Height", "Weight", "Release Date"]
 
-FIELDS_TO_COMPARE = ["call type", "disposition", "location"]
+FIELDS_TO_COMPARE = ["call type", "disposition", "location", "extra_json"]
 DATE_FORMATS = [
     "%m/%d/%Y %I:%M:%S %p",
     "%m/%d/%y %I:%M:%S %p",
