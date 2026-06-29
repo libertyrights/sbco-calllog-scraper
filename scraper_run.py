@@ -1452,8 +1452,12 @@ def main():
             if chp_rows:
                 merged = merge_revisions(merged, chp_rows)
                 log("Merged {} CHP incidents".format(len(chp_rows)))
+            else:
+                log("CHP scrape returned 0 incidents")
         except Exception as e:
             log("WARNING: CHP scrape failed: {}".format(e))
+    else:
+        log("CHP scraper unavailable; skipping CHP merge")
 
     write_csv(LOCAL_CSV, merged)
     log("Local calllog.csv written ({} records)".format(len(merged)))
