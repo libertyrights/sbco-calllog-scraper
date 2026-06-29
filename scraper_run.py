@@ -20,6 +20,11 @@ import requests
 from bs4 import BeautifulSoup
 from arrest_index_builder import build_arrest_index
 
+try:
+    from chp_scraper import scrape_chp_incidents
+except Exception:
+    scrape_chp_incidents = None
+
 # ================= CONFIG =================
 
 FRAME_URL = "https://mediasummary.shr.sbcounty.gov/"
@@ -346,6 +351,19 @@ def normalize_record(record):
     return normalized
 
 
+def row_is_in_scope(record):
+    normalized = normalize_record(record)
+    agency = (normalized.get("agency", "") or "").strip().upper()
+    station = (normalized.get("station", "") or "").strip().upper()
+    if agency != PRIMARY_AGENCY_CODE.upper():
+        return True
+    return station == BARSTOW_CODE
+
+
+def filter_scoped_rows(rows):
+    return [normalize_record(row) for row in rows if row_is_in_scope(row)]
+
+
 def load_csv(path):
     if not os.path.exists(path):
         return []
@@ -376,7 +394,7 @@ def union_merge(rows_a, rows_b):
         call_number = normalized.get("call number", "")
         if call_number:
             out[call_number] = normalized
-    return list(out.values())
+    return filter_scoped_rows(out.values())
 
 
 def call_base(call_number):
@@ -1232,7 +1250,7 @@ def max_pages(soup):
 
 def merge_revisions(existing, scraped):
     out = {}
-    for row in existing:
+    for row in filter_scoped_rows(existing):
         normalized = normalize_record(row)
         call_number = normalized.get("call number", "")
         if call_number:
@@ -1241,7 +1259,7 @@ def merge_revisions(existing, scraped):
     for row in scraped:
         normalized = normalize_record(row)
         call_number = normalized.get("call number", "")
-        if not call_number:
+        if not call_number or not row_is_in_scope(normalized):
             continue
 
         base = call_base(call_number)
@@ -1260,7 +1278,7 @@ def merge_revisions(existing, scraped):
             if revision_row["call number"] not in out:
                 out[revision_row["call number"]] = revision_row
 
-    return list(out.values())
+    return filter_scoped_rows(out.values())
 
 
 def release_target_date():
@@ -1427,6 +1445,15 @@ def main():
             all_rows.extend(page_rows)
 
         merged = merge_revisions(merged, all_rows)
+
+    if scrape_chp_incidents is not None:
+        try:
+            chp_rows = scrape_chp_incidents()
+            if chp_rows:
+                merged = merge_revisions(merged, chp_rows)
+                log("Merged {} CHP incidents".format(len(chp_rows)))
+        except Exception as e:
+            log("WARNING: CHP scrape failed: {}".format(e))
 
     write_csv(LOCAL_CSV, merged)
     log("Local calllog.csv written ({} records)".format(len(merged)))
