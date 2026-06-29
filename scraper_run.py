@@ -25,6 +25,11 @@ try:
 except Exception:
     scrape_chp_incidents = None
 
+try:
+    from pulsepoint_scraper import scrape_pulsepoint_incidents
+except Exception:
+    scrape_pulsepoint_incidents = None
+
 # ================= CONFIG =================
 
 FRAME_URL = "https://mediasummary.shr.sbcounty.gov/"
@@ -320,7 +325,7 @@ def clean_location_field(value):
 
 def looks_like_agency_code(value):
     text = (value or "").strip().upper()
-    return text in {"SBSO", "CHP", "CALFIRE", "CAL FIRE", "BPD", "SBPD", "BLM", "USFS", "BNSF"}
+    return text in {"SBSO", "CHP", "CALFIRE", "CAL FIRE", "SBCFIRE", "BPD", "SBPD", "BLM", "USFS", "BNSF"}
 
 
 def normalize_agency_and_station(record):
@@ -1459,6 +1464,19 @@ def main():
             log("WARNING: CHP scrape failed: {}".format(e))
     else:
         log("CHP scraper unavailable; skipping CHP merge")
+
+    if scrape_pulsepoint_incidents is not None:
+        try:
+            pulsepoint_rows = scrape_pulsepoint_incidents()
+            if pulsepoint_rows:
+                merged = merge_revisions(merged, pulsepoint_rows)
+                log("Merged {} PulsePoint incidents".format(len(pulsepoint_rows)))
+            else:
+                log("PulsePoint scrape returned 0 incidents")
+        except Exception as e:
+            log("WARNING: PulsePoint scrape failed: {}".format(e))
+    else:
+        log("PulsePoint scraper unavailable; skipping PulsePoint merge")
 
     write_csv(LOCAL_CSV, merged)
     log("Local calllog.csv written ({} records)".format(len(merged)))
