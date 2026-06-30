@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Pattern, Tuple
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -77,6 +77,13 @@ def build_location(location: str, area: str, location_desc: str = "") -> str:
 
 def build_call_number(log_id: str) -> str:
     return "CHP-{}".format(clean_chp_text(log_id))
+
+
+def build_chp_mobile_incident_url(log_id: str) -> str:
+    cleaned = clean_chp_text(log_id)
+    if not cleaned:
+        return "{}?DispatchId={}".format(CHP_MOBILE_BASE_URL, CHP_DISPATCH_BARSTOW)
+    return "{}?id={}".format(CHP_MOBILE_BASE_URL, quote(cleaned))
 
 
 def location_mentions_ignored_area(*values: str) -> bool:
@@ -161,6 +168,8 @@ def build_extra_payload(
         "provider": "chp",
         "dispatch_id": CHP_DISPATCH_BARSTOW,
         "log_id": clean_chp_text(log_id),
+        "source_url": build_chp_mobile_incident_url(log_id),
+        "source_feed_url": "{}?DispatchId={}".format(CHP_MOBILE_BASE_URL, CHP_DISPATCH_BARSTOW),
         "call_type_code": clean_chp_text(call_type_code),
         "call_type_description": clean_chp_text(call_type_description),
         "area": clean_chp_text(area),

@@ -960,6 +960,7 @@ def parse_death_register_match_row(row: dict[str, Any] | None, report_number: st
         "case_number": case_display,
         "case_year": case_year,
         "case_number_numeric": case_number_int,
+        "source_url": DEATH_REGISTER_PAGE_URL,
         "decedent_name": normalize_space(row.get("decedentName")),
         "decedent_city": normalize_space(row.get("decedentCity")),
         "date_of_death": normalize_space(row.get("dateOfDeath")),

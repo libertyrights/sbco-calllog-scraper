@@ -8,6 +8,7 @@ import math
 import os
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import quote
 
 import requests
 
@@ -300,6 +301,13 @@ def build_webapp_url(resource: str, **params: str) -> str:
     return "{}/{}/webapp?{}".format(PULSEPOINT_API_URL, PULSEPOINT_VERSION, "&".join(query_parts))
 
 
+def build_pulsepoint_public_url(agency_id: str) -> str:
+    cleaned = clean_text(agency_id)
+    if not cleaned:
+        return PULSEPOINT_WEB_ORIGIN + "/"
+    return "{}/?agencies={}".format(PULSEPOINT_WEB_ORIGIN, quote(cleaned))
+
+
 def fetch_encrypted_json(url: str, session: Optional[requests.Session] = None) -> Dict[str, Any]:
     sess = session or requests.Session()
     response = sess.get(url, headers=pulsepoint_headers(), timeout=PULSEPOINT_API_TIMEOUT_SECONDS)
@@ -407,6 +415,8 @@ def build_extra_payload(
         "provider": "pulsepoint",
         "agency_id": agency_id,
         "incident_id": clean_text(incident.get("IncidentNumber") or incident.get("ID")),
+        "source_url": build_pulsepoint_public_url(agency_id),
+        "source_api_url": build_webapp_url("incidents", agencyid=agency_id),
         "call_type_code": call_type_code,
         "call_type_description": call_type_meta["description"],
         "call_type_category": call_type_meta["category"],
