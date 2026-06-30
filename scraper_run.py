@@ -18,7 +18,11 @@ from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
-from arrest_index_builder import build_arrest_index
+
+try:
+    from arrest_index_builder import build_arrest_index
+except Exception:
+    build_arrest_index = None
 
 try:
     from chp_scraper import scrape_chp_incidents
@@ -807,6 +811,9 @@ def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback, r
 
 
 def rebuild_calllog_arrest_index():
+    if build_arrest_index is None:
+        log("WARNING: arrest_index_builder unavailable; skipping calllog_arrest_index rebuild")
+        return
     try:
         build_arrest_index(Path(LOCAL_CSV), Path(CALLLOG_ARREST_INDEX_JSON))
         log("Local calllog_arrest_index.json rebuilt")

@@ -4,7 +4,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -115,7 +115,7 @@ def extract_log_tag(body: str, tag_name: str) -> str:
     return clean_chp_text(match.group(1)) if match else ""
 
 
-def parse_log_lines(body: str, block_re: re.Pattern, time_tag: str, text_tag: str) -> List[Dict[str, str]]:
+def parse_log_lines(body: str, block_re: Pattern[str], time_tag: str, text_tag: str) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     for time_text, detail_text in block_re.findall(body):
         cleaned_text = clean_chp_text(detail_text)

@@ -220,10 +220,19 @@ def parse_iso_text(value: str) -> Optional[datetime]:
     cleaned = clean_text(value)
     if not cleaned:
         return None
+    normalized = cleaned.replace("Z", "+00:00")
     try:
-        return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
-    except ValueError:
-        return None
+        return datetime.fromisoformat(normalized)
+    except (AttributeError, ValueError):
+        pass
+    if len(normalized) >= 6 and normalized[-3] == ":" and normalized[-6] in "+-":
+        normalized = normalized[:-3] + normalized[-2:]
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z"):
+        try:
+            return datetime.strptime(normalized, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def format_local_timestamp(value: str) -> str:
