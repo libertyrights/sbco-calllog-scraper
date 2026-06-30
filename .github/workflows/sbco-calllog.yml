@@ -3,7 +3,7 @@ name: sbco-calllog
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '17,47 * * * *'
 
 concurrency:
   group: sbco-calllog-publish
@@ -42,6 +42,10 @@ jobs:
           SBCO_RUNNER_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
           SBCO_REMOTE_BACKED_DAILY_FILES: '1'
           SBCO_ENABLE_DAILY_RELEASES: '0'
+          SBCO_DEATH_INDEX_REFRESH_TIMEOUT_SECONDS: '480'
+          SBCO_ARREST_LOG_REFRESH_TIMEOUT_SECONDS: '420'
+          SBCO_GITHUB_JOB_SOFT_TIMEOUT_SECONDS: '1200'
+          SBCO_GITHUB_DAILY_REFRESH_HEADROOM_SECONDS: '300'
           SBCO_ARREST_LOG_REQUEST_DELAY_SECONDS: '2.0'
           SBCO_ARREST_LOG_MAX_PAGES: '3'
         run: python scraper_run.py

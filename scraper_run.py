@@ -38,6 +38,8 @@ GRIDVIEW_ID = "GridView1"
 
 BARSTOW_CODE = "BA"
 PRIMARY_AGENCY_CODE = os.environ.get("SBCO_PRIMARY_AGENCY_CODE", "SBSO").strip() or "SBSO"
+PULSEPOINT_AGENCY_CODE = (os.environ.get("SBCO_PULSEPOINT_AGENCY_CODE", "SBCFIRE").strip() or "SBCFIRE").upper()
+IS_GITHUB_ACTIONS = os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true"
 
 BASE_DIR = os.environ.get("SBCO_BASE_DIR", "/home/mark/python")
 STATE_DIR = os.path.join(BASE_DIR, ".state")
@@ -63,12 +65,16 @@ DEATH_INDEX_PAGE_URL = "https://xcore.sbcounty.gov/sheriff/SheriffCMS/DeathRegis
 DEATH_INDEX_GRID_URL = DEATH_INDEX_PAGE_URL + "/DataGrid"
 DEATH_INDEX_PAGE_SIZE = int(os.environ.get("SBCO_DEATH_INDEX_PAGE_SIZE", "100"))
 DEATH_INDEX_DELAY_SECONDS = float(os.environ.get("SBCO_DEATH_INDEX_DELAY_SECONDS", "0.4"))
+DEATH_INDEX_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_DEATH_INDEX_REFRESH_TIMEOUT_SECONDS", "480"))
 ARREST_LOG_SCRIPT = os.path.join(os.path.dirname(__file__), "scrape-sbco-arr-log.py")
-ARREST_LOG_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_ARREST_LOG_REFRESH_TIMEOUT_SECONDS", "900"))
+ARREST_LOG_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_ARREST_LOG_REFRESH_TIMEOUT_SECONDS", "420"))
 ARREST_LOG_REQUEST_DELAY_SECONDS = float(os.environ.get("SBCO_ARREST_LOG_REQUEST_DELAY_SECONDS", "2.0"))
 ARREST_LOG_MAX_PAGES = int(os.environ.get("SBCO_ARREST_LOG_MAX_PAGES", "3"))
 DAILY_REMOTE_FILE_FRESHNESS_HOURS = float(os.environ.get("SBCO_DAILY_REMOTE_FILE_FRESHNESS_HOURS", "20"))
 PUBLIC_FILE_TIMEOUT_SECONDS = int(os.environ.get("SBCO_PUBLIC_FILE_TIMEOUT_SECONDS", "60"))
+PHASE_WARNING_SECONDS = float(os.environ.get("SBCO_PHASE_WARNING_SECONDS", "60"))
+GITHUB_JOB_SOFT_TIMEOUT_SECONDS = int(os.environ.get("SBCO_GITHUB_JOB_SOFT_TIMEOUT_SECONDS", "1200"))
+GITHUB_DAILY_REFRESH_HEADROOM_SECONDS = int(os.environ.get("SBCO_GITHUB_DAILY_REFRESH_HEADROOM_SECONDS", "300"))
 
 KEEP_RECENT_HOURS = 48
 KEEP_DAILY_DAYS = 30
@@ -120,8 +126,9 @@ FORMATTED_FIELDS = [
 RELEASE_FIELDS = ["Name", "Sex", "Age", "Height", "Weight", "Release Date"]
 
 FIELDS_TO_COMPARE = ["call type", "disposition", "location", "extra_json"]
+DISPLAY_DATE_FORMAT = "%m/%d/%Y %I:%M:%S %p"
 DATE_FORMATS = [
-    "%m/%d/%Y %I:%M:%S %p",
+    DISPLAY_DATE_FORMAT,
     "%m/%d/%y %I:%M:%S %p",
 ]
 
@@ -177,6 +184,34 @@ def log_daily_release(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(DAILY_RELEASE_LOG, "a") as f:
         f.write("[RELEASES] {} {}\n".format(ts, msg))
+
+
+def log_phase_duration(name, started_monotonic):
+    elapsed = max(0.0, time.monotonic() - started_monotonic)
+    prefix = "WARNING: " if elapsed >= PHASE_WARNING_SECONDS else ""
+    log("{}{} completed in {:.1f}s".format(prefix, name, elapsed))
+    return elapsed
+
+
+def github_job_seconds_remaining(run_started_monotonic):
+    if not IS_GITHUB_ACTIONS or run_started_monotonic is None:
+        return None
+    elapsed = max(0.0, time.monotonic() - run_started_monotonic)
+    return max(0.0, float(GITHUB_JOB_SOFT_TIMEOUT_SECONDS) - elapsed)
+
+
+def should_skip_github_daily_refresh(run_started_monotonic):
+    remaining = github_job_seconds_remaining(run_started_monotonic)
+    if remaining is None:
+        return False
+    return remaining <= float(GITHUB_DAILY_REFRESH_HEADROOM_SECONDS)
+
+
+def enforce_deadline(name, deadline_monotonic):
+    if deadline_monotonic is None:
+        return
+    if time.monotonic() >= deadline_monotonic:
+        raise TimeoutError("{} exceeded its time budget".format(name))
 
 
 def utc_now():
@@ -348,11 +383,41 @@ def normalize_agency_and_station(record):
     return agency.upper(), station
 
 
+def normalize_display_station(agency, station):
+    agency_upper = (agency or "").strip().upper()
+    station_text = (station or "").strip()
+    if not station_text:
+        return ""
+    if agency_upper == PRIMARY_AGENCY_CODE.upper() and station_text.upper() in {BARSTOW_CODE.upper(), "BARSTOW"}:
+        return "Barstow"
+    return station_text
+
+
+def station_is_barstow(agency, station):
+    agency_upper = (agency or "").strip().upper()
+    station_upper = (station or "").strip().upper()
+    if agency_upper != PRIMARY_AGENCY_CODE.upper():
+        return False
+    return station_upper in {BARSTOW_CODE.upper(), "BARSTOW"}
+
+
+def normalize_display_datetime(value):
+    text = (value or "").strip()
+    if not text:
+        return ""
+    parsed = parse_datetime(text)
+    if parsed is None:
+        return text
+    return parsed.strftime(DISPLAY_DATE_FORMAT)
+
+
 def normalize_record(record):
     normalized = {}
     for field in CSV_FIELDS:
         normalized[field] = (record.get(field, "") or "").strip()
     normalized["agency"], normalized["station"] = normalize_agency_and_station(record)
+    normalized["date/time"] = normalize_display_datetime(normalized.get("date/time", ""))
+    normalized["station"] = normalize_display_station(normalized["agency"], normalized["station"])
     normalized["location"] = clean_location_field(normalized.get("location", ""))
     return normalized
 
@@ -360,10 +425,9 @@ def normalize_record(record):
 def row_is_in_scope(record):
     normalized = normalize_record(record)
     agency = (normalized.get("agency", "") or "").strip().upper()
-    station = (normalized.get("station", "") or "").strip().upper()
     if agency != PRIMARY_AGENCY_CODE.upper():
         return True
-    return station == BARSTOW_CODE
+    return station_is_barstow(normalized.get("agency", ""), normalized.get("station", ""))
 
 
 def filter_scoped_rows(rows):
@@ -412,6 +476,93 @@ def revision_number(call_number):
         return 0
     suffix = call_number.rsplit(".", 1)[-1]
     return int(suffix) if suffix.isdigit() else 0
+
+
+def parse_extra_json_value(value):
+    if isinstance(value, dict):
+        return dict(value)
+    text = (value or "").strip()
+    if not text:
+        return {}
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def dump_extra_json_value(payload):
+    if not isinstance(payload, dict) or not payload:
+        return ""
+    return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+
+
+def latest_rows_by_base(rows):
+    latest = {}
+    for row in rows:
+        normalized = normalize_record(row)
+        call_number = normalized.get("call number", "")
+        if not call_number:
+            continue
+        base = call_base(call_number)
+        existing = latest.get(base)
+        if existing is None or revision_number(call_number) > revision_number(existing.get("call number", "")):
+            latest[base] = normalized
+    return latest
+
+
+def row_matches_feed(record, agency_code, extra_kind):
+    normalized = normalize_record(record)
+    if (normalized.get("agency", "") or "").strip().upper() != (agency_code or "").strip().upper():
+        return False
+    extra_payload = parse_extra_json_value(normalized.get("extra_json", ""))
+    if extra_payload.get("kind") == extra_kind:
+        return True
+    call_number = (normalized.get("call number", "") or "").strip().upper()
+    return bool(call_number) and call_number.startswith("{}-".format((agency_code or "").strip().upper()))
+
+
+def build_feed_closure_candidate(latest_row, closed_disposition="CLS", reason="missing_from_source_feed"):
+    closure_row = normalize_record(latest_row)
+    closure_row["call number"] = call_base(closure_row.get("call number", ""))
+    closure_row["disposition"] = closed_disposition
+    closure_row["revision_scraped_at"] = ""
+
+    extra_payload = parse_extra_json_value(closure_row.get("extra_json", ""))
+    if extra_payload:
+        extra_payload["is_active"] = False
+        extra_payload["is_closed"] = True
+        extra_payload["closure_reason"] = reason
+        if not extra_payload.get("closed_at"):
+            extra_payload["closed_at"] = datetime.now().astimezone().strftime("%m/%d/%Y %I:%M:%S %p")
+        closure_row["extra_json"] = dump_extra_json_value(extra_payload)
+
+    return closure_row
+
+
+def close_missing_feed_rows(existing_rows, current_rows, agency_code, extra_kind, closed_disposition="CLS"):
+    current_bases = set()
+    for row in current_rows:
+        call_number = normalize_record(row).get("call number", "")
+        if call_number:
+            current_bases.add(call_base(call_number))
+
+    closure_candidates = []
+    for base_call_number, latest_row in latest_rows_by_base(existing_rows).items():
+        if not row_matches_feed(latest_row, agency_code, extra_kind):
+            continue
+        if (latest_row.get("disposition", "") or "").strip().upper() != "ACT":
+            continue
+        if base_call_number in current_bases:
+            continue
+        closure_candidates.append(
+            build_feed_closure_candidate(latest_row, closed_disposition=closed_disposition)
+        )
+
+    if not closure_candidates:
+        return filter_scoped_rows(existing_rows), 0
+
+    return merge_revisions(existing_rows, closure_candidates), len(closure_candidates)
 
 
 def parse_datetime(dt_str):
@@ -494,6 +645,8 @@ def write_text(path, text):
 
 
 def refresh_death_index_csv(output_path):
+    started_monotonic = time.monotonic()
+    deadline_monotonic = started_monotonic + max(1, DEATH_INDEX_REFRESH_TIMEOUT_SECONDS)
     session = requests.Session()
     session.headers.update(
         {
@@ -505,18 +658,22 @@ def refresh_death_index_csv(output_path):
             "Referer": DEATH_INDEX_PAGE_URL,
         }
     )
+    enforce_deadline("death index refresh", deadline_monotonic)
     session.get(DEATH_INDEX_PAGE_URL, timeout=60).raise_for_status()
 
     fieldnames = None
     total_rows = 0
     current_year = datetime.now().year
+    page_count = 0
     tmp_path = output_path + ".tmp"
     with open(tmp_path, "w", newline="", encoding="utf-8") as f:
         writer = None
         for year in range(current_year, 2000, -1):
+            enforce_deadline("death index refresh", deadline_monotonic)
             start = 0
             draw = 1
             while True:
+                enforce_deadline("death index refresh", deadline_monotonic)
                 response = session.post(
                     DEATH_INDEX_GRID_URL,
                     data={
@@ -534,6 +691,7 @@ def refresh_death_index_csv(output_path):
                 rows = payload.get("data") if isinstance(payload, dict) else []
                 if not rows:
                     break
+                page_count += 1
 
                 if fieldnames is None:
                     fieldnames = list(rows[0].keys())
@@ -559,10 +717,12 @@ def refresh_death_index_csv(output_path):
         raise RuntimeError("death index refresh returned no rows")
 
     os.replace(tmp_path, output_path)
-    log("death_index.csv refreshed locally ({} rows)".format(total_rows))
+    elapsed = log_phase_duration("death_index.csv refresh", started_monotonic)
+    log("death_index.csv refreshed locally ({} rows across {} pages in {:.1f}s)".format(total_rows, page_count, elapsed))
 
 
 def refresh_arrest_log_json(output_path):
+    started_monotonic = time.monotonic()
     command = [
         sys.executable,
         ARREST_LOG_SCRIPT,
@@ -573,13 +733,19 @@ def refresh_arrest_log_json(output_path):
         "--max-pages",
         str(ARREST_LOG_MAX_PAGES),
     ]
-    result = subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=ARREST_LOG_REFRESH_TIMEOUT_SECONDS,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=ARREST_LOG_REFRESH_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        elapsed = log_phase_duration("all_records.json refresh", started_monotonic)
+        raise TimeoutError(
+            "arrest log refresh exceeded {}s after {:.1f}s".format(ARREST_LOG_REFRESH_TIMEOUT_SECONDS, elapsed)
+        ) from exc
     stdout = " ".join((result.stdout or "").split())
     stderr = " ".join((result.stderr or "").split())
     if stdout:
@@ -588,10 +754,11 @@ def refresh_arrest_log_json(output_path):
         log("Arrest log refresh stderr: {}".format(stderr[:1000]))
     if not os.path.exists(output_path):
         raise RuntimeError("arrest log refresh did not create {}".format(output_path))
-    log("all_records.json refreshed locally")
+    elapsed = log_phase_duration("all_records.json refresh", started_monotonic)
+    log("all_records.json refreshed locally in {:.1f}s".format(elapsed))
 
 
-def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback):
+def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback, run_started_monotonic=None):
     downloaded_fallback = False
 
     if REMOTE_BACKED_DAILY_FILES:
@@ -616,8 +783,20 @@ def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback):
         elif remote_file:
             log("Public {} is present but unusable; refreshing locally".format(remote_name))
 
+    if downloaded_fallback and should_skip_github_daily_refresh(run_started_monotonic):
+        remaining = github_job_seconds_remaining(run_started_monotonic)
+        log(
+            "WARNING: skipping local refresh of {} on GitHub to preserve {:.0f}s of job headroom".format(
+                remote_name,
+                remaining or 0,
+            )
+        )
+        return []
+
     try:
+        phase_started = time.monotonic()
         refresh_callback(local_path)
+        log_phase_duration("{} local refresh".format(remote_name), phase_started)
         return [(remote_name, local_path)]
     except Exception as e:
         if downloaded_fallback or os.path.exists(local_path):
@@ -1409,13 +1588,17 @@ def run_daily_release_if_due():
 def main():
     ensure_dirs()
     log("Run started")
+    run_started_monotonic = time.monotonic()
 
+    bootstrap_started = time.monotonic()
     local_rows = load_csv(LOCAL_CSV)
     server_rows = fetch_server_rows()
     merged = union_merge(local_rows, server_rows)
     write_csv(LOCAL_CSV, merged)
     log("Bootstrap union complete ({} records)".format(len(merged)))
+    log_phase_duration("bootstrap union", bootstrap_started)
 
+    sbso_started = time.monotonic()
     session = requests.Session()
     initial = session.get(FRAME_URL, timeout=60)
     initial.raise_for_status()
@@ -1451,33 +1634,57 @@ def main():
             all_rows.extend(page_rows)
 
         merged = merge_revisions(merged, all_rows)
+    log_phase_duration("SBSO scrape", sbso_started)
 
     if scrape_chp_incidents is not None:
+        chp_started = time.monotonic()
         try:
             chp_rows = scrape_chp_incidents()
+            merged, chp_closed = close_missing_feed_rows(
+                merged,
+                chp_rows,
+                agency_code="CHP",
+                extra_kind="chp_incident",
+            )
             if chp_rows:
                 merged = merge_revisions(merged, chp_rows)
                 log("Merged {} CHP incidents".format(len(chp_rows)))
             else:
                 log("CHP scrape returned 0 incidents")
+            if chp_closed:
+                log("Closed {} stale CHP incidents".format(chp_closed))
         except Exception as e:
             log("WARNING: CHP scrape failed: {}".format(e))
+        else:
+            log_phase_duration("CHP scrape", chp_started)
     else:
         log("CHP scraper unavailable; skipping CHP merge")
 
     if scrape_pulsepoint_incidents is not None:
+        pulsepoint_started = time.monotonic()
         try:
             pulsepoint_rows = scrape_pulsepoint_incidents()
+            merged, pulsepoint_closed = close_missing_feed_rows(
+                merged,
+                pulsepoint_rows,
+                agency_code=PULSEPOINT_AGENCY_CODE,
+                extra_kind="pulsepoint_incident",
+            )
             if pulsepoint_rows:
                 merged = merge_revisions(merged, pulsepoint_rows)
                 log("Merged {} PulsePoint incidents".format(len(pulsepoint_rows)))
             else:
                 log("PulsePoint scrape returned 0 incidents")
+            if pulsepoint_closed:
+                log("Closed {} stale PulsePoint incidents".format(pulsepoint_closed))
         except Exception as e:
             log("WARNING: PulsePoint scrape failed: {}".format(e))
+        else:
+            log_phase_duration("PulsePoint scrape", pulsepoint_started)
     else:
         log("PulsePoint scraper unavailable; skipping PulsePoint merge")
 
+    write_started = time.monotonic()
     write_csv(LOCAL_CSV, merged)
     log("Local calllog.csv written ({} records)".format(len(merged)))
 
@@ -1487,21 +1694,44 @@ def main():
     barstow = [
         row
         for row in merged
-        if row.get("agency") == PRIMARY_AGENCY_CODE and row.get("station") == BARSTOW_CODE
+        if station_is_barstow(row.get("agency", ""), row.get("station", ""))
     ]
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
         json.dump(barstow, f, indent=2)
+    log_phase_duration("local output write", write_started)
 
+    daily_files_started = time.monotonic()
     extra_file_specs = []
     extra_file_specs.extend(
-        ensure_remote_backed_daily_file("death_index.csv", DEATH_INDEX_CSV, refresh_death_index_csv)
+        ensure_remote_backed_daily_file(
+            "death_index.csv",
+            DEATH_INDEX_CSV,
+            refresh_death_index_csv,
+            run_started_monotonic=run_started_monotonic,
+        )
     )
     extra_file_specs.extend(
-        ensure_remote_backed_daily_file("all_records.json", ARREST_LOG_JSON, refresh_arrest_log_json)
+        ensure_remote_backed_daily_file(
+            "all_records.json",
+            ARREST_LOG_JSON,
+            refresh_arrest_log_json,
+            run_started_monotonic=run_started_monotonic,
+        )
     )
+    log_phase_duration("daily supporting files", daily_files_started)
+
+    arrest_index_started = time.monotonic()
     rebuild_calllog_arrest_index()
+    log_phase_duration("calllog arrest index rebuild", arrest_index_started)
+
+    publish_started = time.monotonic()
     publish_outputs(extra_file_specs)
+    log_phase_duration("publish outputs", publish_started)
+
+    release_started = time.monotonic()
     run_daily_release_if_due()
+    log_phase_duration("daily release check", release_started)
+    log_phase_duration("full run", run_started_monotonic)
     log("Run completed successfully")
 
 

@@ -4,7 +4,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -16,6 +16,7 @@ CHP_DISPATCH_BARSTOW = "BSCC"
 CHP_AGENCY_CODE = "CHP"
 CHP_STATION_BARSTOW = "Barstow"
 CHP_ACTIVE_DISPOSITION = "ACT"
+CHP_IGNORED_AREA_SUFFIXES = {"MOR", "VVC"}
 
 AREA_SUFFIX_MAP = {
     "Barstow": "BAR",
@@ -78,6 +79,29 @@ def build_call_number(log_id: str) -> str:
     return "CHP-{}".format(clean_chp_text(log_id))
 
 
+def location_mentions_ignored_area(*values: str) -> bool:
+    for value in values:
+        cleaned = clean_chp_text(value).upper()
+        if re.search(r"(^|[^A-Z])(MOR|VVC)([^A-Z]|$)", cleaned):
+            return True
+    return False
+
+
+def split_chp_call_type(value: str) -> Tuple[str, str]:
+    cleaned = clean_chp_text(value)
+    if not cleaned:
+        return "", ""
+    patterns = [
+        r"^([A-Z0-9./]+)\s*-\s*([A-Za-z].+)$",
+        r"^([A-Z0-9./]+)\s+([A-Za-z].+)$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, cleaned)
+        if match:
+            return clean_chp_text(match.group(1)), clean_chp_text(match.group(2))
+    return cleaned, ""
+
+
 def extract_dispatch_chunk(content: str, dispatch_id: str) -> str:
     pattern = r'<Dispatch ID = "{}">(.*?)(?:</Dispatch>|<Dispatch ID = |</Center>|</State>|$)'.format(
         re.escape(dispatch_id)
@@ -123,6 +147,8 @@ def parse_chp_latlon(latlon_raw: str) -> Dict[str, Any]:
 def build_extra_payload(
     *,
     log_id: str,
+    call_type_code: str,
+    call_type_description: str,
     area: str,
     location_desc: str,
     latlon_raw: str,
@@ -132,12 +158,17 @@ def build_extra_payload(
 ) -> Dict[str, Any]:
     payload: Dict[str, Any] = {
         "kind": "chp_incident",
+        "provider": "chp",
         "dispatch_id": CHP_DISPATCH_BARSTOW,
         "log_id": clean_chp_text(log_id),
+        "call_type_code": clean_chp_text(call_type_code),
+        "call_type_description": clean_chp_text(call_type_description),
         "area": clean_chp_text(area),
         "location_detail": clean_chp_text(location_desc),
         "detail_lines": detail_lines,
         "unit_activity": unit_activity,
+        "is_active": True,
+        "is_closed": False,
     }
     map_info = parse_chp_latlon(latlon_raw)
     if map_info:
@@ -164,10 +195,17 @@ def normalize_incident(
     parsed_time = parse_chp_timestamp(log_time)
     cleaned_log_id = clean_chp_text(log_id)
     cleaned_type = clean_chp_text(log_type)
-    if not parsed_time or not cleaned_log_id or not cleaned_type:
+    call_type_code, call_type_description = split_chp_call_type(cleaned_type)
+    if not parsed_time or not cleaned_log_id or not call_type_code:
+        return None
+    if area_suffix(area) in CHP_IGNORED_AREA_SUFFIXES:
+        return None
+    if location_mentions_ignored_area(location, location_desc):
         return None
     extra_payload = build_extra_payload(
         log_id=cleaned_log_id,
+        call_type_code=call_type_code,
+        call_type_description=call_type_description,
         area=area,
         location_desc=location_desc,
         latlon_raw=latlon_raw,
@@ -181,7 +219,7 @@ def normalize_incident(
         "station": CHP_STATION_BARSTOW,
         "call number": build_call_number(cleaned_log_id),
         "report number": cleaned_log_id,
-        "call type": cleaned_type,
+        "call type": call_type_code,
         "disposition": CHP_ACTIVE_DISPOSITION,
         "location": build_location(location, area, location_desc),
         "revision_scraped_at": "",
@@ -286,14 +324,20 @@ def incident_richness(incident: Dict[str, str]) -> int:
 def scrape_chp_incidents() -> List[Dict[str, str]]:
     session = requests.Session()
     incidents: List[Dict[str, str]] = []
+    errors: List[str] = []
+    fetch_succeeded = False
     try:
         incidents.extend(parse_chp_xml_feed(fetch_chp_xml_feed(session)))
-    except Exception:
-        pass
+        fetch_succeeded = True
+    except Exception as exc:
+        errors.append("xml={}".format(exc))
     try:
         incidents.extend(fetch_chp_mobile_barstow(session))
-    except Exception:
-        pass
+        fetch_succeeded = True
+    except Exception as exc:
+        errors.append("mobile={}".format(exc))
+    if not fetch_succeeded:
+        raise RuntimeError("CHP feed fetch failed ({})".format("; ".join(errors) or "unknown error"))
     deduped = dedupe_incidents(incidents)
     deduped.sort(key=lambda row: row.get("date/time", ""), reverse=True)
     return deduped
