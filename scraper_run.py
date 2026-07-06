@@ -431,6 +431,8 @@ def row_is_in_scope(record):
     agency = (normalized.get("agency", "") or "").strip().upper()
     if agency != PRIMARY_AGENCY_CODE.upper():
         return True
+    if not (normalized.get("station", "") or "").strip():
+        return True
     return station_is_barstow(normalized.get("agency", ""), normalized.get("station", ""))
 
 
@@ -469,6 +471,21 @@ def union_merge(rows_a, rows_b):
         if call_number:
             out[call_number] = normalized
     return filter_scoped_rows(out.values())
+
+
+def file_size_or_zero(path):
+    try:
+        return max(0, int(os.path.getsize(path)))
+    except Exception:
+        return 0
+
+
+def load_last_uploaded_calllog_size():
+    payload = load_secret_config(CALLLOG_UPLOAD_META_JSON)
+    try:
+        return max(0, int(payload.get("calllog_bytes", 0) or 0))
+    except Exception:
+        return 0
 
 
 def call_base(call_number):
@@ -1011,6 +1028,7 @@ def write_upload_trace_file(path, run_id, transport):
         "run_id": run_id,
         "publisher": build_publish_owner(),
         "host": socket.gethostname() or "unknown-host",
+        "calllog_bytes": file_size_or_zero(LOCAL_CSV),
     }
     write_text(path, json.dumps(payload, indent=2, sort_keys=True))
     return payload
@@ -1161,13 +1179,27 @@ def trigger_remote_db_rebuild():
         log("WARNING: remote DB rebuild failed: {}".format(e))
 
 
+def build_server_bootstrap_snapshot(remote_bytes, source_label):
+    if remote_bytes is None:
+        return {
+            "rows": [],
+            "size": 0,
+            "source": source_label,
+        }
+    with open(SERVER_COPY, "wb") as f:
+        f.write(remote_bytes)
+    log("Downloaded server calllog.csv from {}".format(source_label))
+    return {
+        "rows": load_csv(SERVER_COPY),
+        "size": len(remote_bytes),
+        "source": source_label,
+    }
+
+
 def fetch_server_rows_from_url(url):
     response = requests.get(url, timeout=60)
     response.raise_for_status()
-    with open(SERVER_COPY, "wb") as f:
-        f.write(response.content)
-    log("Downloaded server calllog.csv from {}".format(url))
-    return load_csv(SERVER_COPY)
+    return build_server_bootstrap_snapshot(response.content, url)
 
 
 def fetch_server_rows():
@@ -1186,16 +1218,69 @@ def fetch_server_rows():
     try:
         remote_bytes = ftp_download_bytes(ftp, "calllog.csv")
         if remote_bytes is None:
-            return []
-        with open(SERVER_COPY, "wb") as f:
-            f.write(remote_bytes)
-        log("Downloaded server calllog.csv")
-        return load_csv(SERVER_COPY)
+            return {"rows": [], "size": 0, "source": "ftp:calllog.csv"}
+        return build_server_bootstrap_snapshot(remote_bytes, "ftp:calllog.csv")
     finally:
         try:
             ftp.quit()
         except Exception:
             pass
+
+
+def bootstrap_local_rows():
+    local_rows = load_csv(LOCAL_CSV)
+    local_size = file_size_or_zero(LOCAL_CSV)
+    last_uploaded_size = load_last_uploaded_calllog_size()
+    server_snapshot = fetch_server_rows()
+    server_rows = server_snapshot.get("rows", [])
+    server_size = max(0, int(server_snapshot.get("size", 0) or 0))
+    server_source = server_snapshot.get("source", "server")
+
+    if not server_rows or server_size <= 0:
+        log("Bootstrap kept local calllog.csv because the server copy was unavailable")
+        return filter_scoped_rows(local_rows)
+
+    if local_size <= 0:
+        write_csv(LOCAL_CSV, server_rows)
+        log(
+            "Bootstrap refreshed local calllog.csv from {} because the local file was missing (server_bytes={}, last_uploaded_bytes={})".format(
+                server_source,
+                server_size,
+                last_uploaded_size,
+            )
+        )
+        return server_rows
+
+    if last_uploaded_size > 0 and server_size < last_uploaded_size:
+        log(
+            "Bootstrap kept local calllog.csv because the server copy from {} is smaller than the last uploaded file ({} < {})".format(
+                server_source,
+                server_size,
+                last_uploaded_size,
+            )
+        )
+        return filter_scoped_rows(local_rows)
+
+    if server_size < local_size:
+        log(
+            "Bootstrap kept local calllog.csv because the server copy from {} is smaller than the local file ({} < {})".format(
+                server_source,
+                server_size,
+                local_size,
+            )
+        )
+        return filter_scoped_rows(local_rows)
+
+    write_csv(LOCAL_CSV, server_rows)
+    log(
+        "Bootstrap refreshed local calllog.csv from {} (server_bytes={}, local_bytes={}, last_uploaded_bytes={})".format(
+            server_source,
+            server_size,
+            local_size,
+            last_uploaded_size,
+        )
+    )
+    return server_rows
 
 
 def build_publish_file_specs(extra_file_specs=None):
@@ -1598,12 +1683,9 @@ def main():
     run_started_monotonic = time.monotonic()
 
     bootstrap_started = time.monotonic()
-    local_rows = load_csv(LOCAL_CSV)
-    server_rows = fetch_server_rows()
-    merged = union_merge(local_rows, server_rows)
-    write_csv(LOCAL_CSV, merged)
-    log("Bootstrap union complete ({} records)".format(len(merged)))
-    log_phase_duration("bootstrap union", bootstrap_started)
+    merged = bootstrap_local_rows()
+    log("Bootstrap selection complete ({} records)".format(len(merged)))
+    log_phase_duration("bootstrap selection", bootstrap_started)
 
     sbso_started = time.monotonic()
     session = requests.Session()
