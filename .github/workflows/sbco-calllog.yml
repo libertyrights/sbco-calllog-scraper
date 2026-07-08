@@ -38,6 +38,9 @@ jobs:
           SBCO_SERVER_CALLLOG_URL: ${{ secrets.SBCO_SERVER_CALLLOG_URL }}
           SBCO_HTTP_UPLOAD_URL: ${{ secrets.SBCO_HTTP_UPLOAD_URL }}
           SBCO_HTTP_UPLOAD_SECRET: ${{ secrets.SBCO_HTTP_UPLOAD_SECRET }}
+          SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
           SBCO_HTTP_UPLOAD_SOURCE: github-actions
           SBCO_RUNNER_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
           SBCO_REMOTE_BACKED_DAILY_FILES: '1'

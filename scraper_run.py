@@ -159,16 +159,24 @@ def env_flag(name, default=False):
 
 
 def secret_value(env_name, config_key, default=""):
-    value = os.environ.get(env_name)
-    if value not in [None, ""]:
-        return value
-    value = SECRET_CONFIG.get(config_key, default)
-    return value if value not in [None, ""] else default
+    env_names = env_name if isinstance(env_name, (list, tuple)) else [env_name]
+    for name in env_names:
+        value = os.environ.get(name)
+        if value not in [None, ""]:
+            return value
+
+    config_keys = config_key if isinstance(config_key, (list, tuple)) else [config_key]
+    for key in config_keys:
+        value = SECRET_CONFIG.get(key, default)
+        if value not in [None, ""]:
+            return value
+
+    return default
 
 
-FTP_HOST = secret_value("SBCO_FTP_HOST", "ftp_host", "s2.serv00.com")
-FTP_USER = secret_value("SBCO_FTP_USER", "ftp_user", "")
-FTP_PASS = secret_value("SBCO_FTP_PASS", "ftp_pass", "")
+FTP_HOST = secret_value(("SBCO_FTP_HOST", "SERV00_FTP_HOST", "FTP_HOST"), "ftp_host", "s2.serv00.com")
+FTP_USER = secret_value(("SBCO_FTP_USER", "SERV00_FTP_USER", "FTP_USER"), "ftp_user", "")
+FTP_PASS = secret_value(("SBCO_FTP_PASS", "SERV00_FTP_PASS", "FTP_PASS"), "ftp_pass", "")
 REMOTE_DB_REBUILD_TOKEN = secret_value("SBCO_REMOTE_DB_REBUILD_TOKEN", "remote_db_rebuild_token", "")
 HTTP_UPLOAD_SECRET = secret_value("SBCO_HTTP_UPLOAD_SECRET", "http_upload_secret", "")
 REMOTE_BACKED_DAILY_FILES = env_flag(
@@ -1369,11 +1377,19 @@ def publish_outputs_via_http(extra_file_specs=None):
             files=files,
             timeout=HTTP_UPLOAD_TIMEOUT_SECONDS,
         )
-        response.raise_for_status()
         try:
             payload = response.json()
         except Exception:
             payload = {"raw": response.text}
+        if response.status_code >= 400:
+            raise RuntimeError(
+                "HTTP upload failed with status {}: {}".format(
+                    response.status_code,
+                    json.dumps(payload, sort_keys=True)[:1200],
+                )
+            )
+        if isinstance(payload, dict) and payload.get("ok") is False:
+            raise RuntimeError("HTTP upload rejected: {}".format(json.dumps(payload, sort_keys=True)[:1200]))
         log("HTTP upload response: {}".format(json.dumps(payload, sort_keys=True)[:1200]))
     finally:
         for fp in opened:
@@ -1388,14 +1404,10 @@ def publish_outputs_via_ftp(extra_file_specs=None):
         local_bytes = f.read()
     needs_db_rebuild = False
     lock_state = None
+    ftp = None
 
     try:
         ftp = ftp_connect()
-    except Exception as e:
-        log("WARNING: ftp publish unavailable: {}".format(e))
-        return
-
-    try:
         lock_state = ftp_acquire_publish_lock(ftp)
         run_id = lock_state["run_id"]
         trace_meta = write_upload_trace_file(CALLLOG_UPLOAD_META_JSON, run_id, "ftp-direct")
@@ -1435,32 +1447,55 @@ def publish_outputs_via_ftp(extra_file_specs=None):
                 continue
             ftp_atomic_replace(ftp, local_path, remote_name, run_id)
             log("{} uploaded with remote lock".format(remote_name))
-    except Exception as e:
-        log("WARNING: ftp publish failed: {}".format(e))
     finally:
-        try:
-            ftp_release_publish_lock(ftp, lock_state)
-        except Exception as e:
-            log("WARNING: failed to release remote publish lock: {}".format(e))
-        try:
-            ftp.quit()
-        except Exception:
-            pass
+        if ftp is not None:
+            try:
+                ftp_release_publish_lock(ftp, lock_state)
+            except Exception as e:
+                log("WARNING: failed to release remote publish lock: {}".format(e))
+            try:
+                ftp.quit()
+            except Exception:
+                pass
 
     if needs_db_rebuild:
         trigger_remote_db_rebuild()
 
 
 def publish_outputs(extra_file_specs=None):
+    http_error = None
+    ftp_error = None
+
     if HTTP_UPLOAD_URL:
         try:
             publish_outputs_via_http(extra_file_specs)
             return
         except Exception as e:
+            http_error = e
             log("WARNING: http publish failed: {}".format(e))
-            if not FTP_USER or not FTP_PASS:
-                return
-    publish_outputs_via_ftp(extra_file_specs)
+
+    if FTP_USER and FTP_PASS:
+        try:
+            publish_outputs_via_ftp(extra_file_specs)
+            if http_error is not None:
+                log("FTP publish fallback succeeded after HTTP failure")
+            return
+        except Exception as e:
+            ftp_error = e
+            log("WARNING: ftp publish failed: {}".format(e))
+
+    if http_error is not None and ftp_error is not None:
+        raise RuntimeError(
+            "All remote publish transports failed (http={}, ftp={})".format(http_error, ftp_error)
+        )
+    if http_error is not None:
+        raise RuntimeError(
+            "Remote publish failed and no FTP fallback succeeded: {}".format(http_error)
+        )
+    if ftp_error is not None:
+        raise RuntimeError("Remote FTP publish failed: {}".format(ftp_error))
+
+    log("WARNING: no remote publish transport configured; skipping remote publish")
 
 
 def get_hidden_fields(soup):

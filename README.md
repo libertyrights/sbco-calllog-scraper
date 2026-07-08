@@ -12,7 +12,7 @@ Included:
 - `server/`
   PHP queue receiver, processor, and example config for the serv00 side.
 - `.github/workflows/sbco-calllog.yml`
-  GitHub Actions workflow that runs hourly.
+  GitHub Actions workflow that runs every 15 minutes.
 
 Not included:
 - Private credentials
@@ -27,12 +27,16 @@ Add these repository secrets before enabling scheduled runs:
 - `SBCO_SERVER_CALLLOG_URL`
 - `SBCO_HTTP_UPLOAD_URL`
 - `SBCO_HTTP_UPLOAD_SECRET`
+- `SERV00_FTP_HOST`
+- `SERV00_FTP_USER`
+- `SERV00_FTP_PASS`
 
 ## Notes
 
-- The GitHub job runs hourly at minute `17`.
+- The GitHub job is scheduled for every 15 minutes.
 - The GitHub job reuses the already-published public `all_records.json` and `death_index.csv` when those files are still fresh, and only refreshes them locally when they are stale.
 - The GitHub job disables the unrelated daily release-list fetch so the hourly schedule does not create extra background traffic.
 - The server-side receiver should use matching UTC hour and minute whitelists so it only accepts expected uploads.
+- If the signed HTTP queue upload is rejected, the GitHub job can fall back to direct serv00 FTP publish when the serv00 secrets are present.
 - The server queue processor promotes files in timestamp order and deletes processed temp batches after a successful apply.
 - The repo includes only example server config. Live serv00 secrets should stay in an untracked `calllog_server_config.php` on the server.
