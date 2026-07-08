@@ -50,6 +50,15 @@ jobs:
           SBCO_ARREST_LOG_MAX_PAGES: '3'
         run: python scraper_run.py
 
+      - name: Upload status to serv00 dashboard
+        if: always()
+        env:
+          SERV00_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SERV00_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SERV00_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
+          SBCO_BASE_DIR: ${{ github.workspace }}/runtime
+        run: python upload_calllog_status.py
+
       - name: Upload runtime artifacts
         if: always()
         uses: actions/upload-artifact@v4
