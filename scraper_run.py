@@ -82,6 +82,7 @@ DEATH_INDEX_GRID_URL = DEATH_INDEX_PAGE_URL + "/DataGrid"
 DEATH_INDEX_PAGE_SIZE = int(os.environ.get("SBCO_DEATH_INDEX_PAGE_SIZE", "100"))
 DEATH_INDEX_DELAY_SECONDS = float(os.environ.get("SBCO_DEATH_INDEX_DELAY_SECONDS", "0.4"))
 DEATH_INDEX_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_DEATH_INDEX_REFRESH_TIMEOUT_SECONDS", "480"))
+DEATH_INDEX_RECENT_LOOKBACK_DAYS = int(os.environ.get("SBCO_DEATH_INDEX_RECENT_LOOKBACK_DAYS", "45"))
 ARREST_LOG_SCRIPT = os.path.join(os.path.dirname(__file__), "scrape-sbco-arr-log.py")
 ARREST_LOG_REFRESH_TIMEOUT_SECONDS = int(os.environ.get("SBCO_ARREST_LOG_REFRESH_TIMEOUT_SECONDS", "420"))
 ARREST_LOG_REQUEST_DELAY_SECONDS = float(os.environ.get("SBCO_ARREST_LOG_REQUEST_DELAY_SECONDS", "2.0"))
@@ -774,6 +775,56 @@ def build_daily_archive_file_specs(row_count):
 
 
 def refresh_death_index_csv(output_path):
+    def death_index_row_key(row):
+        case_display = (row.get("caseNumberDisplay") or row.get("CaseNumberDisplay") or "").strip()
+        case_year = (row.get("caseYear") or row.get("CaseYear") or "").strip()
+        case_number = str(row.get("caseNumber") or row.get("CaseNumber") or "").strip()
+        if case_display:
+            return "display:" + case_display
+        if case_year and case_number:
+            return "yearnum:{}:{}".format(case_year, case_number)
+        return ""
+
+    def load_existing_death_index_rows(path):
+        if not path or not os.path.exists(path):
+            return []
+        try:
+            with open(path, newline="", encoding="utf-8") as handle:
+                rows = []
+                for row in csv.DictReader(handle):
+                    if death_index_row_key(row):
+                        rows.append(row)
+                return rows
+        except Exception:
+            return []
+
+    def recent_death_index_case_years():
+        now = datetime.now()
+        years = {now.year}
+        if now.month <= 2:
+            years.add(now.year - 1)
+        if not os.path.exists(LOCAL_CSV):
+            return sorted(years, reverse=True)
+
+        cutoff = now - timedelta(days=max(1, DEATH_INDEX_RECENT_LOOKBACK_DAYS))
+        try:
+            with open(LOCAL_CSV, newline="", encoding="utf-8") as handle:
+                reader = csv.DictReader(handle)
+                for row in reader:
+                    dt = parse_datetime((row.get("date/time") or "").strip())
+                    if dt is None or dt < cutoff:
+                        continue
+                    report_number = (row.get("report number") or "").strip().upper()
+                    if not report_number.startswith("COR") or len(report_number) < 5:
+                        continue
+                    year_text = report_number[3:5]
+                    if year_text.isdigit():
+                        years.add(2000 + int(year_text))
+        except Exception as exc:
+            log("WARNING: unable to derive death index case years from local calllog.csv: {}".format(exc))
+
+        return sorted(years, reverse=True)
+
     started_monotonic = time.monotonic()
     deadline_monotonic = started_monotonic + max(1, DEATH_INDEX_REFRESH_TIMEOUT_SECONDS)
     session = requests.Session()
@@ -790,64 +841,93 @@ def refresh_death_index_csv(output_path):
     enforce_deadline("death index refresh", deadline_monotonic)
     session.get(DEATH_INDEX_PAGE_URL, timeout=60).raise_for_status()
 
+    existing_rows = load_existing_death_index_rows(output_path)
+    rows_by_key = {death_index_row_key(row): row for row in existing_rows if death_index_row_key(row)}
+    target_years = recent_death_index_case_years()
+    log(
+        "Refreshing death_index.csv for case years {} (existing rows={})".format(
+            ",".join(str(year) for year in target_years),
+            len(rows_by_key),
+        )
+    )
+
     fieldnames = None
-    total_rows = 0
-    current_year = datetime.now().year
+    fetched_rows = 0
     page_count = 0
+    for year in target_years:
+        enforce_deadline("death index refresh", deadline_monotonic)
+        start = 0
+        draw = 1
+        while True:
+            enforce_deadline("death index refresh", deadline_monotonic)
+            response = session.post(
+                DEATH_INDEX_GRID_URL,
+                data={
+                    "draw": str(draw),
+                    "start": str(start),
+                    "length": str(DEATH_INDEX_PAGE_SIZE),
+                    "search[value]": "",
+                    "search[regex]": "false",
+                    "caseYear": str(year),
+                },
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            rows = payload.get("data") if isinstance(payload, dict) else []
+            if not rows:
+                break
+            page_count += 1
+
+            if fieldnames is None:
+                fieldnames = list(rows[0].keys())
+
+            for row in rows:
+                key = death_index_row_key(row)
+                if not key:
+                    continue
+                rows_by_key[key] = row
+                fetched_rows += 1
+
+            start += len(rows)
+            draw += 1
+            records_total = int(payload.get("recordsFiltered") or payload.get("recordsTotal") or 0)
+            if start >= records_total:
+                break
+            time.sleep(DEATH_INDEX_DELAY_SECONDS)
+
+    if fieldnames is None and existing_rows:
+        fieldnames = list(existing_rows[0].keys())
+
+    merged_rows = list(rows_by_key.values())
+    if not merged_rows or not fieldnames:
+        raise RuntimeError("death index refresh returned no rows")
+
+    merged_rows.sort(
+        key=lambda row: (
+            -int(str(row.get("caseYear") or row.get("CaseYear") or "0").strip() or 0),
+            -int(str(row.get("caseNumber") or row.get("CaseNumber") or "0").strip() or 0),
+            (row.get("caseNumberDisplay") or row.get("CaseNumberDisplay") or "").strip(),
+        )
+    )
+
     tmp_path = output_path + ".tmp"
     with open(tmp_path, "w", newline="", encoding="utf-8") as f:
-        writer = None
-        for year in range(current_year, 2000, -1):
-            enforce_deadline("death index refresh", deadline_monotonic)
-            start = 0
-            draw = 1
-            while True:
-                enforce_deadline("death index refresh", deadline_monotonic)
-                response = session.post(
-                    DEATH_INDEX_GRID_URL,
-                    data={
-                        "draw": str(draw),
-                        "start": str(start),
-                        "length": str(DEATH_INDEX_PAGE_SIZE),
-                        "search[value]": "",
-                        "search[regex]": "false",
-                        "caseYear": str(year),
-                    },
-                    timeout=60,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                rows = payload.get("data") if isinstance(payload, dict) else []
-                if not rows:
-                    break
-                page_count += 1
-
-                if fieldnames is None:
-                    fieldnames = list(rows[0].keys())
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-
-                for row in rows:
-                    writer.writerow(row)
-                    total_rows += 1
-
-                start += len(rows)
-                draw += 1
-                records_total = int(payload.get("recordsFiltered") or payload.get("recordsTotal") or 0)
-                if start >= records_total:
-                    break
-                time.sleep(DEATH_INDEX_DELAY_SECONDS)
-
-    if total_rows <= 0:
-        try:
-            os.remove(tmp_path)
-        except Exception:
-            pass
-        raise RuntimeError("death index refresh returned no rows")
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in merged_rows:
+            writer.writerow({field: row.get(field, "") for field in fieldnames})
 
     os.replace(tmp_path, output_path)
     elapsed = log_phase_duration("death_index.csv refresh", started_monotonic)
-    log("death_index.csv refreshed locally ({} rows across {} pages in {:.1f}s)".format(total_rows, page_count, elapsed))
+    log(
+        "death_index.csv refreshed locally ({} fetched rows, {} merged rows across {} pages in {:.1f}s)".format(
+            fetched_rows,
+            len(merged_rows),
+            page_count,
+            elapsed,
+        )
+    )
 
 
 def refresh_arrest_log_json(output_path):
