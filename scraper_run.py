@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import csv
 import gzip
 import hashlib
@@ -18,6 +19,14 @@ from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+try:
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+except Exception:
+    hashes = None
+    serialization = None
+    padding = None
 
 try:
     from arrest_index_builder import build_arrest_index
@@ -179,6 +188,14 @@ FTP_USER = secret_value(("SBCO_FTP_USER", "SERV00_FTP_USER", "FTP_USER"), "ftp_u
 FTP_PASS = secret_value(("SBCO_FTP_PASS", "SERV00_FTP_PASS", "FTP_PASS"), "ftp_pass", "")
 REMOTE_DB_REBUILD_TOKEN = secret_value("SBCO_REMOTE_DB_REBUILD_TOKEN", "remote_db_rebuild_token", "")
 HTTP_UPLOAD_SECRET = secret_value("SBCO_HTTP_UPLOAD_SECRET", "http_upload_secret", "")
+HTTP_UPLOAD_SIGNING_PRIVATE_KEY = secret_value(
+    ("SBCO_UPLOAD_SIGNING_PRIVATE_KEY", "SBCO_HTTP_UPLOAD_SIGNING_PRIVATE_KEY"),
+    ("upload_signing_private_key", "http_upload_signing_private_key"),
+    "",
+)
+HTTP_UPLOAD_SIGNING_PRIVATE_KEY_PATH = (
+    os.environ.get("SBCO_UPLOAD_SIGNING_PRIVATE_KEY_PATH", "").strip()
+)
 REMOTE_BACKED_DAILY_FILES = env_flag(
     "SBCO_REMOTE_BACKED_DAILY_FILES",
     default=(os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true"),
@@ -1172,7 +1189,11 @@ def ftp_atomic_replace(ftp, local_path, remote_name, run_id):
 
 def trigger_remote_db_rebuild():
     if not REMOTE_DB_REBUILD_TOKEN:
-        log("Remote DB rebuild token is not configured; skipping rebuild request")
+        log(
+            "WARNING: remote DB rebuild token is not configured; raw files were published "
+            "but the live call-log database and sbsd_api.php may remain stale until "
+            "build_calllog_db.php runs"
+        )
         return
     try:
         response = requests.get(
@@ -1295,6 +1316,7 @@ def build_publish_file_specs(extra_file_specs=None):
     specs = [
         ("calllog.csv", LOCAL_CSV),
         ("calllog.json", CALLLOG_JSON),
+        ("calllog_upload_meta.json", CALLLOG_UPLOAD_META_JSON),
     ]
     if os.path.exists(CALLLOG_ARREST_INDEX_JSON):
         specs.append(("calllog_arrest_index.json", CALLLOG_ARREST_INDEX_JSON))
@@ -1333,20 +1355,54 @@ def build_http_upload_manifest(run_id, file_specs):
     }
 
 
+def load_http_upload_signing_key_pem():
+    key_pem = (HTTP_UPLOAD_SIGNING_PRIVATE_KEY or "").strip()
+    if key_pem:
+        return key_pem
+    path = (HTTP_UPLOAD_SIGNING_PRIVATE_KEY_PATH or "").strip()
+    if path and os.path.exists(path):
+        return Path(path).read_text(encoding="utf-8")
+    return ""
+
+
+def sign_http_upload_manifest(manifest_json):
+    key_pem = load_http_upload_signing_key_pem()
+    if not key_pem:
+        raise RuntimeError("HTTP upload signing key is not configured")
+    if serialization is None or hashes is None or padding is None:
+        raise RuntimeError("cryptography is required for HTTP upload signing")
+
+    private_key = serialization.load_pem_private_key(key_pem.encode("utf-8"), password=None)
+    signature = private_key.sign(
+        manifest_json.encode("utf-8"),
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+    return base64.b64encode(signature).decode("ascii")
+
+
 def publish_outputs_via_http(extra_file_specs=None):
-    if not HTTP_UPLOAD_URL or not HTTP_UPLOAD_SECRET:
-        raise RuntimeError("HTTP upload endpoint or secret is not configured")
+    if not HTTP_UPLOAD_URL:
+        raise RuntimeError("HTTP upload endpoint is not configured")
 
     run_id = build_publish_run_id()
+    signing_key_pem = load_http_upload_signing_key_pem()
+    transport_name = "http-signed" if signing_key_pem else "http-hmac"
+    trace_meta = write_upload_trace_file(CALLLOG_UPLOAD_META_JSON, run_id, transport_name)
     file_specs = build_publish_file_specs(extra_file_specs)
 
     manifest = build_http_upload_manifest(run_id, file_specs)
     manifest_json = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
-    signature = hmac.new(
-        HTTP_UPLOAD_SECRET.encode("utf-8"),
-        manifest_json.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
+    if signing_key_pem:
+        signature = sign_http_upload_manifest(manifest_json)
+    elif HTTP_UPLOAD_SECRET:
+        signature = hmac.new(
+            HTTP_UPLOAD_SECRET.encode("utf-8"),
+            manifest_json.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+    else:
+        raise RuntimeError("HTTP upload auth is not configured")
 
     files = []
     opened = []
@@ -1390,7 +1446,13 @@ def publish_outputs_via_http(extra_file_specs=None):
             )
         if isinstance(payload, dict) and payload.get("ok") is False:
             raise RuntimeError("HTTP upload rejected: {}".format(json.dumps(payload, sort_keys=True)[:1200]))
-        log("HTTP upload response: {}".format(json.dumps(payload, sort_keys=True)[:1200]))
+        log(
+            "HTTP upload response: {} (source={}, run_id={})".format(
+                json.dumps(payload, sort_keys=True)[:1200],
+                trace_meta.get("source", ""),
+                trace_meta.get("run_id", ""),
+            )
+        )
     finally:
         for fp in opened:
             try:

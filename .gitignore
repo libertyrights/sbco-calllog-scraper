@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .cache/
+keys/
 runtime/
 secrets.local.json
 .state/

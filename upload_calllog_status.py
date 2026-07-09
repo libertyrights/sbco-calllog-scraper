@@ -41,6 +41,25 @@ def build_status() -> dict:
         if size:
             status[name] = size
 
+    upload_meta_path = BASE_DIR / "calllog_upload_meta.json"
+    if upload_meta_path.exists():
+        try:
+            upload_meta = json.loads(upload_meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            upload_meta = {}
+        if isinstance(upload_meta, dict):
+            for src_key, dst_key in (
+                ("generated_at", "upload_generated_at"),
+                ("source", "upload_source"),
+                ("transport", "upload_transport"),
+                ("run_id", "upload_run_id"),
+                ("publisher", "upload_publisher"),
+                ("calllog_bytes", "upload_calllog_bytes"),
+            ):
+                value = upload_meta.get(src_key)
+                if value not in (None, ""):
+                    status[dst_key] = value
+
     return status
 
 

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>San Bernardino County Sheriff - Live Call Log</title>
+<style>
+:root {
+  --bg: #eef3f8;
+  --panel: #ffffff;
+  --line: #d7e0ea;
+  --text: #18212c;
+  --muted: #5d6b79;
+  --accent: #143d6b;
+  --accent-2: #2c6aa8;
+  --warn: #9a5b00;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg, #f5f8fc 0%, #e8eff7 100%);
+  color: var(--text);
+}
+.topbar {
+  background: linear-gradient(135deg, #173a66 0%, #0f2746 100%);
+  color: #fff;
+  padding: 16px 20px;
+}
+.topbar h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+.topbar p {
+  margin: 0;
+  color: #c9daed;
+  font-size: 13px;
+}
+.shell {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px;
+}
+.notice,
+.controls,
+.summary,
+.table-shell {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(16, 38, 64, 0.06);
+}
+.notice {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.notice p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.notice a { color: var(--accent-2); }
+.controls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.6fr) repeat(2, minmax(120px, 0.7fr)) auto auto;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.controls input,
+.controls select,
+.controls button {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid #bcc9d8;
+  font-size: 14px;
+}
+.controls input,
+.controls select {
+  padding: 0 12px;
+  background: #fff;
+}
+.controls button {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  padding: 0 16px;
+}
+.controls button:hover { background: #1c4b83; }
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.summary .status {
+  font-weight: 700;
+}
+.summary .warn {
+  color: var(--warn);
+}
+.table-shell {
+  overflow: hidden;
+}
+.table-wrap {
+  overflow: auto;
+  max-height: 75vh;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+  background: #163c69;
+  color: #fff;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+tbody td {
+  padding: 9px 12px;
+  border-top: 1px solid #e5ebf2;
+  vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f8fbff; }
+tbody tr:hover { background: #eef5fd; }
+.mono { font-family: Consolas, monospace; }
+.muted { color: var(--muted); }
+.pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eaf2fb;
+  color: #1d4b7d;
+  font-size: 12px;
+}
+.empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--muted);
+}
+@media (max-width: 980px) {
+  .controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+  .summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  thead th:nth-child(2),
+  thead th:nth-child(3),
+  tbody td:nth-child(2),
+  tbody td:nth-child(3) {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>San Bernardino County Sheriff - Live Call Log</h1>
+    <p>Recovery viewer reading directly from the published call log feed.</p>
+  </div>
+
+  <div class="shell">
+    <div class="notice">
+      <strong>Live recovery mode is active.</strong>
+      <p>
+        This page reads directly from <a href="calllog.json">calllog.json</a> so fresh call data stays visible even if the older
+        database-backed API falls behind. Raw files:
+        <a href="calllog.csv">CSV</a>,
+        <a href="../status/calllog_status.json">status</a>,
+        <a href="calllog_upload_meta.json">upload metadata</a>.
+      </p>
+    </div>
+
+    <div class="controls">
+      <input id="searchBox" type="search" placeholder="Search call number, type, location, report, agency, station">
+      <select id="agencyFilter"><option value="">All agencies</option></select>
+      <select id="stationFilter"><option value="">All stations</option></select>
+      <select id="pageSize">
+        <option value="50">50 rows</option>
+        <option value="100" selected>100 rows</option>
+        <option value="250">250 rows</option>
+        <option value="500">500 rows</option>
+      </select>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div class="summary">
+      <div class="status" id="statusText">Loading...</div>
+      <div id="countText"></div>
+      <div id="dataRangeText"></div>
+      <div id="uploadText" class="muted"></div>
+    </div>
+
+    <div class="table-shell">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>Station</th>
+              <th>Agency</th>
+              <th>Call No</th>
+              <th>Report</th>
+              <th>Type</th>
+              <th>Dispo</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty" hidden>No rows match the current filter.</div>
+    </div>
+  </div>
+
+<script>
+const FEED_URL = "calllog.json";
+const META_URL = "calllog_upload_meta.json";
+const REFRESH_MS = 60000;
+
+let allRows = [];
+let uploadMeta = null;
+
+function parseDateTime(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/.exec((value || "").trim());
+  if (!match) return Number.NEGATIVE_INFINITY;
+  let hour = Number(match[4]) % 12;
+  if (match[7] === "PM") hour += 12;
+  return Date.UTC(Number(match[3]), Number(match[1]) - 1, Number(match[2]), hour, Number(match[5]), Number(match[6]));
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function setStatus(text, isWarn) {
+  const node = document.getElementById("statusText");
+  node.textContent = text;
+  node.className = isWarn ? "status warn" : "status";
+}
+
+function updateFilters() {
+  const agencyFilter = document.getElementById("agencyFilter");
+  const stationFilter = document.getElementById("stationFilter");
+  const agencies = [...new Set(allRows.map((row) => row.agency).filter(Boolean))].sort();
+  const stations = [...new Set(allRows.map((row) => row.station).filter(Boolean))].sort();
+  const selectedAgency = agencyFilter.value;
+  const selectedStation = stationFilter.value;
+
+  agencyFilter.innerHTML = '<option value="">All agencies</option>' + agencies.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  stationFilter.innerHTML = '<option value="">All stations</option>' + stations.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+
+  if (agencies.includes(selectedAgency)) agencyFilter.value = selectedAgency;
+  if (stations.includes(selectedStation)) stationFilter.value = selectedStation;
+}
+
+function applyFilters() {
+  const search = document.getElementById("searchBox").value.trim().toLowerCase();
+  const agency = document.getElementById("agencyFilter").value;
+  const station = document.getElementById("stationFilter").value;
+  const limit = Number(document.getElementById("pageSize").value || "100");
+
+  let rows = allRows.filter((row) => {
+    if (agency && row.agency !== agency) return false;
+    if (station && row.station !== station) return false;
+    if (!search) return true;
+    const haystack = [
+      row["date/time"],
+      row.agency,
+      row.station,
+      row["call number"],
+      row["report number"],
+      row["call type"],
+      row.disposition,
+      row.location,
+    ].join(" ").toLowerCase();
+    return haystack.includes(search);
+  });
+
+  const totalMatches = rows.length;
+  rows = rows.slice(0, limit);
+
+  const tbody = document.getElementById("rows");
+  const emptyState = document.getElementById("emptyState");
+  tbody.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row["date/time"])}</td>
+      <td>${escapeHtml(row.station)}</td>
+      <td>${escapeHtml(row.agency)}</td>
+      <td class="mono">${escapeHtml(row["call number"])}</td>
+      <td class="mono">${escapeHtml(row["report number"])}</td>
+      <td>${escapeHtml(row["call type"])}</td>
+      <td>${escapeHtml(row.disposition)}</td>
+      <td>${escapeHtml(row.location)}</td>
+    </tr>
+  `).join("");
+
+  emptyState.hidden = totalMatches !== 0;
+  document.getElementById("countText").textContent = `${Math.min(limit, totalMatches)} of ${totalMatches} matching rows shown`;
+
+  if (allRows.length) {
+    const newest = allRows[0]["date/time"];
+    const oldest = allRows[allRows.length - 1]["date/time"];
+    document.getElementById("dataRangeText").textContent = `Newest call: ${newest} | Oldest loaded call: ${oldest}`;
+  } else {
+    document.getElementById("dataRangeText").textContent = "";
+  }
+
+  if (uploadMeta && uploadMeta.generated_at) {
+    const transport = uploadMeta.transport ? ` via ${uploadMeta.transport}` : "";
+    document.getElementById("uploadText").textContent = `Published ${formatLocal(uploadMeta.generated_at)}${transport}`;
+  } else {
+    document.getElementById("uploadText").textContent = "";
+  }
+}
+
+async function loadFeed() {
+  const stamp = Date.now();
+  setStatus("Refreshing feed...", false);
+
+  try {
+    const [feedResponse, metaResponse] = await Promise.all([
+      fetch(`${FEED_URL}?t=${stamp}`, { cache: "no-store" }),
+      fetch(`${META_URL}?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+    ]);
+
+    if (!feedResponse.ok) {
+      throw new Error(`calllog.json returned HTTP ${feedResponse.status}`);
+    }
+
+    const rows = await feedResponse.json();
+    allRows = (Array.isArray(rows) ? rows : []).slice().sort((a, b) => parseDateTime(b["date/time"]) - parseDateTime(a["date/time"]));
+    uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
+
+    updateFilters();
+    applyFilters();
+    setStatus(`Feed loaded from calllog.json at ${new Date().toLocaleTimeString()}`, false);
+  } catch (error) {
+    setStatus(error && error.message ? error.message : "Unable to load calllog.json", true);
+  }
+}
+
+document.getElementById("searchBox").addEventListener("input", applyFilters);
+document.getElementById("agencyFilter").addEventListener("change", applyFilters);
+document.getElementById("stationFilter").addEventListener("change", applyFilters);
+document.getElementById("pageSize").addEventListener("change", applyFilters);
+document.getElementById("refreshBtn").addEventListener("click", loadFeed);
+
+loadFeed();
+setInterval(loadFeed, REFRESH_MS);
+</script>
+</body>
+</html>

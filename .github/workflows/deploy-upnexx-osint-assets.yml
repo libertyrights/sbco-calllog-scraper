@@ -1,0 +1,26 @@
+name: deploy-upnexx-osint-assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Deploy assets
+        env:
+          SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
+        run: |
+          python deploy_ftp_file.py site/upload_calllog_signed.php upload_calllog_signed.php
+          python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
+          python deploy_ftp_file.py site/sbsd.html sbsd.html

@@ -32,12 +32,23 @@ jobs:
       - name: Prepare runtime directory
         run: mkdir -p "$GITHUB_WORKSPACE/runtime"
 
+      - name: Deploy public osint assets
+        env:
+          SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
+        run: |
+          python deploy_ftp_file.py site/upload_calllog_signed.php upload_calllog_signed.php
+          python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
+          python deploy_ftp_file.py site/sbsd.html sbsd.html
+
       - name: Run scraper and publish
         env:
           SBCO_BASE_DIR: ${{ github.workspace }}/runtime
           SBCO_SERVER_CALLLOG_URL: ${{ secrets.SBCO_SERVER_CALLLOG_URL }}
-          SBCO_HTTP_UPLOAD_URL: ${{ secrets.SBCO_HTTP_UPLOAD_URL }}
-          SBCO_HTTP_UPLOAD_SECRET: ${{ secrets.SBCO_HTTP_UPLOAD_SECRET }}
+          SBCO_HTTP_UPLOAD_URL: https://upnexx.xyz/osint/upload_calllog_signed.php
+          SBCO_UPLOAD_SIGNING_PRIVATE_KEY: ${{ secrets.SBCO_UPLOAD_SIGNING_PRIVATE_KEY }}
+          SBCO_REMOTE_DB_REBUILD_TOKEN: ${{ secrets.SBCO_REMOTE_DB_REBUILD_TOKEN }}
           SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
           SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
           SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
