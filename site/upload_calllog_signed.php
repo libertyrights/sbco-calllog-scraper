@@ -5,6 +5,8 @@ declare(strict_types=1);
 const CALLLOG_PUBLIC_KEY_PATH = __DIR__ . '/calllog_upload_public.pem';
 const CALLLOG_RUNTIME_DIR = __DIR__ . '/runtime/http-upload';
 const CALLLOG_LOG_PATH = __DIR__ . '/runtime/http-upload/upload.log';
+const CALLLOG_ARCHIVE_INDEX_NAME = 'calllog_archive_index.json';
+const CALLLOG_ARCHIVE_NAME_PATTERN = '/^calllog-archive-\d{8}\.csv\.gz$/';
 const CALLLOG_ALLOWED_REMOTE_NAMES = [
     'calllog.csv',
     'calllog.json',
@@ -63,6 +65,7 @@ function calllog_verify_signature(string $manifestJson, string $signature): void
 
 function calllog_atomic_replace(string $tmpPath, string $finalPath): void
 {
+    calllog_ensure_dir(dirname($finalPath));
     $backupPath = $finalPath . '.bak';
     if (is_file($backupPath)) {
         @unlink($backupPath);
@@ -73,6 +76,18 @@ function calllog_atomic_replace(string $tmpPath, string $finalPath): void
     if (!@rename($tmpPath, $finalPath)) {
         throw new RuntimeException('Failed to publish file: ' . basename($finalPath));
     }
+}
+
+function calllog_resolve_final_path(string $remoteName): string
+{
+    $allowedNames = array_flip(CALLLOG_ALLOWED_REMOTE_NAMES);
+    if (isset($allowedNames[$remoteName])) {
+        return __DIR__ . DIRECTORY_SEPARATOR . $remoteName;
+    }
+    if ($remoteName === CALLLOG_ARCHIVE_INDEX_NAME || preg_match(CALLLOG_ARCHIVE_NAME_PATTERN, $remoteName) === 1) {
+        return __DIR__ . DIRECTORY_SEPARATOR . $remoteName;
+    }
+    throw new RuntimeException('Remote file name is not allowed: ' . $remoteName);
 }
 
 function calllog_build_batch_id(array $manifest): string
@@ -100,9 +115,7 @@ try {
         throw new RuntimeException('Manifest is invalid');
     }
 
-    $allowedNames = array_flip(CALLLOG_ALLOWED_REMOTE_NAMES);
     $batchId = calllog_build_batch_id($manifest);
-    $liveDir = __DIR__;
     calllog_ensure_dir(CALLLOG_RUNTIME_DIR);
 
     foreach ($manifest['files'] as $item) {
@@ -118,9 +131,6 @@ try {
         if ($fieldName === '' || $remoteName === '' || $expectedSha === '' || $expectedSize < 0) {
             throw new RuntimeException('Manifest file entry is incomplete');
         }
-        if (!isset($allowedNames[$remoteName])) {
-            throw new RuntimeException('Remote file name is not allowed: ' . $remoteName);
-        }
         if (!isset($_FILES[$fieldName])) {
             throw new RuntimeException('Missing uploaded file: ' . $fieldName);
         }
@@ -133,8 +143,9 @@ try {
             throw new RuntimeException('Upload error for ' . $remoteName);
         }
 
-        $tmpPath = CALLLOG_RUNTIME_DIR . DIRECTORY_SEPARATOR . $batchId . '.' . $remoteName . '.part';
-        $finalPath = $liveDir . DIRECTORY_SEPARATOR . $remoteName;
+        $safeRemoteName = preg_replace('/[^A-Za-z0-9._-]+/', '_', $remoteName);
+        $tmpPath = CALLLOG_RUNTIME_DIR . DIRECTORY_SEPARATOR . $batchId . '.' . $safeRemoteName . '.part';
+        $finalPath = calllog_resolve_final_path($remoteName);
         if (!move_uploaded_file($upload['tmp_name'], $tmpPath)) {
             throw new RuntimeException('Failed to store uploaded file: ' . $remoteName);
         }

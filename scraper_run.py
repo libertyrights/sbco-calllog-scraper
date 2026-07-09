@@ -65,10 +65,13 @@ CALLLOG_ARREST_INDEX_JSON = os.path.join(BASE_DIR, "calllog_arrest_index.json")
 DEATH_INDEX_CSV = os.path.join(BASE_DIR, "death_index.csv")
 ARREST_LOG_JSON = os.path.join(BASE_DIR, "all_records.json")
 CALLLOG_UPLOAD_META_JSON = os.path.join(BASE_DIR, "calllog_upload_meta.json")
+ARCHIVE_RUNTIME_DIR = os.path.join(BASE_DIR, "runtime", "archive")
 SECRET_CONFIG_PATH = os.environ.get("SBCO_SECRET_CONFIG", os.path.join(BASE_DIR, "secrets.local.json"))
 
 BACKUP_DIR = os.path.join(BASE_DIR, "snapshots", "calllog")
 MANIFEST_PATH = os.path.join(BACKUP_DIR, "manifest.json")
+CALLLOG_ARCHIVE_INDEX_REMOTE_NAME = "calllog_archive_index.json"
+CALLLOG_ARCHIVE_REMOTE_PREFIX = "calllog-archive-"
 
 RELEASES_CSV = os.path.join(BASE_DIR, "releases.csv")
 LEGACY_RELEASES_CSV = os.path.join(BASE_DIR, "daily_release_list.csv")
@@ -350,6 +353,18 @@ def fetch_public_file(remote_name):
         "usable": public_file_usable(remote_name, content),
         "timestamp": parse_public_file_timestamp(remote_name, content, response.headers),
     }
+
+
+def fetch_public_json(remote_name):
+    url = public_file_url(remote_name)
+    if not url:
+        return None
+    response = requests.get(url, timeout=PUBLIC_FILE_TIMEOUT_SECONDS)
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    payload = response.json()
+    return payload if isinstance(payload, dict) else None
 
 
 def remote_file_is_fresh(timestamp, max_age_hours):
@@ -688,6 +703,74 @@ def write_text(path, text):
     with open(tmp_path, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp_path, path)
+
+
+def archive_remote_name_for_date(date_text):
+    compact = (date_text or "").replace("-", "")
+    return "{}{}.csv.gz".format(CALLLOG_ARCHIVE_REMOTE_PREFIX, compact)
+
+
+def archive_index_entries(entries, current_entry):
+    merged = {}
+    for entry in entries or []:
+        if not isinstance(entry, dict):
+            continue
+        remote_name = (entry.get("remote_name") or "").strip()
+        if not re.fullmatch(r"{}\d{{8}}\.csv\.gz".format(re.escape(CALLLOG_ARCHIVE_REMOTE_PREFIX)), remote_name):
+            continue
+        merged[remote_name] = dict(entry)
+    merged[current_entry["remote_name"]] = dict(current_entry)
+    return sorted(
+        merged.values(),
+        key=lambda entry: ((entry.get("date") or ""), (entry.get("remote_name") or "")),
+    )
+
+
+def build_daily_archive_file_specs(row_count):
+    os.makedirs(ARCHIVE_RUNTIME_DIR, exist_ok=True)
+
+    archive_date = today_str()
+    archive_name = archive_remote_name_for_date(archive_date)
+    archive_path = os.path.join(ARCHIVE_RUNTIME_DIR, archive_name)
+    tmp_archive_path = archive_path + ".tmp"
+    with open(LOCAL_CSV, "rb") as src, gzip.open(tmp_archive_path, "wb") as dst:
+        for chunk in iter(lambda: src.read(1024 * 1024), b""):
+            dst.write(chunk)
+    os.replace(tmp_archive_path, archive_path)
+
+    current_entry = {
+        "date": archive_date,
+        "remote_name": archive_name,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "row_count": int(row_count),
+        "calllog_bytes": file_size_or_zero(LOCAL_CSV),
+        "archive_bytes": file_size_or_zero(archive_path),
+        "archive_sha256": sha256_file(archive_path),
+    }
+    archive_url = public_file_url(archive_name)
+    if archive_url:
+        current_entry["url"] = archive_url
+
+    existing_index = {}
+    try:
+        existing_index = fetch_public_json(CALLLOG_ARCHIVE_INDEX_REMOTE_NAME) or {}
+    except Exception as exc:
+        log("WARNING: unable to read existing calllog archive index: {}".format(exc))
+
+    entries = archive_index_entries(existing_index.get("archives"), current_entry)
+    index_payload = {
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "source": UPLOAD_TRACE_SOURCE,
+        "archives": entries,
+    }
+    index_path = os.path.join(ARCHIVE_RUNTIME_DIR, CALLLOG_ARCHIVE_INDEX_REMOTE_NAME)
+    write_text(index_path, json.dumps(index_payload, indent=2, sort_keys=True))
+    log("Prepared durable archive snapshot {}".format(archive_name))
+
+    return [
+        (archive_name, archive_path),
+        (CALLLOG_ARCHIVE_INDEX_REMOTE_NAME, index_path),
+    ]
 
 
 def refresh_death_index_csv(output_path):
@@ -1888,10 +1971,12 @@ def main():
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
         json.dump(scoped_live_rows, f, indent=2)
     log("Local calllog.json written ({} scoped records)".format(len(scoped_live_rows)))
+    archive_file_specs = build_daily_archive_file_specs(len(merged))
     log_phase_duration("local output write", write_started)
 
     daily_files_started = time.monotonic()
     extra_file_specs = []
+    extra_file_specs.extend(archive_file_specs)
     extra_file_specs.extend(
         ensure_remote_backed_daily_file(
             "death_index.csv",

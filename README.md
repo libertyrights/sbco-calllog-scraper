@@ -40,5 +40,6 @@ Add these repository secrets before enabling scheduled runs:
 - The GitHub job disables the unrelated daily release-list fetch so the hourly schedule does not create extra background traffic.
 - If signed HTTP publish is unavailable, the GitHub job can still fall back to direct serv00 FTP publish when the serv00 secrets are present.
 - The FTP fallback still needs `SBCO_REMOTE_DB_REBUILD_TOKEN` so it can call `build_calllog_db.php` after updating raw files. Without that secret, `calllog.csv` and `calllog.json` can be fresh while `sbsd_api.php` keeps serving a stale SQLite snapshot.
+- Each publish now also writes a durable daily gzip snapshot named `calllog-archive-YYYYMMDD.csv.gz` plus a public `calllog_archive_index.json`, so the current term is no longer relying only on the live file and a single `.bak`.
 - The server queue processor promotes files in timestamp order and deletes processed temp batches after a successful apply.
 - The repo includes only example server config. Live serv00 secrets should stay in an untracked `calllog_server_config.php` on the server.
