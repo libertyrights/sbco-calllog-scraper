@@ -77,9 +77,48 @@ body {
   line-height: 1.45;
 }
 .notice a { color: var(--accent-2); }
+.notice-copy {
+  display: grid;
+  gap: 10px;
+}
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.help-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #bfd0e2;
+  background: #f5f9fd;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.help-link:hover {
+  background: #ecf3fb;
+}
+.help-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d8e5f2;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+.help-panel p {
+  margin: 0 0 8px;
+}
+.help-panel p:last-child {
+  margin-bottom: 0;
+}
 .controls {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(120px, 0.7fr)) auto;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(120px, 0.7fr)) auto;
   gap: 10px;
   padding: 14px;
 }
@@ -318,30 +357,41 @@ tbody tr.main-row.tone-low {
 <body>
   <div class="topbar">
     <h1>San Bernardino County Sheriff - Live Call Log</h1>
-    <p>Fast local viewer with live JSON data, revision expansion, and CHP backfill while the feed catches up.</p>
+    <p>Fast local viewer with live JSON data, revision expansion, and full-term history hydration.</p>
   </div>
 
   <div class="shell">
     <div class="card notice">
       <strong>Live view restored.</strong>
-      <p>
-        This page loads current rows from <a href="calllog.json">calllog.json</a> for speed, then backfills older CHP and fire
-        entries from the legacy API when available. Raw files:
-        <a href="calllog.csv">CSV</a>,
-        <a href="../status/calllog_status.json">status</a>,
-        <a href="calllog_upload_meta.json">upload metadata</a>.
-      </p>
+      <div class="notice-copy">
+        <p>
+          This page loads current rows from <a href="calllog.json">calllog.json</a> first for speed, then hydrates the full
+          published history from <a href="calllog.csv">calllog.csv</a> in the background. Raw files:
+          <a href="../status/calllog_status.json">status</a>,
+          <a href="calllog_upload_meta.json">upload metadata</a>.
+        </p>
+        <div class="notice-actions">
+          <a id="helpToggle" class="help-link" href="#howToReadPanel" aria-expanded="false">How to read this page</a>
+        </div>
+        <div id="howToReadPanel" class="help-panel" hidden>
+          <p>Blue rows are SBSO, deeper blue rows are CHP, and orange rows are fire/medical responses.</p>
+          <p>The `+` button opens revision history, current details, and any extra structured data attached to that call.</p>
+          <p>Use the prefix filter to jump by call family like `BA`, `CO`, `CHP`, or `SBCFIRE` once full history finishes loading.</p>
+        </div>
+      </div>
     </div>
 
     <div class="card controls">
       <input id="searchBox" type="search" placeholder="Search call number, type, location, report, agency, station">
       <select id="agencyFilter"><option value="">All agencies</option></select>
       <select id="stationFilter"><option value="">All stations</option></select>
+      <select id="prefixFilter"><option value="">All prefixes</option></select>
       <select id="pageSize">
         <option value="100">100 groups</option>
         <option value="250" selected>250 groups</option>
         <option value="500">500 groups</option>
         <option value="1000">1000 groups</option>
+        <option value="2500">2500 groups</option>
       </select>
       <button id="refreshBtn" type="button">Refresh</button>
     </div>
@@ -381,14 +431,19 @@ tbody tr.main-row.tone-low {
 const DATA_ROOT = new URL(new URLSearchParams(window.location.search).get("dataRoot") || ".", window.location.href);
 const LIVE_URL = new URL("calllog.json", DATA_ROOT).toString();
 const META_URL = new URL("calllog_upload_meta.json", DATA_ROOT).toString();
-const LEGACY_URL = new URL("sbsd_api.php?limit=250&offset=0&sort=time&dir=desc", DATA_ROOT).toString();
+const HISTORY_CSV_URL = new URL("calllog.csv", DATA_ROOT).toString();
 const REFRESH_MS = 60000;
+const CSV_PARSE_YIELD_ROWS = 1500;
 
 let liveGroups = [];
-let legacyGroups = [];
+let historyGroups = [];
+let combinedGroups = [];
 let uploadMeta = null;
-let legacyGeneratedAt = "";
+let historyLoadedAt = "";
+let historyError = "";
+let historyLoadPromise = null;
 let expanded = new Set();
+let searchApplyTimer = 0;
 
 function parseDateTime(value) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/.exec((value || "").trim());
@@ -409,6 +464,11 @@ function escapeHtml(value) {
 
 function baseCall(callNo) {
   return String(callNo || "").replace(/\.\d+$/, "");
+}
+
+function callPrefix(callNo) {
+  const match = /^([A-Z-]+?)(?=\d)/.exec(String(callNo || "").trim().toUpperCase());
+  return match ? match[1].replace(/-+$/, "") : "";
 }
 
 function revisionNumber(callNo) {
@@ -463,82 +523,166 @@ function severityLabel(level) {
   return "Routine";
 }
 
-function buildLiveGroups(rows) {
-  const map = new Map();
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const normalized = {
-      dt: row["date/time"] || "",
-      agency: row.agency || "",
-      station: row.station || "",
-      callno: row["call number"] || "",
-      report: row["report number"] || "",
-      type: row["call type"] || "",
-      dispo: row.disposition || "",
-      loc: row.location || "",
-      rev_at: row.revision_scraped_at || "",
-      revNum: revisionNumber(row["call number"]),
-      extra: parseExtra(row.extra_json),
-    };
-    const base = baseCall(normalized.callno);
-    if (!map.has(base)) {
-      map.set(base, {
-        baseCallNo: base,
-        agency: normalized.agency,
-        station: normalized.station,
-        chain: [],
-      });
-    }
-    map.get(base).chain.push(normalized);
-  }
+function normalizeRecord(row) {
+  const callno = row.callno || row["call number"] || "";
+  const revNumValue = row.revNum;
+  const revNum = revNumValue === undefined || revNumValue === null || revNumValue === ""
+    ? revisionNumber(callno)
+    : Number(revNumValue);
 
-  return [...map.values()].map((group) => {
-    group.chain.sort((a, b) => a.revNum - b.revNum || parseDateTime(a.dt) - parseDateTime(b.dt));
-    group.latest = group.chain[group.chain.length - 1];
-    group.originalDt = group.chain[0] ? group.chain[0].dt : "";
-    group.sortMs = parseDateTime(group.latest.dt || group.originalDt);
-    group.revisionCount = Math.max(0, group.chain.length - 1);
-    return group;
-  }).sort((a, b) => b.sortMs - a.sortMs);
-}
-
-function normalizeLegacyGroup(group) {
-  const chain = Array.isArray(group.chain) ? group.chain.map((row) => ({
-    dt: row.dt || "",
-    agency: row.agency || group.agency || "",
-    station: row.station || group.station || "",
-    callno: row.callno || "",
-    report: row.report || "",
-    type: row.type || "",
-    dispo: row.dispo || "",
-    loc: row.loc || "",
-    rev_at: row.rev_at || "",
-    revNum: Number(row.revNum || revisionNumber(row.callno)),
-    extra: row.extra || null,
-  })) : [];
-  chain.sort((a, b) => a.revNum - b.revNum || parseDateTime(a.dt) - parseDateTime(b.dt));
   return {
-    baseCallNo: group.baseCallNo || baseCall((chain[0] || {}).callno || ""),
-    agency: group.agency || ((chain[0] || {}).agency || ""),
-    station: group.station || ((chain[0] || {}).station || ""),
-    chain,
-    latest: chain[chain.length - 1] || {},
-    originalDt: group.originalDt || ((chain[0] || {}).dt || ""),
-    sortMs: Number(group.sortMs || parseDateTime(group.originalDt || ((chain[0] || {}).dt || ""))),
-    revisionCount: Number(group.revisionCount || Math.max(0, chain.length - 1)),
+    dt: row.dt || row["date/time"] || "",
+    agency: row.agency || "",
+    station: row.station || "",
+    callno,
+    report: row.report || row["report number"] || "",
+    type: row.type || row["call type"] || "",
+    dispo: row.dispo || row.disposition || "",
+    loc: row.loc || row.location || "",
+    rev_at: row.rev_at || row.revision_scraped_at || "",
+    revNum: Number.isFinite(revNum) ? revNum : revisionNumber(callno),
+    extra: parseExtra(row.extra !== undefined ? row.extra : row.extra_json),
   };
 }
 
-function mergedGroups() {
-  const byBase = new Map();
-  for (const group of liveGroups) {
-    byBase.set(group.baseCallNo, group);
+function chainRowKey(record) {
+  return [
+    record.callno || "",
+    record.dt || "",
+    record.rev_at || "",
+    record.report || "",
+    record.type || "",
+    record.dispo || "",
+    record.loc || "",
+  ].join("|");
+}
+
+function appendGroupRecord(map, record) {
+  const base = baseCall(record.callno);
+  if (!base) return;
+
+  if (!map.has(base)) {
+    map.set(base, {
+      baseCallNo: base,
+      prefix: callPrefix(base),
+      agency: record.agency,
+      station: record.station,
+      chain: [],
+    });
   }
-  for (const group of legacyGroups) {
-    if (!byBase.has(group.baseCallNo)) {
-      byBase.set(group.baseCallNo, group);
+
+  const group = map.get(base);
+  if (!group.agency && record.agency) group.agency = record.agency;
+  if (!group.station && record.station) group.station = record.station;
+  group.chain.push(record);
+}
+
+function finalizeGroup(group) {
+  const chain = Array.isArray(group.chain) ? group.chain.slice() : [];
+  chain.sort((a, b) => a.revNum - b.revNum || parseDateTime(a.dt) - parseDateTime(b.dt));
+
+  const latest = chain[chain.length - 1] || {};
+  const originalDt = chain[0] ? chain[0].dt : "";
+  const agency = group.agency || latest.agency || "";
+  const station = group.station || latest.station || "";
+  const prefix = group.prefix || callPrefix(group.baseCallNo || latest.callno || "");
+
+  return {
+    baseCallNo: group.baseCallNo || baseCall(latest.callno || ""),
+    prefix,
+    agency,
+    station,
+    chain,
+    latest,
+    originalDt,
+    sortMs: parseDateTime(latest.dt || originalDt),
+    revisionCount: Math.max(0, chain.length - 1),
+    searchText: [
+      group.baseCallNo || "",
+      prefix,
+      agency,
+      station,
+      latest.callno || "",
+      latest.report || "",
+      latest.type || "",
+      latest.dispo || "",
+      latest.loc || "",
+      originalDt,
+    ].join(" ").toLowerCase(),
+  };
+}
+
+function finalizeGroupMap(map) {
+  return [...map.values()]
+    .map(finalizeGroup)
+    .filter((group) => group.baseCallNo)
+    .sort((a, b) => b.sortMs - a.sortMs);
+}
+
+function buildGroupsFromRows(rows) {
+  const map = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    appendGroupRecord(map, normalizeRecord(row));
+  }
+  return finalizeGroupMap(map);
+}
+
+function mergeGroupCollections(...collections) {
+  const map = new Map();
+
+  for (const groups of collections) {
+    for (const group of Array.isArray(groups) ? groups : []) {
+      const base = group.baseCallNo || baseCall((group.latest || {}).callno || "");
+      if (!base) continue;
+
+      if (!map.has(base)) {
+        map.set(base, {
+          baseCallNo: base,
+          prefix: group.prefix || callPrefix(base),
+          agency: group.agency || "",
+          station: group.station || "",
+          chain: [],
+          seen: new Set(),
+        });
+      }
+
+      const target = map.get(base);
+      if (!target.agency && group.agency) target.agency = group.agency;
+      if (!target.station && group.station) target.station = group.station;
+
+      for (const row of Array.isArray(group.chain) ? group.chain : []) {
+        const normalized = normalizeRecord({
+          dt: row.dt,
+          agency: row.agency || group.agency || "",
+          station: row.station || group.station || "",
+          callno: row.callno,
+          report: row.report,
+          type: row.type,
+          dispo: row.dispo,
+          loc: row.loc,
+          rev_at: row.rev_at,
+          revNum: row.revNum,
+          extra: row.extra,
+        });
+        const key = chainRowKey(normalized);
+        if (target.seen.has(key)) continue;
+        target.seen.add(key);
+        target.chain.push(normalized);
+      }
     }
   }
-  return [...byBase.values()].sort((a, b) => b.sortMs - a.sortMs);
+
+  const merged = new Map();
+  for (const target of map.values()) {
+    delete target.seen;
+    merged.set(target.baseCallNo, target);
+  }
+  return finalizeGroupMap(merged);
+}
+
+function rebuildCombinedGroups() {
+  combinedGroups = mergeGroupCollections(historyGroups, liveGroups);
+  return combinedGroups;
 }
 
 function totalRows(groups) {
@@ -574,14 +718,19 @@ function formatLocal(value) {
 function updateFilters(groups) {
   const agencyFilter = document.getElementById("agencyFilter");
   const stationFilter = document.getElementById("stationFilter");
+  const prefixFilter = document.getElementById("prefixFilter");
   const currentAgency = agencyFilter.value;
   const currentStation = stationFilter.value;
+  const currentPrefix = prefixFilter.value;
   const agencies = [...new Set(groups.map((group) => group.agency).filter(Boolean))].sort();
   const stations = [...new Set(groups.map((group) => group.station).filter(Boolean))].sort();
+  const prefixes = [...new Set(groups.map((group) => group.prefix).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   agencyFilter.innerHTML = '<option value="">All agencies</option>' + agencies.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   stationFilter.innerHTML = '<option value="">All stations</option>' + stations.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  prefixFilter.innerHTML = '<option value="">All prefixes</option>' + prefixes.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   if (agencies.includes(currentAgency)) agencyFilter.value = currentAgency;
   if (stations.includes(currentStation)) stationFilter.value = currentStation;
+  if (prefixes.includes(currentPrefix)) prefixFilter.value = currentPrefix;
 }
 
 function renderExtra(group) {
@@ -659,29 +808,19 @@ function renderDetails(group) {
 }
 
 function applyFilters() {
-  const groups = mergedGroups();
+  const groups = combinedGroups;
   updateFilters(groups);
   const search = document.getElementById("searchBox").value.trim().toLowerCase();
   const agency = document.getElementById("agencyFilter").value;
   const station = document.getElementById("stationFilter").value;
+  const prefix = document.getElementById("prefixFilter").value;
   const limit = Number(document.getElementById("pageSize").value || "100");
 
   const filtered = groups.filter((group) => {
     if (agency && group.agency !== agency) return false;
     if (station && group.station !== station) return false;
-    if (!search) return true;
-    const current = group.latest || {};
-    const haystack = [
-      group.baseCallNo,
-      group.agency,
-      group.station,
-      current.callno,
-      current.report,
-      current.type,
-      current.dispo,
-      current.loc,
-    ].join(" ").toLowerCase();
-    return haystack.includes(search);
+    if (prefix && group.prefix !== prefix) return false;
+    return !search || group.searchText.includes(search);
   });
 
   const sliced = filtered.slice(0, limit);
@@ -729,12 +868,14 @@ function applyFilters() {
     const transport = uploadMeta.transport ? ` via ${uploadMeta.transport}` : "";
     uploadParts.push(`Live publish ${formatLocal(uploadMeta.generated_at)}${transport}`);
   }
-  if (legacyGroups.length && legacyGeneratedAt) {
-    uploadParts.push(`CHP/fire cache ${formatLocal(legacyGeneratedAt)}`);
-  }
-    uploadParts.push(`Live direct feed ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
-  if (legacyGroups.length) {
-    uploadParts.push(`Cached CHP/fire ${legacyGroups.length} groups / ${totalRows(legacyGroups)} rows`);
+  uploadParts.push(`Current feed ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
+  if (historyGroups.length) {
+    const loadedSuffix = historyLoadedAt ? ` (${formatLocal(historyLoadedAt)})` : "";
+    uploadParts.push(`Full term history ${historyGroups.length} groups / ${totalRows(historyGroups)} rows${loadedSuffix}`);
+  } else if (historyLoadPromise) {
+    uploadParts.push("Full term history loading...");
+  } else if (historyError) {
+    uploadParts.push(`Full term history unavailable: ${historyError}`);
   }
   document.getElementById("uploadText").textContent = uploadParts.join(" | ");
 }
@@ -751,49 +892,170 @@ async function loadLiveFeed() {
   }
 
   const rows = await liveResponse.json();
-  liveGroups = buildLiveGroups(rows);
+  liveGroups = buildGroupsFromRows(rows);
   uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
 }
 
-async function loadLegacyBackfill() {
-  try {
-    const response = await fetch(`${LEGACY_URL}&t=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) {
-      legacyGeneratedAt = "";
-      legacyGroups = [];
-      return 0;
-    }
-    const payload = await response.json();
-    legacyGeneratedAt = payload.generatedAt || "";
-    const groups = Array.isArray(payload.groups) ? payload.groups : [];
-    legacyGroups = groups
-      .filter((group) => {
-        const agency = String(group.agency || ((group.chain || [])[0] || {}).agency || "");
-        return agency && agency !== "SBSO";
-      })
-      .map(normalizeLegacyGroup);
-    return legacyGroups.length;
-  } catch (_) {
-    legacyGeneratedAt = "";
-    legacyGroups = [];
-    return 0;
+async function parseCsvGroupsAsync(csvText) {
+  const map = new Map();
+  let headers = null;
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  let parsedRows = 0;
+
+  function pushField() {
+    row.push(field);
+    field = "";
   }
+
+  function commitRow() {
+    const normalizedRow = row;
+    row = [];
+
+    if (!normalizedRow.length || normalizedRow.every((value) => value === "")) {
+      return;
+    }
+
+    if (!headers) {
+      headers = normalizedRow.map((value) => String(value || "").trim());
+      return;
+    }
+
+    const record = {};
+    for (let index = 0; index < headers.length; index += 1) {
+      record[headers[index]] = normalizedRow[index] || "";
+    }
+    appendGroupRecord(map, normalizeRecord(record));
+    parsedRows += 1;
+  }
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const char = csvText[index];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (csvText[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      pushField();
+    } else if (char === "\n") {
+      pushField();
+      commitRow();
+      if (parsedRows && parsedRows % CSV_PARSE_YIELD_ROWS === 0) {
+        if (parsedRows % (CSV_PARSE_YIELD_ROWS * 8) === 0) {
+          setStatus(`Building full history index... ${parsedRows.toLocaleString()} rows parsed`, "good");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    } else if (char !== "\r") {
+      field += char;
+    }
+  }
+
+  if (field.length || row.length) {
+    pushField();
+    commitRow();
+  }
+
+  return finalizeGroupMap(map);
 }
 
-async function refreshPage() {
+async function loadFullHistory(options = {}) {
+  const force = Boolean(options.force);
+  if (historyGroups.length && !force) {
+    return historyGroups.length;
+  }
+  if (historyLoadPromise) {
+    return historyLoadPromise;
+  }
+
+  historyError = "";
+  historyLoadPromise = (async () => {
+    const response = await fetch(`${HISTORY_CSV_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`calllog.csv returned HTTP ${response.status}`);
+    }
+
+    setStatus("Downloading full term history...", "good");
+    const csvText = await response.text();
+    setStatus("Full term history downloaded. Building viewer index...", "good");
+    const nextHistoryGroups = await parseCsvGroupsAsync(csvText);
+    historyGroups = nextHistoryGroups;
+    historyLoadedAt = new Date().toISOString();
+    historyError = "";
+    rebuildCombinedGroups();
+    applyFilters();
+    return historyGroups.length;
+  })()
+    .catch((error) => {
+      historyError = error && error.message ? error.message : "history load failed";
+      throw error;
+    })
+    .finally(() => {
+      historyLoadPromise = null;
+    });
+
+  return historyLoadPromise;
+}
+
+function scheduleApplyFilters() {
+  if (searchApplyTimer) {
+    window.clearTimeout(searchApplyTimer);
+  }
+  searchApplyTimer = window.setTimeout(() => {
+    searchApplyTimer = 0;
+    applyFilters();
+  }, 60);
+}
+
+async function refreshPage(options = {}) {
+  const forceHistory = Boolean(options.forceHistory);
   setStatus("Refreshing live call feed...", "plain");
   try {
     await loadLiveFeed();
+    rebuildCombinedGroups();
     applyFilters();
-    setStatus("Live direct feed loaded. Backfilling CHP and fire cache...", "good");
-    const legacyCount = await loadLegacyBackfill();
-    applyFilters();
-    setStatus(
-      legacyCount
-        ? `Live feed loaded with ${legacyCount} CHP/fire cache groups restored`
-        : "Live feed loaded",
-      "good"
-    );
+    const shouldLoadHistory = forceHistory || (!historyGroups.length && !historyLoadPromise);
+    if (shouldLoadHistory) {
+      setStatus(
+        historyGroups.length
+          ? "Live feed refreshed. Rebuilding full term history..."
+          : "Live feed loaded. Full term history is loading...",
+        "good"
+      );
+      loadFullHistory({ force: forceHistory })
+        .then((groupCount) => {
+          setStatus(`Live feed loaded with full term history (${groupCount.toLocaleString()} groups)`, "good");
+          applyFilters();
+        })
+        .catch((error) => {
+          setStatus(
+            `Live feed loaded, but full term history failed: ${error && error.message ? error.message : "unknown error"}`,
+            "warn"
+          );
+          applyFilters();
+        });
+    } else {
+      setStatus(
+        historyGroups.length
+          ? "Live feed refreshed. Full term history is ready."
+          : "Live feed loaded",
+        "good"
+      );
+    }
   } catch (error) {
     setStatus(error && error.message ? error.message : "Unable to load live call feed", "warn");
   }
@@ -809,14 +1071,22 @@ document.addEventListener("click", (event) => {
   applyFilters();
 });
 
-document.getElementById("searchBox").addEventListener("input", applyFilters);
+document.getElementById("helpToggle").addEventListener("click", (event) => {
+  event.preventDefault();
+  const panel = document.getElementById("howToReadPanel");
+  panel.hidden = !panel.hidden;
+  event.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
+});
+
+document.getElementById("searchBox").addEventListener("input", scheduleApplyFilters);
 document.getElementById("agencyFilter").addEventListener("change", applyFilters);
 document.getElementById("stationFilter").addEventListener("change", applyFilters);
+document.getElementById("prefixFilter").addEventListener("change", applyFilters);
 document.getElementById("pageSize").addEventListener("change", applyFilters);
-document.getElementById("refreshBtn").addEventListener("click", refreshPage);
+document.getElementById("refreshBtn").addEventListener("click", () => refreshPage({ forceHistory: true }));
 
-refreshPage();
-setInterval(refreshPage, REFRESH_MS);
+refreshPage({ forceHistory: false });
+setInterval(() => refreshPage({ forceHistory: false }), REFRESH_MS);
 </script>
 </body>
 </html>
