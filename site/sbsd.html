@@ -732,7 +732,7 @@ function applyFilters() {
   if (legacyGroups.length && legacyGeneratedAt) {
     uploadParts.push(`CHP/fire cache ${formatLocal(legacyGeneratedAt)}`);
   }
-  uploadParts.push(`Live SBSO ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
+    uploadParts.push(`Live direct feed ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
   if (legacyGroups.length) {
     uploadParts.push(`Cached CHP/fire ${legacyGroups.length} groups / ${totalRows(legacyGroups)} rows`);
   }
@@ -785,7 +785,7 @@ async function refreshPage() {
   try {
     await loadLiveFeed();
     applyFilters();
-    setStatus("Live SBSO feed loaded. Backfilling CHP and fire cache...", "good");
+    setStatus("Live direct feed loaded. Backfilling CHP and fire cache...", "good");
     const legacyCount = await loadLegacyBackfill();
     applyFilters();
     setStatus(
