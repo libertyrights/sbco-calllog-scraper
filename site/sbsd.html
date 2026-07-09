@@ -6,53 +6,66 @@
 <title>San Bernardino County Sheriff - Live Call Log</title>
 <style>
 :root {
-  --bg: #eef3f8;
+  --bg: #edf3f9;
   --panel: #ffffff;
-  --line: #d7e0ea;
+  --line: #d8e2ed;
   --text: #18212c;
-  --muted: #5d6b79;
-  --accent: #143d6b;
-  --accent-2: #2c6aa8;
+  --muted: #627181;
+  --accent: #163c69;
+  --accent-2: #245c99;
+  --good: #1d6b3b;
   --warn: #9a5b00;
+  --danger: #9f2020;
+  --sbso-bg: #f6faff;
+  --chp-bg: #edf4ff;
+  --fire-bg: #fff4e8;
+  --tone-high: rgba(159, 32, 32, 0.08);
+  --tone-med: rgba(154, 91, 0, 0.08);
+  --tone-low: rgba(17, 36, 58, 0.03);
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: linear-gradient(180deg, #f5f8fc 0%, #e8eff7 100%);
   color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(65, 114, 173, 0.12), transparent 25%),
+    linear-gradient(180deg, #f5f8fc 0%, #e8eff7 100%);
 }
 .topbar {
-  background: linear-gradient(135deg, #173a66 0%, #0f2746 100%);
+  background: linear-gradient(135deg, #173a66 0%, #0d2745 100%);
   color: #fff;
   padding: 16px 20px;
+  box-shadow: 0 10px 30px rgba(12, 27, 46, 0.18);
 }
 .topbar h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
+  margin: 0;
+  font-size: 23px;
 }
 .topbar p {
-  margin: 0;
-  color: #c9daed;
+  margin: 6px 0 0;
+  color: #ccdaea;
   font-size: 13px;
 }
 .shell {
-  max-width: 1320px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 18px;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(16, 38, 64, 0.06);
 }
 .notice,
 .controls,
 .summary,
 .table-shell {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(16, 38, 64, 0.06);
+  margin-bottom: 14px;
 }
 .notice {
   padding: 14px 16px;
-  margin-bottom: 14px;
 }
 .notice strong {
   display: block;
@@ -66,48 +79,43 @@ body {
 .notice a { color: var(--accent-2); }
 .controls {
   display: grid;
-  grid-template-columns: minmax(240px, 1.6fr) repeat(2, minmax(120px, 0.7fr)) auto auto;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(120px, 0.7fr)) auto;
   gap: 10px;
   padding: 14px;
-  margin-bottom: 14px;
 }
 .controls input,
 .controls select,
 .controls button {
-  width: 100%;
   min-height: 40px;
   border-radius: 10px;
-  border: 1px solid #bcc9d8;
   font-size: 14px;
 }
 .controls input,
 .controls select {
+  border: 1px solid #bcc9d8;
   padding: 0 12px;
-  background: #fff;
 }
 .controls button {
+  border: 0;
   background: var(--accent);
   color: #fff;
-  border: 0;
-  cursor: pointer;
   padding: 0 16px;
+  cursor: pointer;
 }
-.controls button:hover { background: #1c4b83; }
+.controls button:hover { background: #205086; }
 .summary {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 18px;
   align-items: center;
   padding: 12px 14px;
-  margin-bottom: 14px;
   font-size: 13px;
 }
-.summary .status {
+.status {
   font-weight: 700;
 }
-.summary .warn {
-  color: var(--warn);
-}
+.status.warn { color: var(--warn); }
+.status.good { color: var(--good); }
 .table-shell {
   overflow: hidden;
 }
@@ -123,30 +131,158 @@ table {
 thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 5;
   text-align: left;
-  background: #163c69;
   color: #fff;
+  background: var(--accent);
   padding: 10px 12px;
-  white-space: nowrap;
 }
 tbody td {
   padding: 9px 12px;
   border-top: 1px solid #e5ebf2;
   vertical-align: top;
 }
-tbody tr:nth-child(even) { background: #f8fbff; }
-tbody tr:hover { background: #eef5fd; }
-.mono { font-family: Consolas, monospace; }
-.muted { color: var(--muted); }
+tbody tr.main-row {
+  transition: background-color 0.15s ease;
+}
+tbody tr.main-row:hover {
+  background: #eef5fd;
+}
+.toggle-cell { width: 40px; }
+.toggle-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid #afbdd0;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+tbody tr.main-row.row-sbso {
+  background: linear-gradient(90deg, rgba(42, 93, 149, 0.16) 0, var(--sbso-bg) 36px, var(--sbso-bg) 100%);
+  border-left: 5px solid #2a5d95;
+}
+tbody tr.main-row.row-chp {
+  background: linear-gradient(90deg, rgba(29, 95, 191, 0.18) 0, var(--chp-bg) 36px, var(--chp-bg) 100%);
+  border-left: 5px solid #1d5fbf;
+}
+tbody tr.main-row.row-sbcfire {
+  background: linear-gradient(90deg, rgba(217, 119, 6, 0.18) 0, var(--fire-bg) 36px, var(--fire-bg) 100%);
+  border-left: 5px solid #d97706;
+}
+tbody tr.main-row.tone-high {
+  box-shadow: inset 0 0 0 9999px var(--tone-high);
+}
+tbody tr.main-row.tone-med {
+  box-shadow: inset 0 0 0 9999px var(--tone-med);
+}
+tbody tr.main-row.tone-low {
+  box-shadow: inset 0 0 0 9999px var(--tone-low);
+}
+.callno {
+  display: inline-block;
+  font-family: Consolas, monospace;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eff4fb;
+  border: 1px solid #c8d5e5;
+}
 .pill {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 999px;
-  background: #eaf2fb;
-  color: #1d4b7d;
+  background: #edf3fb;
+  color: #20476d;
+  font-size: 11px;
+}
+.agency-pill,
+.sev-pill {
+  display: inline-block;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+}
+.agency-pill {
+  color: #fff;
+}
+.agency-sbso { background: #2a5d95; }
+.agency-chp { background: #1d5fbf; }
+.agency-sbcfire { background: #d97706; }
+.agency-other { background: #596b80; }
+.sev-pill {
+  margin-left: 6px;
+  color: #203040;
+  background: #e9eef5;
+}
+.sev-pill.high {
+  background: #ffe0e0;
+  color: #8c1d1d;
+}
+.sev-pill.med {
+  background: #ffeacc;
+  color: #8a5400;
+}
+.sev-pill.low {
+  background: #eef3f9;
+  color: #4c5d70;
+}
+.detail-row td {
+  background: #f7faff;
+  border-top: none;
+  padding: 0 0 14px;
+}
+.detail-card {
+  margin: 0 12px 0 48px;
+  border: 1px solid #d5e1ee;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.detail-block h4 {
+  margin: 0 0 5px;
+  color: #546474;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.detail-block .value {
+  font-weight: 700;
+}
+.history {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
   font-size: 12px;
 }
+.history th,
+.history td {
+  border: 1px solid #dce5f0;
+  padding: 6px 8px;
+}
+.history th {
+  background: #eef4fb;
+}
+.extra-json {
+  margin-top: 10px;
+  background: #0f1a27;
+  color: #d9e7f4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.muted { color: var(--muted); }
 .empty {
   padding: 28px;
   text-align: center;
@@ -156,14 +292,16 @@ tbody tr:hover { background: #eef5fd; }
   .controls {
     grid-template-columns: 1fr 1fr;
   }
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .controls {
     grid-template-columns: 1fr;
   }
-  .summary {
-    flex-direction: column;
-    align-items: flex-start;
+  .detail-grid {
+    grid-template-columns: 1fr;
   }
   thead th:nth-child(2),
   thead th:nth-child(3),
@@ -171,52 +309,57 @@ tbody tr:hover { background: #eef5fd; }
   tbody td:nth-child(3) {
     display: none;
   }
+  .detail-card {
+    margin-left: 12px;
+  }
 }
 </style>
 </head>
 <body>
   <div class="topbar">
     <h1>San Bernardino County Sheriff - Live Call Log</h1>
-    <p>Recovery viewer reading directly from the published call log feed.</p>
+    <p>Fast local viewer with live JSON data, revision expansion, and CHP backfill while the feed catches up.</p>
   </div>
 
   <div class="shell">
-    <div class="notice">
-      <strong>Live recovery mode is active.</strong>
+    <div class="card notice">
+      <strong>Live view restored.</strong>
       <p>
-        This page reads directly from <a href="calllog.json">calllog.json</a> so fresh call data stays visible even if the older
-        database-backed API falls behind. Raw files:
+        This page loads current rows from <a href="calllog.json">calllog.json</a> for speed, then backfills older CHP and fire
+        entries from the legacy API when available. Raw files:
         <a href="calllog.csv">CSV</a>,
         <a href="../status/calllog_status.json">status</a>,
         <a href="calllog_upload_meta.json">upload metadata</a>.
       </p>
     </div>
 
-    <div class="controls">
+    <div class="card controls">
       <input id="searchBox" type="search" placeholder="Search call number, type, location, report, agency, station">
       <select id="agencyFilter"><option value="">All agencies</option></select>
       <select id="stationFilter"><option value="">All stations</option></select>
       <select id="pageSize">
-        <option value="50">50 rows</option>
-        <option value="100" selected>100 rows</option>
-        <option value="250">250 rows</option>
-        <option value="500">500 rows</option>
+        <option value="100">100 groups</option>
+        <option value="250" selected>250 groups</option>
+        <option value="500">500 groups</option>
+        <option value="1000">1000 groups</option>
       </select>
       <button id="refreshBtn" type="button">Refresh</button>
     </div>
 
-    <div class="summary">
-      <div class="status" id="statusText">Loading...</div>
+    <div class="card summary">
+      <div id="statusText" class="status">Loading...</div>
       <div id="countText"></div>
-      <div id="dataRangeText"></div>
+      <div id="rangeText"></div>
+      <div id="breakdownText"></div>
       <div id="uploadText" class="muted"></div>
     </div>
 
-    <div class="table-shell">
+    <div class="card table-shell">
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
+              <th class="toggle-cell"></th>
               <th>Date/Time</th>
               <th>Station</th>
               <th>Agency</th>
@@ -230,17 +373,22 @@ tbody tr:hover { background: #eef5fd; }
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <div id="emptyState" class="empty" hidden>No rows match the current filter.</div>
+      <div id="emptyState" class="empty" hidden>No calls match the current filter.</div>
     </div>
   </div>
 
 <script>
-const FEED_URL = "calllog.json";
-const META_URL = "calllog_upload_meta.json";
+const DATA_ROOT = new URL(new URLSearchParams(window.location.search).get("dataRoot") || ".", window.location.href);
+const LIVE_URL = new URL("calllog.json", DATA_ROOT).toString();
+const META_URL = new URL("calllog_upload_meta.json", DATA_ROOT).toString();
+const LEGACY_URL = new URL("sbsd_api.php?limit=250&offset=0&sort=time&dir=desc", DATA_ROOT).toString();
 const REFRESH_MS = 60000;
 
-let allRows = [];
+let liveGroups = [];
+let legacyGroups = [];
 let uploadMeta = null;
+let legacyGeneratedAt = "";
+let expanded = new Set();
 
 function parseDateTime(value) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/.exec((value || "").trim());
@@ -259,6 +407,163 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function baseCall(callNo) {
+  return String(callNo || "").replace(/\.\d+$/, "");
+}
+
+function revisionNumber(callNo) {
+  const match = /\.(\d+)$/.exec(String(callNo || ""));
+  return match ? Number(match[1]) : 0;
+}
+
+function parseExtra(extra) {
+  if (!extra) return null;
+  if (typeof extra === "object") return extra;
+  try {
+    return JSON.parse(extra);
+  } catch (_) {
+    return null;
+  }
+}
+
+function severityFor(record) {
+  const agency = String(record.agency || "").toUpperCase();
+  const type = String(record.type || "").toUpperCase();
+  const dispo = String(record.dispo || "").toUpperCase();
+  if (agency === "CHP") return "med";
+  if (agency === "SBCFIRE") return "med";
+  if (/(WEAPON|211|459|1144|245|FIREW|BURG|ROBB|ASSAULT|SHOOT)/.test(type)) return "high";
+  if (/(AOD|WELCK|SUS|DIST|415|594|10855|11377|490\.5|TRO|SECCK)/.test(type)) return "med";
+  if (/(ARR|UTL|CAN|SER|OAA)/.test(dispo)) return "low";
+  return "low";
+}
+
+function rowClass(group) {
+  const agency = String(group.agency || "").toUpperCase();
+  const sev = severityFor(group.latest);
+  const parts = ["main-row"];
+  if (agency === "CHP") parts.push("row-chp");
+  else if (agency === "SBCFIRE") parts.push("row-sbcfire");
+  else parts.push("row-sbso");
+  parts.push(`tone-${sev}`);
+  return parts.join(" ");
+}
+
+function agencyClass(agency) {
+  const normalized = String(agency || "").toUpperCase();
+  if (normalized === "CHP") return "agency-chp";
+  if (normalized === "SBCFIRE") return "agency-sbcfire";
+  if (normalized === "SBSO") return "agency-sbso";
+  return "agency-other";
+}
+
+function severityLabel(level) {
+  if (level === "high") return "Priority";
+  if (level === "med") return "Active";
+  return "Routine";
+}
+
+function buildLiveGroups(rows) {
+  const map = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const normalized = {
+      dt: row["date/time"] || "",
+      agency: row.agency || "",
+      station: row.station || "",
+      callno: row["call number"] || "",
+      report: row["report number"] || "",
+      type: row["call type"] || "",
+      dispo: row.disposition || "",
+      loc: row.location || "",
+      rev_at: row.revision_scraped_at || "",
+      revNum: revisionNumber(row["call number"]),
+      extra: parseExtra(row.extra_json),
+    };
+    const base = baseCall(normalized.callno);
+    if (!map.has(base)) {
+      map.set(base, {
+        baseCallNo: base,
+        agency: normalized.agency,
+        station: normalized.station,
+        chain: [],
+      });
+    }
+    map.get(base).chain.push(normalized);
+  }
+
+  return [...map.values()].map((group) => {
+    group.chain.sort((a, b) => a.revNum - b.revNum || parseDateTime(a.dt) - parseDateTime(b.dt));
+    group.latest = group.chain[group.chain.length - 1];
+    group.originalDt = group.chain[0] ? group.chain[0].dt : "";
+    group.sortMs = parseDateTime(group.latest.dt || group.originalDt);
+    group.revisionCount = Math.max(0, group.chain.length - 1);
+    return group;
+  }).sort((a, b) => b.sortMs - a.sortMs);
+}
+
+function normalizeLegacyGroup(group) {
+  const chain = Array.isArray(group.chain) ? group.chain.map((row) => ({
+    dt: row.dt || "",
+    agency: row.agency || group.agency || "",
+    station: row.station || group.station || "",
+    callno: row.callno || "",
+    report: row.report || "",
+    type: row.type || "",
+    dispo: row.dispo || "",
+    loc: row.loc || "",
+    rev_at: row.rev_at || "",
+    revNum: Number(row.revNum || revisionNumber(row.callno)),
+    extra: row.extra || null,
+  })) : [];
+  chain.sort((a, b) => a.revNum - b.revNum || parseDateTime(a.dt) - parseDateTime(b.dt));
+  return {
+    baseCallNo: group.baseCallNo || baseCall((chain[0] || {}).callno || ""),
+    agency: group.agency || ((chain[0] || {}).agency || ""),
+    station: group.station || ((chain[0] || {}).station || ""),
+    chain,
+    latest: chain[chain.length - 1] || {},
+    originalDt: group.originalDt || ((chain[0] || {}).dt || ""),
+    sortMs: Number(group.sortMs || parseDateTime(group.originalDt || ((chain[0] || {}).dt || ""))),
+    revisionCount: Number(group.revisionCount || Math.max(0, chain.length - 1)),
+  };
+}
+
+function mergedGroups() {
+  const byBase = new Map();
+  for (const group of liveGroups) {
+    byBase.set(group.baseCallNo, group);
+  }
+  for (const group of legacyGroups) {
+    if (!byBase.has(group.baseCallNo)) {
+      byBase.set(group.baseCallNo, group);
+    }
+  }
+  return [...byBase.values()].sort((a, b) => b.sortMs - a.sortMs);
+}
+
+function totalRows(groups) {
+  return groups.reduce((sum, group) => sum + Math.max(1, Array.isArray(group.chain) ? group.chain.length : 0), 0);
+}
+
+function agencyCounts(groups) {
+  const counts = new Map();
+  for (const group of groups) {
+    const agency = String(group.agency || "").trim();
+    if (!agency) continue;
+    counts.set(agency, (counts.get(agency) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([agency, count]) => `${agency} ${count}`)
+    .join(", ");
+}
+
+function setStatus(text, state) {
+  const node = document.getElementById("statusText");
+  node.textContent = text;
+  node.className = state === "warn" ? "status warn" : state === "good" ? "status good" : "status";
+}
+
 function formatLocal(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -266,121 +571,252 @@ function formatLocal(value) {
   return date.toLocaleString();
 }
 
-function setStatus(text, isWarn) {
-  const node = document.getElementById("statusText");
-  node.textContent = text;
-  node.className = isWarn ? "status warn" : "status";
-}
-
-function updateFilters() {
+function updateFilters(groups) {
   const agencyFilter = document.getElementById("agencyFilter");
   const stationFilter = document.getElementById("stationFilter");
-  const agencies = [...new Set(allRows.map((row) => row.agency).filter(Boolean))].sort();
-  const stations = [...new Set(allRows.map((row) => row.station).filter(Boolean))].sort();
-  const selectedAgency = agencyFilter.value;
-  const selectedStation = stationFilter.value;
-
+  const currentAgency = agencyFilter.value;
+  const currentStation = stationFilter.value;
+  const agencies = [...new Set(groups.map((group) => group.agency).filter(Boolean))].sort();
+  const stations = [...new Set(groups.map((group) => group.station).filter(Boolean))].sort();
   agencyFilter.innerHTML = '<option value="">All agencies</option>' + agencies.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   stationFilter.innerHTML = '<option value="">All stations</option>' + stations.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  if (agencies.includes(currentAgency)) agencyFilter.value = currentAgency;
+  if (stations.includes(currentStation)) stationFilter.value = currentStation;
+}
 
-  if (agencies.includes(selectedAgency)) agencyFilter.value = selectedAgency;
-  if (stations.includes(selectedStation)) stationFilter.value = selectedStation;
+function renderExtra(group) {
+  const current = group.latest || {};
+  const extra = current.extra;
+  if (!extra) return "";
+  return `<div class="extra-json">${escapeHtml(JSON.stringify(extra, null, 2))}</div>`;
+}
+
+function renderHistory(group) {
+  if (!group.chain || group.chain.length <= 1) {
+    return '<div class="muted">No revisions recorded for this call.</div>';
+  }
+  return `
+    <table class="history">
+      <thead>
+        <tr>
+          <th>Revision</th>
+          <th>Call No</th>
+          <th>Type</th>
+          <th>Dispo</th>
+          <th>Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${group.chain.map((row) => `
+          <tr>
+            <td>${row.revNum === 0 ? "Original" : "Rev " + row.revNum}</td>
+            <td>${escapeHtml(row.callno)}</td>
+            <td>${escapeHtml(row.type)}</td>
+            <td>${escapeHtml(row.dispo)}</td>
+            <td>${escapeHtml(row.loc)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderDetails(group) {
+  const current = group.latest || {};
+  return `
+    <div class="detail-card">
+      <div class="detail-grid">
+        <div class="detail-block">
+          <h4>Current Call</h4>
+          <div class="value">${escapeHtml(current.callno || group.baseCallNo)}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Agency / Station</h4>
+          <div class="value">${escapeHtml(group.agency)} / ${escapeHtml(group.station)}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Original Time</h4>
+          <div class="value">${escapeHtml(group.originalDt || current.dt || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Report</h4>
+          <div class="value">${escapeHtml(current.report || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Type / Dispo</h4>
+          <div class="value">${escapeHtml(current.type || "")} / ${escapeHtml(current.dispo || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Revision Count</h4>
+          <div class="value">${group.revisionCount}</div>
+        </div>
+      </div>
+      <div><strong>Location:</strong> ${escapeHtml(current.loc || "")}</div>
+      ${renderHistory(group)}
+      ${renderExtra(group)}
+    </div>
+  `;
 }
 
 function applyFilters() {
+  const groups = mergedGroups();
+  updateFilters(groups);
   const search = document.getElementById("searchBox").value.trim().toLowerCase();
   const agency = document.getElementById("agencyFilter").value;
   const station = document.getElementById("stationFilter").value;
   const limit = Number(document.getElementById("pageSize").value || "100");
 
-  let rows = allRows.filter((row) => {
-    if (agency && row.agency !== agency) return false;
-    if (station && row.station !== station) return false;
+  const filtered = groups.filter((group) => {
+    if (agency && group.agency !== agency) return false;
+    if (station && group.station !== station) return false;
     if (!search) return true;
+    const current = group.latest || {};
     const haystack = [
-      row["date/time"],
-      row.agency,
-      row.station,
-      row["call number"],
-      row["report number"],
-      row["call type"],
-      row.disposition,
-      row.location,
+      group.baseCallNo,
+      group.agency,
+      group.station,
+      current.callno,
+      current.report,
+      current.type,
+      current.dispo,
+      current.loc,
     ].join(" ").toLowerCase();
     return haystack.includes(search);
   });
 
-  const totalMatches = rows.length;
-  rows = rows.slice(0, limit);
+  const sliced = filtered.slice(0, limit);
+  const rowsNode = document.getElementById("rows");
+  const emptyNode = document.getElementById("emptyState");
+  const visibleRows = totalRows(sliced);
+  const matchedRows = totalRows(filtered);
 
-  const tbody = document.getElementById("rows");
-  const emptyState = document.getElementById("emptyState");
-  tbody.innerHTML = rows.map((row) => `
-    <tr>
-      <td>${escapeHtml(row["date/time"])}</td>
-      <td>${escapeHtml(row.station)}</td>
-      <td>${escapeHtml(row.agency)}</td>
-      <td class="mono">${escapeHtml(row["call number"])}</td>
-      <td class="mono">${escapeHtml(row["report number"])}</td>
-      <td>${escapeHtml(row["call type"])}</td>
-      <td>${escapeHtml(row.disposition)}</td>
-      <td>${escapeHtml(row.location)}</td>
-    </tr>
-  `).join("");
+  rowsNode.innerHTML = sliced.map((group) => {
+    const current = group.latest || {};
+    const isOpen = expanded.has(group.baseCallNo);
+    const severity = severityFor(current);
+    return `
+      <tr class="${rowClass(group)}" data-base="${escapeHtml(group.baseCallNo)}">
+        <td class="toggle-cell">
+          <button class="toggle-btn" type="button" data-toggle="${escapeHtml(group.baseCallNo)}">${isOpen ? "-" : "+"}</button>
+        </td>
+        <td>${escapeHtml(current.dt || group.originalDt || "")}</td>
+        <td>${escapeHtml(group.station || "")}</td>
+        <td><span class="agency-pill ${agencyClass(group.agency)}">${escapeHtml(group.agency || "Unknown")}</span></td>
+        <td><span class="callno">${escapeHtml(group.baseCallNo || "")}</span> ${group.revisionCount ? `<span class="pill">${group.revisionCount} rev</span>` : ""}</td>
+        <td>${escapeHtml(current.report || "")}</td>
+        <td>${escapeHtml(current.type || "")}<span class="sev-pill ${severity}">${severityLabel(severity)}</span></td>
+        <td>${escapeHtml(current.dispo || "")}</td>
+        <td>${escapeHtml(current.loc || "")}</td>
+      </tr>
+      ${isOpen ? `<tr class="detail-row"><td colspan="9">${renderDetails(group)}</td></tr>` : ""}
+    `;
+  }).join("");
 
-  emptyState.hidden = totalMatches !== 0;
-  document.getElementById("countText").textContent = `${Math.min(limit, totalMatches)} of ${totalMatches} matching rows shown`;
+  emptyNode.hidden = filtered.length !== 0;
+  document.getElementById("countText").textContent = `${Math.min(limit, filtered.length)} of ${filtered.length} call groups shown (${visibleRows} of ${matchedRows} raw rows)`;
 
-  if (allRows.length) {
-    const newest = allRows[0]["date/time"];
-    const oldest = allRows[allRows.length - 1]["date/time"];
-    document.getElementById("dataRangeText").textContent = `Newest call: ${newest} | Oldest loaded call: ${oldest}`;
+  if (groups.length) {
+    const newest = groups[0].latest ? groups[0].latest.dt : groups[0].originalDt;
+    document.getElementById("rangeText").textContent = `Newest visible entry: ${newest || "n/a"}`;
+    document.getElementById("breakdownText").textContent = `Visible agencies: ${agencyCounts(filtered) || "n/a"}`;
   } else {
-    document.getElementById("dataRangeText").textContent = "";
+    document.getElementById("rangeText").textContent = "";
+    document.getElementById("breakdownText").textContent = "";
   }
 
+  const uploadParts = [];
   if (uploadMeta && uploadMeta.generated_at) {
     const transport = uploadMeta.transport ? ` via ${uploadMeta.transport}` : "";
-    document.getElementById("uploadText").textContent = `Published ${formatLocal(uploadMeta.generated_at)}${transport}`;
-  } else {
-    document.getElementById("uploadText").textContent = "";
+    uploadParts.push(`Live publish ${formatLocal(uploadMeta.generated_at)}${transport}`);
   }
+  if (legacyGroups.length && legacyGeneratedAt) {
+    uploadParts.push(`CHP/fire cache ${formatLocal(legacyGeneratedAt)}`);
+  }
+  uploadParts.push(`Live SBSO ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
+  if (legacyGroups.length) {
+    uploadParts.push(`Cached CHP/fire ${legacyGroups.length} groups / ${totalRows(legacyGroups)} rows`);
+  }
+  document.getElementById("uploadText").textContent = uploadParts.join(" | ");
 }
 
-async function loadFeed() {
+async function loadLiveFeed() {
   const stamp = Date.now();
-  setStatus("Refreshing feed...", false);
+  const [liveResponse, metaResponse] = await Promise.all([
+    fetch(`${LIVE_URL}?t=${stamp}`, { cache: "no-store" }),
+    fetch(`${META_URL}?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+  ]);
 
+  if (!liveResponse.ok) {
+    throw new Error(`calllog.json returned HTTP ${liveResponse.status}`);
+  }
+
+  const rows = await liveResponse.json();
+  liveGroups = buildLiveGroups(rows);
+  uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
+}
+
+async function loadLegacyBackfill() {
   try {
-    const [feedResponse, metaResponse] = await Promise.all([
-      fetch(`${FEED_URL}?t=${stamp}`, { cache: "no-store" }),
-      fetch(`${META_URL}?t=${stamp}`, { cache: "no-store" }).catch(() => null),
-    ]);
-
-    if (!feedResponse.ok) {
-      throw new Error(`calllog.json returned HTTP ${feedResponse.status}`);
+    const response = await fetch(`${LEGACY_URL}&t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) {
+      legacyGeneratedAt = "";
+      legacyGroups = [];
+      return 0;
     }
-
-    const rows = await feedResponse.json();
-    allRows = (Array.isArray(rows) ? rows : []).slice().sort((a, b) => parseDateTime(b["date/time"]) - parseDateTime(a["date/time"]));
-    uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
-
-    updateFilters();
-    applyFilters();
-    setStatus(`Feed loaded from calllog.json at ${new Date().toLocaleTimeString()}`, false);
-  } catch (error) {
-    setStatus(error && error.message ? error.message : "Unable to load calllog.json", true);
+    const payload = await response.json();
+    legacyGeneratedAt = payload.generatedAt || "";
+    const groups = Array.isArray(payload.groups) ? payload.groups : [];
+    legacyGroups = groups
+      .filter((group) => {
+        const agency = String(group.agency || ((group.chain || [])[0] || {}).agency || "");
+        return agency && agency !== "SBSO";
+      })
+      .map(normalizeLegacyGroup);
+    return legacyGroups.length;
+  } catch (_) {
+    legacyGeneratedAt = "";
+    legacyGroups = [];
+    return 0;
   }
 }
+
+async function refreshPage() {
+  setStatus("Refreshing live call feed...", "plain");
+  try {
+    await loadLiveFeed();
+    applyFilters();
+    setStatus("Live SBSO feed loaded. Backfilling CHP and fire cache...", "good");
+    const legacyCount = await loadLegacyBackfill();
+    applyFilters();
+    setStatus(
+      legacyCount
+        ? `Live feed loaded with ${legacyCount} CHP/fire cache groups restored`
+        : "Live feed loaded",
+      "good"
+    );
+  } catch (error) {
+    setStatus(error && error.message ? error.message : "Unable to load live call feed", "warn");
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-toggle]");
+  if (!button) return;
+  const base = button.getAttribute("data-toggle");
+  if (!base) return;
+  if (expanded.has(base)) expanded.delete(base);
+  else expanded.add(base);
+  applyFilters();
+});
 
 document.getElementById("searchBox").addEventListener("input", applyFilters);
 document.getElementById("agencyFilter").addEventListener("change", applyFilters);
 document.getElementById("stationFilter").addEventListener("change", applyFilters);
 document.getElementById("pageSize").addEventListener("change", applyFilters);
-document.getElementById("refreshBtn").addEventListener("click", loadFeed);
+document.getElementById("refreshBtn").addEventListener("click", refreshPage);
 
-loadFeed();
-setInterval(loadFeed, REFRESH_MS);
+refreshPage();
+setInterval(refreshPage, REFRESH_MS);
 </script>
 </body>
 </html>
