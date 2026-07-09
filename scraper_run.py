@@ -1877,13 +1877,17 @@ def main():
     formatted_count = write_formatted_csv(merged, FORMATTED_CSV)
     log("Local calllog_formatted.csv written ({} rows)".format(formatted_count))
 
-    barstow = [
-        row
-        for row in merged
-        if station_is_barstow(row.get("agency", ""), row.get("station", ""))
-    ]
+    scoped_live_rows = []
+    for row in merged:
+        normalized = normalize_record(row)
+        agency = (normalized.get("agency", "") or "").strip().upper()
+        if station_is_barstow(normalized.get("agency", ""), normalized.get("station", "")) or (
+            agency and agency != PRIMARY_AGENCY_CODE.upper()
+        ):
+            scoped_live_rows.append(normalized)
     with open(CALLLOG_JSON, "w", encoding="utf-8") as f:
-        json.dump(barstow, f, indent=2)
+        json.dump(scoped_live_rows, f, indent=2)
+    log("Local calllog.json written ({} scoped records)".format(len(scoped_live_rows)))
     log_phase_duration("local output write", write_started)
 
     daily_files_started = time.monotonic()
