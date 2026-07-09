@@ -1,0 +1,74 @@
+name: backfill-calllog-archives
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: Start date to backfill (YYYY-MM-DD)
+        required: true
+        default: '2026-06-26'
+      end_date:
+        description: End date to backfill (YYYY-MM-DD)
+        required: true
+        default: '2026-07-08'
+      overwrite_existing:
+        description: Rebuild days that already exist in the archive index
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: sbco-calllog-archive-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Prepare runtime directory
+        run: mkdir -p "$GITHUB_WORKSPACE/runtime"
+
+      - name: Backfill durable archives
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SBCO_BASE_DIR: ${{ github.workspace }}/runtime
+          SBCO_SERVER_CALLLOG_URL: ${{ secrets.SBCO_SERVER_CALLLOG_URL }}
+          SBCO_HTTP_UPLOAD_URL: https://upnexx.xyz/osint/upload_calllog_signed.php
+          SBCO_UPLOAD_SIGNING_PRIVATE_KEY: ${{ secrets.SBCO_UPLOAD_SIGNING_PRIVATE_KEY }}
+          SBCO_HTTP_UPLOAD_SOURCE: github-archive-backfill
+          SBCO_RUNNER_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          args=(
+            --start-date "${{ inputs.start_date }}"
+            --end-date "${{ inputs.end_date }}"
+          )
+          if [ "${{ inputs.overwrite_existing }}" = "true" ]; then
+            args+=(--overwrite-existing)
+          fi
+          python backfill_calllog_archives.py "${args[@]}"
+
+      - name: Upload runtime artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbco-calllog-archive-backfill-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            ${{ github.workspace }}/runtime/archive/*
