@@ -466,7 +466,7 @@ tbody tr.main-row.tone-low {
 <body>
   <div class="topbar">
     <h1>San Bernardino County Sheriff - Live Call Log</h1>
-    <p>Fast local viewer with live JSON data, revision expansion, and full-term history hydration.</p>
+    <p>Fast local viewer with live JSON data, revision expansion, and on-demand history loading.</p>
   </div>
 
   <div class="shell">
@@ -474,8 +474,8 @@ tbody tr.main-row.tone-low {
       <strong>Live view restored.</strong>
       <div class="notice-copy">
         <p>
-          This page loads current rows from <a href="calllog.json">calllog.json</a> first for speed, then hydrates the full
-          published history from <a href="calllog.csv">calllog.csv</a> in the background. Raw files:
+          This page loads current rows from <a href="calllog.json">calllog.json</a> first for speed, then loads a fast
+          history preview from the API. Use filters or Load more history to fetch deeper results without locking the page. Raw files:
           <a href="../status/calllog_status.json">status</a>,
           <a href="calllog_upload_meta.json">upload metadata</a>.
         </p>
