@@ -192,6 +192,23 @@ body {
 }
 .status.warn { color: var(--warn); }
 .status.good { color: var(--good); }
+.summary button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: #335f91;
+  color: #fff;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.summary button:hover {
+  background: #274e79;
+}
+.summary button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 .table-shell {
   overflow: hidden;
 }
@@ -551,6 +568,7 @@ tbody tr.main-row.tone-low {
       <div id="rangeText"></div>
       <div id="breakdownText"></div>
       <div id="uploadText" class="muted"></div>
+      <button id="loadMoreApiBtn" type="button" hidden>Load more history</button>
     </div>
 
     <div class="card table-shell">
@@ -583,13 +601,26 @@ const LIVE_URL = new URL("calllog.json", DATA_ROOT).toString();
 const META_URL = new URL("calllog_upload_meta.json", DATA_ROOT).toString();
 const HISTORY_CSV_URL = new URL("calllog.csv", DATA_ROOT).toString();
 const ANNOTATIONS_URL = new URL("calllog_arrest_index.json", DATA_ROOT).toString();
+const API_PREVIEW_URL = new URL("sbsd_api.php", DATA_ROOT).toString();
+const DESCRIPTIONS_URL = new URL("calllog_descriptions.json", DATA_ROOT).toString();
+const API_PREVIEW_LIMIT = 1000;
 const REFRESH_MS = 60000;
 const CSV_PARSE_YIELD_ROWS = 1500;
 
 let liveGroups = [];
+let apiPreviewGroups = [];
 let historyGroups = [];
 let combinedGroups = [];
 let uploadMeta = null;
+let apiPreviewLoadedAt = "";
+let apiPreviewGeneratedAt = "";
+let apiPreviewTotal = 0;
+let apiPreviewError = "";
+let apiPreviewPromise = null;
+let apiPreviewOffset = 0;
+let apiPreviewHasMore = false;
+let apiPreviewActiveQueryKey = "";
+let apiPreviewFilterTimer = 0;
 let historyLoadedAt = "";
 let historyError = "";
 let historyLoadPromise = null;
@@ -602,8 +633,12 @@ let callAnnotations = new Map();
 let callAnnotationsLoadedAt = "";
 let callAnnotationsError = "";
 let callAnnotationsPromise = null;
+let callDescriptions = { prefixes: {}, dispositions: {}, call_types: {} };
+let callDescriptionsError = "";
 
 const AREA_CODE_PATTERN = /^[A-Z*]{1,5}$/;
+const ARREST_DISPOSITIONS = new Set(["ARR", "WAR", "ABA", "CIA"]);
+const DEATH_SOURCE_CALL_TYPES = new Set(["DB"]);
 const FILTER_SUGGESTION_LIMITS = {
   agency: 50,
   station: 100,
@@ -614,65 +649,6 @@ const FILTER_SUGGESTION_LIMITS = {
   location: 250,
   area: 100,
 };
-const PREFIX_DESCRIPTION_OVERRIDES = {
-  CO: "Coroner Call",
-  CS: "Court Services Call",
-  CHP: "California Highway Patrol Incident",
-  SBCFIRE: "San Bernardino County Fire / EMS Incident",
-};
-const DISPOSITION_DESCRIPTIONS = {
-  ARR: "Arrest",
-  CAN: "Cancelled",
-  CIT: "Citation issued",
-  CIV: "Civil matter",
-  GOA: "Gone on arrival",
-  NAT: "Necessary action taken",
-  RTF: "Report taken",
-  SER: "Service rendered",
-  UTL: "Unable to locate",
-  WAR: "Warrant arrest",
-};
-const CALL_TYPE_DESCRIPTIONS = {
-  AOD: "Assist other department",
-  AREACK: "Area check",
-  BUSCK: "Business check",
-  CIVIL: "Civil matter",
-  DB: "Dead body",
-  FD: "Flagged down",
-  FU: "Follow-up",
-  GTAREC: "Stolen vehicle recovery",
-  INFO: "Information call",
-  KTP: "Keep the peace",
-  LOSTP: "Lost property",
-  MANDOW: "Man down",
-  MEDAID: "Medical aid",
-  MISPER: "Missing person",
-  PATINF: "Patrol information",
-  PUBSER: "Public service",
-  REPO: "Repossession",
-  SECCK: "Security check",
-  SUBCK: "Subject check",
-  SUSCON: "Suspicious circumstances",
-  SUSPER: "Suspicious person",
-  SUSVEH: "Suspicious vehicle",
-  T: "Traffic detail",
-  VEHCK: "Vehicle check",
-  W911: "Wireless 911 call",
-  WARSER: "Warrant service",
-  WELCK: "Welfare check",
-  XPAT: "Extra patrol",
-  "11377": "Controlled substance possession",
-  "1182": "Traffic collision, no injuries",
-  "1179": "Traffic collision with medical response",
-  "415CIV": "Civil disturbance",
-  "459": "Burglary",
-  "459A": "Auto burglary",
-  "459C": "Commercial burglary",
-  "487": "Grand theft",
-  "594": "Vandalism",
-  "602": "Trespassing",
-};
-
 function parseDateTime(value) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/.exec((value || "").trim());
   if (!match) return Number.NEGATIVE_INFINITY;
@@ -757,7 +733,19 @@ function isOpenSbsoCall(group) {
 }
 
 function isArrestDisposition(dispo) {
-  return new Set(["ARR", "WAR", "ABA", "CIA"]).has(String(dispo || "").trim().toUpperCase());
+  return ARREST_DISPOSITIONS.has(String(dispo || "").trim().toUpperCase());
+}
+
+function isArrestLikeCall(group) {
+  const current = group.latest || {};
+  const type = String(current.type || "").trim().toUpperCase();
+  return isArrestDisposition(current.dispo) || type === "ARR" || type.endsWith("ARR");
+}
+
+function isDeathSourceCall(group) {
+  const current = group.latest || {};
+  const type = String(current.type || "").trim().toUpperCase();
+  return DEATH_SOURCE_CALL_TYPES.has(type) || String(group.prefix || "").toUpperCase() === "CO";
 }
 
 function prefixPalette(prefix) {
@@ -833,11 +821,34 @@ function renderArea(area) {
 function prefixDescription(group) {
   const prefix = String(group.prefix || "").trim().toUpperCase();
   const agency = String(group.agency || "").trim().toUpperCase();
-  if (PREFIX_DESCRIPTION_OVERRIDES[prefix]) return PREFIX_DESCRIPTION_OVERRIDES[prefix];
-  if (agency === "CHP") return PREFIX_DESCRIPTION_OVERRIDES.CHP;
-  if (agency === "SBCFIRE") return PREFIX_DESCRIPTION_OVERRIDES.SBCFIRE;
+  const descriptions = callDescriptions.prefixes || {};
+  if (descriptions[prefix]) return descriptions[prefix];
+  if (agency === "CHP") return descriptions.CHP || "";
+  if (agency === "SBCFIRE") return descriptions.SBCFIRE || "";
   if (group.station) return `${group.station} Patrol Deputies Call`;
-  return prefix ? `${prefix} Prefix Call` : "Call";
+  return "";
+}
+
+function callTypeDescription(type, group) {
+  const agency = String((group || {}).agency || "").trim().toUpperCase();
+  const extra = ((group || {}).latest || {}).extra || {};
+  if (agency === "CHP" && extra.call_type_description) {
+    return String(extra.call_type_description);
+  }
+  const key = String(type || "").trim().toUpperCase();
+  return key ? (callDescriptions.call_types || {})[key] || "" : "";
+}
+
+function dispositionDescription(dispo) {
+  const key = String(dispo || "").trim().toUpperCase();
+  if (!key) return "";
+  if (key === "*") return "Open/no final disposition yet";
+  return (callDescriptions.dispositions || {})[key] || "";
+}
+
+function renderDescriptionLine(label, description) {
+  if (!description) return "";
+  return `<div class="annotation-meta">${escapeHtml(label)}: ${escapeHtml(description)}</div>`;
 }
 
 function callTypeDescription(type) {
@@ -869,6 +880,24 @@ function buildCallAnnotationMap(payload) {
     map.set(value.base_call_number || key, value);
   }
   return map;
+}
+
+async function loadCallDescriptions() {
+  try {
+    const response = await fetch(`${DESCRIPTIONS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`calllog_descriptions.json returned HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    callDescriptions = {
+      prefixes: payload && typeof payload.prefixes === "object" ? payload.prefixes : {},
+      dispositions: payload && typeof payload.dispositions === "object" ? payload.dispositions : {},
+      call_types: payload && typeof payload.call_types === "object" ? payload.call_types : {},
+    };
+    callDescriptionsError = "";
+  } catch (error) {
+    callDescriptionsError = error && error.message ? error.message : "description load failed";
+  }
 }
 
 function renderTimeline(title, items) {
@@ -971,58 +1000,57 @@ function renderStructuredFeedDetails(group) {
 }
 
 function renderLinkedRecords(group) {
-  const current = group.latest || {};
   const annotation = callAnnotations.get(group.baseCallNo);
-  const expectsLinked = isArrestDisposition(current.dispo) || String(group.prefix || "").toUpperCase() === "CO";
+  const expectsLinked = isArrestLikeCall(group) || isDeathSourceCall(group);
+  const expectsArrest = isArrestLikeCall(group);
+  const expectsDeath = isDeathSourceCall(group);
 
   if (!annotation) {
     if (callAnnotationsError && expectsLinked) {
       return `
         <div class="annotation-block">
-          <h4>Linked Records</h4>
-          <div class="muted">Linked arrest/death annotations unavailable: ${escapeHtml(callAnnotationsError)}</div>
+          <h4>Record Links</h4>
+          <div class="muted">Record annotations unavailable: ${escapeHtml(callAnnotationsError)}</div>
         </div>
       `;
     }
     if ((!callAnnotationsLoadedAt || callAnnotationsPromise) && expectsLinked) {
       return `
         <div class="annotation-block">
-          <h4>Linked Records</h4>
-          <div class="muted">Linked arrest/death annotations are loading.</div>
+          <h4>Record Links</h4>
+          <div class="muted">Record annotations are loading.</div>
         </div>
       `;
     }
-    if (expectsLinked) {
-      return `
-        <div class="annotation-block">
-          <h4>Linked Records</h4>
-          <div class="muted">No linked arrest or death record is published for this call yet.</div>
-        </div>
-      `;
-    }
-    return "";
+    return [
+      expectsArrest ? renderArrestRecordsSection([]) : "",
+      expectsDeath ? renderDeathRecordsSection({}) : "",
+    ].filter(Boolean).join("");
   }
 
   const arrestMatches = Array.isArray(annotation.arrest_matches) ? annotation.arrest_matches : [];
   const deathMatches = Array.isArray(annotation.death_matches) ? annotation.death_matches : [];
-  const hasContent = arrestMatches.length || deathMatches.length || annotation.related_coroner_call;
-  if (!hasContent) {
-    if (!expectsLinked) return "";
-    return `
-      <div class="annotation-block">
-        <h4>Linked Records</h4>
-        <div class="muted">No linked arrest or death record is published for this call yet.</div>
-      </div>
-    `;
-  }
+  const coronerCall = annotation.coroner_call || null;
+  const relatedBaseCall = annotation.related_base_call || null;
+  const relatedCoronerCall = annotation.related_coroner_call || null;
+  const deathSourceCall = annotation.death_source_call || null;
 
+  return [
+    expectsArrest || arrestMatches.length ? renderArrestRecordsSection(arrestMatches) : "",
+    expectsDeath || deathMatches.length || coronerCall || relatedBaseCall || relatedCoronerCall || deathSourceCall
+      ? renderDeathRecordsSection({ deathMatches, coronerCall, relatedBaseCall, relatedCoronerCall, deathSourceCall })
+      : "",
+  ].filter(Boolean).join("");
+}
+
+function renderArrestRecordsSection(arrestMatches) {
+  const matches = Array.isArray(arrestMatches) ? arrestMatches : [];
   return `
     <div class="annotation-block">
-      <h4>Linked Records</h4>
-      ${(arrestMatches.length ? `
-        <div class="annotation-meta"><strong>Arrest Matches</strong></div>
+      <h4>Arrest Records</h4>
+      ${matches.length ? `
         <div class="annotation-list">
-          ${arrestMatches.map((match) => {
+          ${matches.map((match) => {
             const detailParts = [];
             if (match.details && match.details.age_gender) detailParts.push(match.details.age_gender);
             if (match.details && match.details.race) detailParts.push(match.details.race);
@@ -1040,26 +1068,63 @@ function renderLinkedRecords(group) {
             `;
           }).join("")}
         </div>
-      ` : "")}
-      ${(deathMatches.length || annotation.related_coroner_call ? `
-        <div class="annotation-meta"><strong>Death / Coroner Matches</strong></div>
+      ` : `<div class="muted">No matching arrest record is published for this call yet.</div>`}
+    </div>
+  `;
+}
+
+function renderDeathRecordsSection(records) {
+  const deathMatches = Array.isArray(records.deathMatches) ? records.deathMatches : [];
+  const coronerCall = records.coronerCall || null;
+  const relatedBaseCall = records.relatedBaseCall || null;
+  const relatedCoronerCall = records.relatedCoronerCall || null;
+  const deathSourceCall = records.deathSourceCall || null;
+  const hasContent = deathMatches.length || coronerCall || relatedBaseCall || relatedCoronerCall || deathSourceCall;
+
+  return `
+    <div class="annotation-block">
+      <h4>Death / Coroner Records</h4>
+      ${hasContent ? `
         <div class="annotation-list">
+          ${coronerCall ? `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(coronerCall.call_number || coronerCall.base_call_number || "Coroner call")}</div>
+              <div class="annotation-meta">${escapeHtml([coronerCall.call_type, coronerCall.report_number].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([coronerCall.date_time, coronerCall.location].filter(Boolean).join(" | "))}</div>
+              ${deathMatches.length ? "" : `<div class="annotation-meta">No death-index match is published for this coroner call yet.</div>`}
+            </div>
+          ` : ""}
           ${deathMatches.map((match) => `
             <div class="annotation-card">
-              <div class="value">${escapeHtml(match.decedent_name || "Matched death record")}</div>
+              <div class="value">${escapeHtml(match.decedent_name || "Matched death-index record")}</div>
               <div class="annotation-meta">${escapeHtml([match.date_of_death, match.case_number ? `Case ${match.case_number}` : "", match.coroner_report_number || ""].filter(Boolean).join(" | "))}</div>
               <div class="annotation-meta">${escapeHtml([match.manner, match.place_of_death || match.resolved_location || "", match.score != null ? `Score ${match.score}` : ""].filter(Boolean).join(" | "))}</div>
             </div>
           `).join("")}
-          ${annotation.related_coroner_call ? `
+          ${relatedBaseCall ? `
             <div class="annotation-card">
-              <div class="value">${escapeHtml(annotation.related_coroner_call.call_number || annotation.related_coroner_call.base_call_number || "Related coroner call")}</div>
-              <div class="annotation-meta">${escapeHtml([annotation.related_coroner_call.call_type, annotation.related_coroner_call.report_number].filter(Boolean).join(" | "))}</div>
-              <div class="annotation-meta">${escapeHtml([annotation.related_coroner_call.date_time, annotation.related_coroner_call.minutes_after_related_call != null ? `${annotation.related_coroner_call.minutes_after_related_call} minutes apart` : "", annotation.related_coroner_call.score != null ? `Score ${annotation.related_coroner_call.score}` : ""].filter(Boolean).join(" | "))}</div>
+              <div class="value">${escapeHtml(relatedBaseCall.related_call_number || relatedBaseCall.call_number || relatedBaseCall.base_call_number || "Related source call")}</div>
+              <div class="annotation-meta">${escapeHtml([relatedBaseCall.related_call_type || relatedBaseCall.call_type, relatedBaseCall.related_report_number || relatedBaseCall.report_number].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([relatedBaseCall.date_time, relatedBaseCall.minutes_before_coroner != null ? `${relatedBaseCall.minutes_before_coroner} minutes before coroner call` : "", relatedBaseCall.score != null ? `Score ${relatedBaseCall.score}` : ""].filter(Boolean).join(" | "))}</div>
+            </div>
+          ` : ""}
+          ${relatedCoronerCall ? `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(relatedCoronerCall.call_number || relatedCoronerCall.base_call_number || "Related coroner call")}</div>
+              <div class="annotation-meta">${escapeHtml([relatedCoronerCall.call_type, relatedCoronerCall.report_number].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([relatedCoronerCall.date_time, relatedCoronerCall.minutes_after_related_call != null ? `${relatedCoronerCall.minutes_after_related_call} minutes after this call` : "", relatedCoronerCall.score != null ? `Score ${relatedCoronerCall.score}` : ""].filter(Boolean).join(" | "))}</div>
+            </div>
+          ` : ""}
+          ${deathSourceCall ? `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(deathSourceCall.call_number || deathSourceCall.base_call_number || "DB call")}</div>
+              <div class="annotation-meta">${escapeHtml([deathSourceCall.call_type, deathSourceCall.report_number].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([deathSourceCall.date_time, deathSourceCall.location].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">No later coroner call is linked to this DB call yet.</div>
             </div>
           ` : ""}
         </div>
-      ` : "")}
+      ` : `<div class="muted">No death-index match is published for this call yet.</div>`}
     </div>
   `;
 }
@@ -1189,6 +1254,42 @@ function getFilteredGroups(groups, filters) {
   });
 }
 
+function apiPreviewQueryForFilters(filters) {
+  const direct = {
+    agency: filters.agency || "",
+    station: filters.station || "",
+    prefix: filters.prefix || "",
+  };
+  const qCandidates = [
+    filters.callNoText,
+    filters.search,
+    filters.reportText,
+    filters.typeText,
+    filters.dispoText,
+    filters.locationText,
+    filters.areaText,
+    filters.stationText,
+    filters.agencyText,
+  ].filter(Boolean);
+  return {
+    ...direct,
+    q: qCandidates[0] || "",
+  };
+}
+
+function buildApiPreviewQueryKey(query) {
+  return JSON.stringify({
+    agency: query.agency || "",
+    station: query.station || "",
+    prefix: query.prefix || "",
+    q: query.q || "",
+  });
+}
+
+function hasApiPreviewFilter(query) {
+  return Boolean(query.agency || query.station || query.prefix || query.q);
+}
+
 function normalizeRecord(row) {
   const callno = row.callno || row["call number"] || "";
   const revNumValue = row.revNum;
@@ -1293,6 +1394,10 @@ function buildGroupsFromRows(rows) {
   return finalizeGroupMap(map);
 }
 
+function buildGroupsFromApiGroups(groups) {
+  return mergeGroupCollections(Array.isArray(groups) ? groups : []);
+}
+
 function mergeGroupCollections(...collections) {
   const map = new Map();
 
@@ -1347,7 +1452,8 @@ function mergeGroupCollections(...collections) {
 }
 
 function rebuildCombinedGroups() {
-  combinedGroups = mergeGroupCollections(historyGroups, liveGroups);
+  const historySource = historyGroups.length ? historyGroups : apiPreviewGroups;
+  combinedGroups = mergeGroupCollections(historySource, liveGroups);
   return combinedGroups;
 }
 
@@ -1496,7 +1602,7 @@ function renderDetails(group) {
   const locationParts = splitLocation(current.loc || "");
   const prefixText = String(group.prefix || "").trim().toUpperCase();
   const prefixTextDescription = prefixDescription(group);
-  const typeTextDescription = callTypeDescription(current.type);
+  const typeTextDescription = callTypeDescription(current.type, group);
   const dispoTextDescription = dispositionDescription(current.dispo);
   return `
     <div class="detail-card">
@@ -1604,6 +1710,15 @@ function applyFilters() {
     uploadParts.push(`Live publish ${formatLocal(uploadMeta.generated_at)}${transport}`);
   }
   uploadParts.push(`Current feed ${liveGroups.length} groups / ${totalRows(liveGroups)} rows`);
+  if (!historyGroups.length && apiPreviewGroups.length) {
+    const loadedSuffix = apiPreviewLoadedAt ? ` (${formatLocal(apiPreviewLoadedAt)})` : "";
+    const generatedSuffix = apiPreviewGeneratedAt ? `, DB ${formatLocal(apiPreviewGeneratedAt)}` : "";
+    uploadParts.push(`Fast history preview ${apiPreviewGroups.length} of ${apiPreviewTotal || apiPreviewGroups.length} groups${loadedSuffix}${generatedSuffix}`);
+  } else if (!historyGroups.length && apiPreviewPromise) {
+    uploadParts.push("Fast history preview loading...");
+  } else if (!historyGroups.length && apiPreviewError) {
+    uploadParts.push(`Fast history preview unavailable: ${apiPreviewError}`);
+  }
   if (historyGroups.length) {
     const loadedSuffix = historyLoadedAt ? ` (${formatLocal(historyLoadedAt)})` : "";
     uploadParts.push(`Full term history ${historyGroups.length} groups / ${totalRows(historyGroups)} rows${loadedSuffix}`);
@@ -1613,6 +1728,57 @@ function applyFilters() {
     uploadParts.push(`Full term history unavailable: ${historyError}`);
   }
   document.getElementById("uploadText").textContent = uploadParts.join(" | ");
+  updateApiPreviewControls(filters);
+  scheduleApiPreviewForFilters(filters);
+}
+
+function updateApiPreviewControls(filters) {
+  const button = document.getElementById("loadMoreApiBtn");
+  if (!button) return;
+  const query = apiPreviewQueryForFilters(filters || getActiveFilters());
+  const key = buildApiPreviewQueryKey(query);
+  const isCurrentQuery = key === apiPreviewActiveQueryKey;
+  const canUseApiPreview = !historyGroups.length;
+  const isLoading = Boolean(apiPreviewPromise);
+  const hasMore = canUseApiPreview && isCurrentQuery && apiPreviewHasMore;
+
+  button.hidden = !canUseApiPreview || (!hasMore && !isLoading);
+  button.disabled = isLoading;
+  if (isLoading) {
+    button.textContent = hasApiPreviewFilter(query) ? "Loading filtered history..." : "Loading history...";
+  } else {
+    const remaining = Math.max(0, (apiPreviewTotal || 0) - apiPreviewOffset);
+    button.textContent = remaining
+      ? `Load more history (${remaining.toLocaleString()} left)`
+      : "Load more history";
+  }
+}
+
+function scheduleApiPreviewForFilters(filters) {
+  if (historyGroups.length) return;
+  const query = apiPreviewQueryForFilters(filters);
+  if (!hasApiPreviewFilter(query)) return;
+  const key = buildApiPreviewQueryKey(query);
+  if (key === apiPreviewActiveQueryKey || apiPreviewPromise) return;
+
+  if (apiPreviewFilterTimer) {
+    window.clearTimeout(apiPreviewFilterTimer);
+  }
+  apiPreviewFilterTimer = window.setTimeout(() => {
+    apiPreviewFilterTimer = 0;
+    loadApiPreview({ force: true, filters })
+      .then((groupCount) => {
+        setStatus(`Filtered history loaded from API preview (${groupCount.toLocaleString()} groups)`, "good");
+        applyFilters();
+      })
+      .catch((error) => {
+        setStatus(
+          `Filtered history preview failed: ${error && error.message ? error.message : "unknown error"}`,
+          "warn"
+        );
+        applyFilters();
+      });
+  }, 350);
 }
 
 function buildExportRows(groups) {
@@ -1712,6 +1878,81 @@ async function loadLiveFeed() {
   const rows = await liveResponse.json();
   liveGroups = buildGroupsFromRows(rows);
   uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
+}
+
+async function loadApiPreview(options = {}) {
+  const force = Boolean(options.force);
+  const append = Boolean(options.append);
+  const filters = options.filters || getActiveFilters();
+  const query = apiPreviewQueryForFilters(filters);
+  const queryKey = buildApiPreviewQueryKey(query);
+  if (historyGroups.length && !force) {
+    return apiPreviewGroups.length;
+  }
+  if (apiPreviewGroups.length && !force && !append && queryKey === apiPreviewActiveQueryKey) {
+    return apiPreviewGroups.length;
+  }
+  if (apiPreviewPromise) {
+    return apiPreviewPromise;
+  }
+
+  apiPreviewError = "";
+  apiPreviewPromise = (async () => {
+    const isNewQuery = queryKey !== apiPreviewActiveQueryKey;
+    const offset = append && !isNewQuery ? apiPreviewOffset : 0;
+    if (!append || isNewQuery || force) {
+      apiPreviewGroups = [];
+      apiPreviewOffset = 0;
+      apiPreviewHasMore = false;
+      apiPreviewTotal = 0;
+      apiPreviewActiveQueryKey = queryKey;
+      rebuildCombinedGroups();
+      applyFilters();
+    }
+
+    const url = new URL(API_PREVIEW_URL);
+    url.searchParams.set("limit", String(API_PREVIEW_LIMIT));
+    url.searchParams.set("offset", String(offset));
+    if (query.agency) url.searchParams.set("agency", query.agency);
+    if (query.station) url.searchParams.set("station", query.station);
+    if (query.prefix) url.searchParams.set("prefix", query.prefix);
+    if (query.q) url.searchParams.set("q", query.q);
+    url.searchParams.set("t", String(Date.now()));
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`sbsd_api.php returned HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (!payload || payload.ok === false || !Array.isArray(payload.groups)) {
+      throw new Error(payload && payload.error ? payload.error : "sbsd_api.php returned an invalid payload");
+    }
+
+    const nextGroups = buildGroupsFromApiGroups(payload.groups);
+    apiPreviewGroups = append && !isNewQuery
+      ? mergeGroupCollections(apiPreviewGroups, nextGroups)
+      : nextGroups;
+    apiPreviewLoadedAt = new Date().toISOString();
+    apiPreviewGeneratedAt = String(payload.generatedAt || "");
+    apiPreviewTotal = Number(payload.total || apiPreviewGroups.length) || apiPreviewGroups.length;
+    apiPreviewOffset = offset + payload.groups.length;
+    apiPreviewHasMore = Boolean(payload.hasMore) && payload.groups.length > 0;
+    apiPreviewError = "";
+    if (!historyGroups.length) {
+      rebuildCombinedGroups();
+      applyFilters();
+    }
+    return apiPreviewGroups.length;
+  })()
+    .catch((error) => {
+      apiPreviewError = error && error.message ? error.message : "API preview load failed";
+      throw error;
+    })
+    .finally(() => {
+      apiPreviewPromise = null;
+    });
+
+  return apiPreviewPromise;
 }
 
 async function parseCsvGroupsAsync(csvText) {
@@ -1814,6 +2055,9 @@ async function loadFullHistory(options = {}) {
     historyGroups = nextHistoryGroups;
     historyLoadedAt = new Date().toISOString();
     historyError = "";
+    apiPreviewGroups = [];
+    apiPreviewOffset = 0;
+    apiPreviewHasMore = false;
     rebuildCombinedGroups();
     applyFilters();
     return historyGroups.length;
@@ -1877,15 +2121,29 @@ async function refreshPage(options = {}) {
   const forceHistory = Boolean(options.forceHistory);
   setStatus("Refreshing live call feed...", "plain");
   try {
-    await loadLiveFeed();
+    await Promise.all([loadCallDescriptions(), loadLiveFeed()]);
     rebuildCombinedGroups();
     applyFilters();
-    const shouldLoadHistory = forceHistory || (!historyGroups.length && !historyLoadPromise);
+    const shouldLoadApiPreview = !historyGroups.length && !apiPreviewGroups.length && !apiPreviewPromise;
+    const shouldLoadHistory = forceHistory && !historyLoadPromise;
     const shouldLoadAnnotations = forceHistory || (!callAnnotationsLoadedAt && !callAnnotationsPromise);
 
     if (shouldLoadAnnotations) {
       loadCallAnnotations({ force: forceHistory })
         .then(() => {
+          applyFilters();
+        })
+        .catch(() => {
+          applyFilters();
+        });
+    }
+
+    if (shouldLoadApiPreview) {
+      loadApiPreview({ force: forceHistory })
+        .then((groupCount) => {
+          if (!historyGroups.length) {
+            setStatus(`Live feed loaded with fast history preview (${groupCount.toLocaleString()} groups)`, "good");
+          }
           applyFilters();
         })
         .catch(() => {
@@ -1951,7 +2209,18 @@ document.querySelectorAll("[data-column-filter]").forEach((node) => {
   node.addEventListener("input", scheduleApplyFilters);
   node.addEventListener("change", scheduleApplyFilters);
 });
-document.getElementById("refreshBtn").addEventListener("click", () => refreshPage({ forceHistory: true }));
+document.getElementById("refreshBtn").addEventListener("click", () => refreshPage({ forceHistory: false }));
+document.getElementById("loadMoreApiBtn").addEventListener("click", () => {
+  loadApiPreview({ append: true, filters: getActiveFilters() })
+    .then((groupCount) => {
+      setStatus(`Loaded more history from API preview (${groupCount.toLocaleString()} groups ready)`, "good");
+      applyFilters();
+    })
+    .catch((error) => {
+      setStatus(`History load failed: ${error && error.message ? error.message : "unknown error"}`, "warn");
+      applyFilters();
+    });
+});
 document.getElementById("exportCsvBtn").addEventListener("click", () => exportFilteredData("csv"));
 document.getElementById("exportJsonBtn").addEventListener("click", () => exportFilteredData("json"));
 

@@ -11,6 +11,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -90,7 +91,11 @@ ARREST_LOG_MAX_PAGES = int(os.environ.get("SBCO_ARREST_LOG_MAX_PAGES", "3"))
 DAILY_REMOTE_FILE_FRESHNESS_HOURS = float(os.environ.get("SBCO_DAILY_REMOTE_FILE_FRESHNESS_HOURS", "20"))
 PUBLIC_FILE_TIMEOUT_SECONDS = int(os.environ.get("SBCO_PUBLIC_FILE_TIMEOUT_SECONDS", "60"))
 PHASE_WARNING_SECONDS = float(os.environ.get("SBCO_PHASE_WARNING_SECONDS", "60"))
-GITHUB_JOB_SOFT_TIMEOUT_SECONDS = int(os.environ.get("SBCO_GITHUB_JOB_SOFT_TIMEOUT_SECONDS", "1200"))
+RUN_HARD_TIMEOUT_SECONDS = int(os.environ.get("SBCO_RUN_HARD_TIMEOUT_SECONDS", "840"))
+RUN_HARD_TIMEOUT_EXIT_CODE = int(os.environ.get("SBCO_RUN_HARD_TIMEOUT_EXIT_CODE", "124"))
+GITHUB_JOB_SOFT_TIMEOUT_SECONDS = int(
+    os.environ.get("SBCO_GITHUB_JOB_SOFT_TIMEOUT_SECONDS", str(max(60, RUN_HARD_TIMEOUT_SECONDS - 60)))
+)
 GITHUB_DAILY_REFRESH_HEADROOM_SECONDS = int(os.environ.get("SBCO_GITHUB_DAILY_REFRESH_HEADROOM_SECONDS", "300"))
 
 KEEP_RECENT_HOURS = 48
@@ -219,6 +224,44 @@ def log_daily_release(msg):
         f.write("[RELEASES] {} {}\n".format(ts, msg))
 
 
+def log_hard_timeout(msg):
+    try:
+        log(msg)
+        return
+    except Exception:
+        pass
+
+    try:
+        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(LOG_FILE, "a") as f:
+            f.write("[SCRAPER] {} {}\n".format(ts, msg))
+    except Exception:
+        pass
+
+
+def start_run_hard_timeout(seconds):
+    timeout_seconds = int(seconds or 0)
+    if timeout_seconds <= 0:
+        return None
+
+    def _terminate_run():
+        message = "FATAL: scraper run exceeded hard timeout of {}s".format(timeout_seconds)
+        log_hard_timeout(message)
+        try:
+            sys.stderr.write(message + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(RUN_HARD_TIMEOUT_EXIT_CODE)
+
+    timer = threading.Timer(timeout_seconds, _terminate_run)
+    timer.daemon = True
+    timer.name = "scraper-hard-timeout"
+    timer.start()
+    return timer
+
+
 def log_phase_duration(name, started_monotonic):
     elapsed = max(0.0, time.monotonic() - started_monotonic)
     prefix = "WARNING: " if elapsed >= PHASE_WARNING_SECONDS else ""
@@ -324,6 +367,8 @@ def public_file_usable(remote_name, content):
     text = content.decode("utf-8", errors="ignore")
     if remote_name == "death_index.csv":
         return "caseNumberDisplay" in text and "," in text
+    if remote_name in {"releases.csv", "daily_release_list.csv"}:
+        return "Name" in text and "Release Date" in text and "," in text
     if remote_name.lower().endswith(".json"):
         try:
             payload = json.loads(text)
@@ -1837,6 +1882,15 @@ def load_release_rows():
         return rows
 
 
+def release_row_key(row):
+    return (
+        (row.get("Name", "") or "").strip().upper(),
+        (row.get("Release Date", "") or "").strip(),
+        (row.get("Sex", "") or "").strip().upper(),
+        (row.get("Age", "") or "").strip(),
+    )
+
+
 def write_release_rows(rows):
     for path in [RELEASES_CSV, LEGACY_RELEASES_CSV]:
         tmp_path = path + ".tmp"
@@ -1896,6 +1950,47 @@ def fetch_daily_release_rows():
     return target_date, rows
 
 
+def refresh_releases_csv(output_path):
+    started_monotonic = time.monotonic()
+    target_date, new_rows = fetch_daily_release_rows()
+    existing_rows = load_release_rows()
+    seen_rows = set()
+    merged_rows = []
+
+    for row in existing_rows:
+        row_key = release_row_key(row)
+        if not row_key[0] or row_key in seen_rows:
+            continue
+        seen_rows.add(row_key)
+        merged_rows.append(row)
+
+    added_count = 0
+    for row in new_rows:
+        row_key = release_row_key(row)
+        if not row_key[0] or row_key in seen_rows:
+            continue
+        seen_rows.add(row_key)
+        merged_rows.append(row)
+        added_count += 1
+
+    write_release_rows(merged_rows)
+
+    if output_path != RELEASES_CSV and os.path.exists(RELEASES_CSV):
+        with open(RELEASES_CSV, "rb") as src:
+            write_bytes(output_path, src.read())
+
+    elapsed = log_phase_duration("releases.csv refresh", started_monotonic)
+    log(
+        "releases.csv refreshed for {} ({} fetched, {} new, {} total in {:.1f}s)".format(
+            target_date,
+            len(new_rows),
+            added_count,
+            len(merged_rows),
+            elapsed,
+        )
+    )
+
+
 def run_daily_release_if_due():
     if not ENABLE_DAILY_RELEASES:
         log("Daily release fetch is disabled")
@@ -1905,22 +2000,22 @@ def run_daily_release_if_due():
 
     target_date, new_rows = fetch_daily_release_rows()
     existing_rows = load_release_rows()
-    seen_names = set()
+    seen_rows = set()
     merged_rows = []
 
     for row in existing_rows:
-        name = row.get("Name", "")
-        if not name or name in seen_names:
+        row_key = release_row_key(row)
+        if not row_key[0] or row_key in seen_rows:
             continue
-        seen_names.add(name)
+        seen_rows.add(row_key)
         merged_rows.append(row)
 
     added_count = 0
     for row in new_rows:
-        name = row.get("Name", "")
-        if not name or name in seen_names:
+        row_key = release_row_key(row)
+        if not row_key[0] or row_key in seen_rows:
             continue
-        seen_names.add(name)
+        seen_rows.add(row_key)
         merged_rows.append(row)
         added_count += 1
 
@@ -1940,6 +2035,8 @@ def run_daily_release_if_due():
 def main():
     ensure_dirs()
     log("Run started")
+    if RUN_HARD_TIMEOUT_SECONDS > 0:
+        log("Hard timeout armed at {}s".format(RUN_HARD_TIMEOUT_SECONDS))
     run_started_monotonic = time.monotonic()
 
     bootstrap_started = time.monotonic()
@@ -2073,6 +2170,14 @@ def main():
             run_started_monotonic=run_started_monotonic,
         )
     )
+    extra_file_specs.extend(
+        ensure_remote_backed_daily_file(
+            "releases.csv",
+            RELEASES_CSV,
+            refresh_releases_csv,
+            run_started_monotonic=run_started_monotonic,
+        )
+    )
     log_phase_duration("daily supporting files", daily_files_started)
 
     arrest_index_started = time.monotonic()
@@ -2091,8 +2196,12 @@ def main():
 
 
 if __name__ == "__main__":
+    hard_timeout_timer = start_run_hard_timeout(RUN_HARD_TIMEOUT_SECONDS)
     try:
         main()
     except Exception as e:
         log("ERROR: {}".format(e))
         raise
+    finally:
+        if hard_timeout_timer is not None:
+            hard_timeout_timer.cancel()

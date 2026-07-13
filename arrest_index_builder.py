@@ -5,7 +5,8 @@ import json
 import re
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ CACHE_DIR = BASE_DIR / ".cache" / "localcrimenews"
 CITY_MAP_PATH = BASE_DIR / "city_map.json"
 DOWNLOADED_ARREST_LOG_NAME = "all_records.json"
 DOWNLOADED_DEATH_INDEX_NAME = "death_index.csv"
+DOWNLOADED_RELEASE_NAMES = ("releases.csv", "daily_release_list.csv")
 
 LCN_BASE_URL = "https://www.localcrimenews.com"
 LCN_MAP_URL = f"{LCN_BASE_URL}/welcome/ArrestMap"
@@ -39,6 +41,8 @@ AGENCY_CACHE_TTL_SECONDS = 20 * 60
 AGENCY_PAGES_PER_RUN = 3
 DEATH_REGISTER_CACHE_TTL_SECONDS = 6 * 60 * 60
 CORONER_ASSOCIATION_MAX_MINUTES = 3 * 60
+ARRAIGNMENT_CUSTODY_HOURS = 72
+RELEASE_MATCH_MAX_DAYS = 10
 
 MAX_DETAIL_CANDIDATES_PER_CALL = 8
 MAX_MATCHES_PER_CALL = 1
@@ -46,7 +50,9 @@ MIN_ROUGH_SCORE = 3
 MIN_FINAL_SCORE = 7
 
 ARREST_DISPOSITIONS = {"ARR", "WAR", "ABA", "CIA"}
-CORONER_SOURCE_CALL_TYPES = {"DB", "MANDOW", "MEDAID"}
+CORONER_SOURCE_CALL_TYPES = {"DB"}
+SMALL_TOWN_DATE_MATCH_TOWNS = {"daggett", "newberry springs", "yermo"}
+CONDITIONAL_DATE_MATCH_TOWNS = {"barstow"}
 
 DEFAULT_CITY_MAP = {
     "BAK": "Baker",
@@ -169,14 +175,41 @@ def canonical_code(value: Any) -> str:
 
 
 def extract_code_variants(value: Any) -> set[str]:
-    base = canonical_code(value)
-    if not base or not any(ch.isdigit() for ch in base):
+    text = normalize_space(value).upper()
+    if not text:
         return set()
-    out = {base}
-    for prefix in ("PC", "VC", "HS"):
-        if base.startswith(prefix) and len(base) > len(prefix):
-            out.add(base[len(prefix):])
+    matches = re.findall(r"\b(?:PC|VC|HS)?\s*\d{2,5}(?:\.\d+)?(?:\s*\([A-Z0-9]+\))*", text)
+    if not matches:
+        matches = [text]
+    out: set[str] = set()
+    for match in matches:
+        base = canonical_code(match)
+        if not base or not any(ch.isdigit() for ch in base):
+            continue
+        out.add(base)
+        for prefix in ("PC", "VC", "HS"):
+            if base.startswith(prefix) and len(base) > len(prefix):
+                out.add(base[len(prefix):])
     return out
+
+
+def extract_code_tokens(value: Any) -> set[str]:
+    return extract_code_variants(value)
+
+
+def score_code_match(left_codes: set[str], right_codes: set[str]) -> tuple[int, str | None]:
+    left = {canonical_code(code) for code in left_codes if canonical_code(code)}
+    right = {canonical_code(code) for code in right_codes if canonical_code(code)}
+    if left & right:
+        return 4, "charge_code_match"
+    for left_code in left:
+        for right_code in right:
+            shorter, longer = sorted((left_code, right_code), key=len)
+            if len(shorter) < 3 or not longer.startswith(shorter):
+                continue
+            if shorter[-1].isdigit() and len(longer) > len(shorter):
+                return 2, "charge_code_root_match"
+    return 0, None
 
 
 def parse_call_datetime(value: Any) -> datetime | None:
@@ -193,7 +226,7 @@ def parse_arrest_date(value: Any) -> datetime | None:
     text = normalize_space(value)
     if not text:
         return None
-    for fmt in ("%m/%d/%Y", "%B %d, %Y", "%b %d, %Y"):
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%B %d, %Y", "%b %d, %Y"):
         try:
             return datetime.strptime(text, fmt)
         except ValueError:
@@ -215,6 +248,109 @@ def derive_death_register_case_display(case_year_2: str, case_number: int) -> st
 
 def date_key(value: datetime | None) -> str:
     return value.strftime("%Y-%m-%d") if value else ""
+
+
+def canonical_person_fragment(value: Any) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", normalize_space(value).upper())
+
+
+def normalize_person_name_key(value: Any) -> str:
+    text = normalize_space(value)
+    if not text:
+        return ""
+    if "," in text:
+        last_name, remainder = text.split(",", 1)
+        first_name = normalize_space(remainder).split(" ")[0] if normalize_space(remainder) else ""
+    else:
+        parts = [part for part in normalize_space(text).split(" ") if part]
+        if len(parts) < 2:
+            return canonical_person_fragment(text)
+        first_name = parts[0]
+        last_name = parts[-1]
+    last_key = canonical_person_fragment(last_name)
+    first_key = canonical_person_fragment(first_name)
+    return "{}|{}".format(last_key, first_key) if last_key and first_key else last_key or first_key
+
+
+def parse_gender_code(value: Any) -> str:
+    text = normalize_space(value).upper()
+    if "/" in text:
+        text = normalize_space(text.split("/")[-1]).upper()
+    if text.startswith("M"):
+        return "M"
+    if text.startswith("F"):
+        return "F"
+    return ""
+
+
+def nth_weekday_of_month(year: int, month: int, weekday: int, ordinal: int) -> date:
+    current = date(year, month, 1)
+    while current.weekday() != weekday:
+        current += timedelta(days=1)
+    current += timedelta(days=7 * max(0, ordinal - 1))
+    return current
+
+
+def last_weekday_of_month(year: int, month: int, weekday: int) -> date:
+    if month == 12:
+        current = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        current = date(year, month + 1, 1) - timedelta(days=1)
+    while current.weekday() != weekday:
+        current -= timedelta(days=1)
+    return current
+
+
+def observed_judicial_holiday(day: date) -> date:
+    if day.weekday() == 5:
+        return day - timedelta(days=1)
+    if day.weekday() == 6:
+        return day + timedelta(days=1)
+    return day
+
+
+@lru_cache(maxsize=None)
+def judicial_holiday_dates(year: int) -> tuple[date, ...]:
+    thanksgiving = nth_weekday_of_month(year, 11, 3, 4)
+    holidays = {
+        observed_judicial_holiday(date(year, 1, 1)),
+        nth_weekday_of_month(year, 1, 0, 3),
+        observed_judicial_holiday(date(year, 2, 12)),
+        nth_weekday_of_month(year, 2, 0, 3),
+        observed_judicial_holiday(date(year, 3, 31)),
+        last_weekday_of_month(year, 5, 0),
+        observed_judicial_holiday(date(year, 6, 19)),
+        observed_judicial_holiday(date(year, 7, 4)),
+        nth_weekday_of_month(year, 9, 0, 1),
+        nth_weekday_of_month(year, 9, 4, 4),
+        observed_judicial_holiday(date(year, 11, 11)),
+        thanksgiving,
+        thanksgiving + timedelta(days=1),
+        observed_judicial_holiday(date(year, 12, 25)),
+    }
+    return tuple(sorted(holidays))
+
+
+def is_judicial_holiday(day: date) -> bool:
+    if day.weekday() in {5, 6}:
+        return True
+    for year in (day.year - 1, day.year, day.year + 1):
+        if day in judicial_holiday_dates(year):
+            return True
+    return False
+
+
+def add_court_business_hours(start_dt: datetime, hours: int = ARRAIGNMENT_CUSTODY_HOURS) -> tuple[datetime, list[str]]:
+    current = start_dt
+    counted = 0
+    skipped_dates: set[str] = set()
+    while counted < max(0, hours):
+        current += timedelta(hours=1)
+        if is_judicial_holiday(current.date()):
+            skipped_dates.add(current.date().isoformat())
+            continue
+        counted += 1
+    return current, sorted(skipped_dates)
 
 
 def base_call_number(call_number: Any) -> str:
@@ -280,9 +416,7 @@ def is_arrest_like(row: dict[str, Any]) -> bool:
     call_type = normalize_space(row.get("call type")).upper()
     if dispo in ARREST_DISPOSITIONS:
         return True
-    if "ARR" in call_type:
-        return True
-    if call_type.startswith("WAR"):
+    if call_type == "ARR" or call_type.endswith("ARR"):
         return True
     return False
 
@@ -532,6 +666,11 @@ def downloaded_death_index_path(calllog_path: Path) -> Path:
     return calllog_data_dir(calllog_path) / DOWNLOADED_DEATH_INDEX_NAME
 
 
+def downloaded_release_paths(calllog_path: Path) -> list[Path]:
+    data_dir = calllog_data_dir(calllog_path)
+    return [data_dir / name for name in DOWNLOADED_RELEASE_NAMES]
+
+
 def detail_id_from_url(detail_url: Any) -> str:
     text = normalize_space(detail_url)
     match = re.search(r"/detail/(\d+)/", text)
@@ -581,6 +720,157 @@ def load_downloaded_death_lookup(calllog_path: Path) -> dict[str, dict[str, Any]
                 "injuryCity": normalize_space(row.get("injuryCity") or row.get("InjuryCity")),
             }
     return lookup
+
+
+def load_downloaded_release_rows(calllog_path: Path) -> list[dict[str, Any]]:
+    for path in downloaded_release_paths(calllog_path):
+        if not path.exists():
+            continue
+        rows: list[dict[str, Any]] = []
+        with path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                name = normalize_space(row.get("Name"))
+                release_dt = parse_arrest_date(row.get("Release Date"))
+                if not name or not release_dt:
+                    continue
+                rows.append(
+                    {
+                        "name": name,
+                        "name_key": normalize_person_name_key(name),
+                        "sex": normalize_space(row.get("Sex")),
+                        "sex_code": parse_gender_code(row.get("Sex")),
+                        "age": normalize_space(row.get("Age")),
+                        "height": normalize_space(row.get("Height")),
+                        "weight": normalize_space(row.get("Weight")),
+                        "release_date": release_dt.strftime("%Y-%m-%d"),
+                        "release_date_dt": release_dt,
+                        "source_file": path.name,
+                    }
+                )
+        return rows
+    return []
+
+
+def build_release_lookup(release_rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    lookup: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in release_rows:
+        key = normalize_person_name_key(row.get("name"))
+        if not key:
+            continue
+        lookup[key].append(row)
+    for key in lookup:
+        lookup[key].sort(key=lambda item: (item.get("release_date_dt") or datetime.min, item.get("source_file") or ""))
+    return dict(lookup)
+
+
+def build_release_evidence(candidate: dict[str, Any], release_lookup: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    arrest_dt = candidate.get("arrest_date_dt")
+    arrest_name = normalize_space(candidate.get("arrest_name"))
+    candidate_gender = parse_gender_code((candidate.get("details", {}) or {}).get("age_gender"))
+    evidence: dict[str, Any] = {"sources": [], "confidence_signals": []}
+
+    detail_release_dt = parse_arrest_date((candidate.get("details", {}) or {}).get("release_date"))
+    if detail_release_dt:
+        evidence["sources"].append(
+            {
+                "source": "arrest_detail",
+                "release_date": detail_release_dt.strftime("%Y-%m-%d"),
+            }
+        )
+        evidence["confidence_signals"].append("detail_release_date_present")
+
+    release_rows = release_lookup.get(normalize_person_name_key(arrest_name), [])
+    if arrest_dt is not None and release_rows:
+        best_row = None
+        best_day_delta = None
+        for row in release_rows:
+            release_dt = row.get("release_date_dt")
+            if not isinstance(release_dt, datetime):
+                continue
+            day_delta = (release_dt.date() - arrest_dt.date()).days
+            if day_delta < 0 or day_delta > RELEASE_MATCH_MAX_DAYS:
+                continue
+            row_gender = row.get("sex_code", "")
+            if candidate_gender and row_gender and candidate_gender != row_gender:
+                continue
+            if best_day_delta is None or day_delta < best_day_delta:
+                best_row = row
+                best_day_delta = day_delta
+        if best_row is not None:
+            evidence["sources"].append(
+                {
+                    "source": "release_list_name_match",
+                    "release_date": best_row["release_date"],
+                    "name": best_row["name"],
+                    "sex": best_row.get("sex", ""),
+                    "age": best_row.get("age", ""),
+                    "source_file": best_row.get("source_file", ""),
+                }
+            )
+            evidence["confidence_signals"].append("release_list_name_match")
+            if best_row.get("sex_code") and candidate_gender and best_row["sex_code"] == candidate_gender:
+                evidence["confidence_signals"].append("release_list_sex_match")
+
+    if not evidence["sources"]:
+        return {}
+
+    release_dates = []
+    for source in evidence["sources"]:
+        release_dt = parse_arrest_date(source.get("release_date"))
+        if release_dt:
+            release_dates.append(release_dt)
+    if release_dates:
+        earliest_release_dt = min(release_dates)
+        evidence["earliest_release_date"] = earliest_release_dt.strftime("%Y-%m-%d")
+    evidence["confidence_signals"] = sorted(set(evidence["confidence_signals"]))
+    return evidence
+
+
+def build_custody_signals(call: dict[str, Any], candidate: dict[str, Any], release_lookup: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    start_dt = call.get("call_dt") or candidate.get("arrest_date_dt")
+    if not isinstance(start_dt, datetime):
+        return {}
+
+    deadline_dt, skipped_dates = add_court_business_hours(start_dt, ARRAIGNMENT_CUSTODY_HOURS)
+    release_evidence = build_release_evidence(candidate, release_lookup)
+    now_dt = now_local().replace(tzinfo=None)
+
+    status = "within_window"
+    needs_court_check = False
+    if now_dt > deadline_dt:
+        if release_evidence.get("earliest_release_date"):
+            earliest_release_dt = parse_arrest_date(release_evidence["earliest_release_date"])
+            if earliest_release_dt and earliest_release_dt.date() < deadline_dt.date():
+                status = "released_before_deadline"
+                release_evidence["released_before_deadline"] = True
+            elif earliest_release_dt and earliest_release_dt.date() == deadline_dt.date():
+                status = "released_on_deadline_date_unknown_time"
+                needs_court_check = True
+            else:
+                status = "released_after_deadline_or_unknown_time"
+                needs_court_check = True
+        else:
+            status = "past_deadline_needs_court_check"
+            needs_court_check = True
+    elif release_evidence.get("earliest_release_date"):
+        earliest_release_dt = parse_arrest_date(release_evidence["earliest_release_date"])
+        if earliest_release_dt and earliest_release_dt.date() < deadline_dt.date():
+            release_evidence["released_before_deadline"] = True
+
+    signals = {
+        "custody_start": start_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+        "custody_start_source": "call_datetime" if call.get("call_dt") else "arrest_date",
+        "arraignment_deadline_local": deadline_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+        "excluded_court_dates": skipped_dates,
+        "status": status,
+        "needs_court_check": needs_court_check,
+    }
+    if release_evidence:
+        signals["release_evidence"] = release_evidence
+        if release_evidence.get("confidence_signals"):
+            signals["confidence_signals"] = release_evidence["confidence_signals"]
+    return signals
 
 
 def map_downloaded_record_to_candidate(record: dict[str, Any]) -> dict[str, Any] | None:
@@ -1312,6 +1602,14 @@ def resident_region_match(call_town: str, resident_tags: list[str], area_tags: l
     return score, reasons
 
 
+def candidate_context_towns(candidate: dict[str, Any]) -> set[str]:
+    towns = set(candidate.get("resident_tags") or []) | set(candidate.get("area_tags") or [])
+    arrest_location = normalize_space(candidate.get("arrest_location"))
+    if arrest_location and "," in arrest_location:
+        towns.add(normalize_tag(arrest_location.rsplit(",", 1)[-1]))
+    return {town for town in towns if town}
+
+
 def score_map_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
@@ -1334,9 +1632,10 @@ def score_map_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> tupl
 
     call_codes = set(call.get("call_code_variants", []))
     candidate_codes = set(candidate.get("map_charge_codes", [])) or set(candidate.get("detail_charge_codes", []))
-    if call_codes and candidate_codes and call_codes & candidate_codes:
-        score += 4
-        reasons.append("charge_code_match")
+    charge_score, charge_reason = score_code_match(call_codes, candidate_codes)
+    if charge_reason:
+        score += charge_score
+        reasons.append(charge_reason)
 
     region_score, region_reasons = resident_region_match(
         call.get("call_town", ""),
@@ -1477,9 +1776,10 @@ def score_final_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> tu
 
     call_codes = set(call.get("call_code_variants", []))
     detail_codes = set(candidate.get("detail_charge_codes", []))
-    if call_codes and detail_codes and call_codes & detail_codes:
-        score += 2
-        reasons.append("detail_charge_code_match")
+    charge_score, charge_reason = score_code_match(call_codes, detail_codes)
+    if charge_reason:
+        score += min(2, charge_score)
+        reasons.append("detail_charge_code_match" if charge_reason == "charge_code_match" else "detail_charge_code_root_match")
 
     location_score, location_reasons, overlap = score_location_overlap(
         call.get("location_tokens", []),
@@ -1507,6 +1807,7 @@ def build_daily_arrest_record(candidate: dict[str, Any]) -> dict[str, Any] | Non
         "arrest_name": candidate.get("arrest_name"),
         "arrest_date": candidate.get("arrest_date"),
         "arrest_date_key": arrest_date_key,
+        "release_date": normalize_space((details or {}).get("release_date")),
         "arrest_location": arrest_location,
         "charge": candidate.get("charge"),
         "detail_url": candidate.get("detail_url"),
@@ -1631,12 +1932,6 @@ def build_coroner_associations(
             if "DB" in candidate_types:
                 score += 8
                 reasons.append("prior_db_call")
-            if "MANDOW" in candidate_types:
-                score += 6
-                reasons.append("prior_mandown_call")
-            if "MEDAID" in candidate_types:
-                score += 4
-                reasons.append("prior_medaid_call")
             if candidate.get("has_specific_location"):
                 score += 2
                 reasons.append("specific_location")
@@ -1719,7 +2014,35 @@ def build_coroner_associations(
 def build_matches(
     calls: list[dict[str, Any]],
     candidates: dict[str, dict[str, Any]],
+    release_lookup: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
+    release_lookup = release_lookup or {}
+    date_town_counts: dict[tuple[str, str], int] = defaultdict(int)
+    for candidate in candidates.values():
+        arrest_date_key = candidate.get("arrest_date_key") or date_key(candidate.get("arrest_date_dt"))
+        if not arrest_date_key:
+            continue
+        for town in candidate_context_towns(candidate):
+            date_town_counts[(arrest_date_key, town)] += 1
+
+    def is_unique_date_town_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> bool:
+        call_town = normalize_tag(call.get("call_town"))
+        arrest_date_key = candidate.get("arrest_date_key") or date_key(candidate.get("arrest_date_dt"))
+        if not call_town or not arrest_date_key or arrest_date_key != call.get("call_date_key"):
+            return False
+        if call_town not in candidate_context_towns(candidate):
+            return False
+        return date_town_counts.get((arrest_date_key, call_town), 0) == 1
+
+    def is_ambiguous_date_town_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> bool:
+        call_town = normalize_tag(call.get("call_town"))
+        arrest_date_key = candidate.get("arrest_date_key") or date_key(candidate.get("arrest_date_dt"))
+        if not call_town or not arrest_date_key or arrest_date_key != call.get("call_date_key"):
+            return False
+        if call_town not in candidate_context_towns(candidate):
+            return False
+        return date_town_counts.get((arrest_date_key, call_town), 0) > 1
+
     def is_confident(edge: dict[str, Any], second_best_score: int, call: dict[str, Any]) -> bool:
         reasons = set(edge["reasons"])
         if "linked_call_number_match" in reasons or "linked_report_number_match" in reasons:
@@ -1731,6 +2054,17 @@ def build_matches(
         unresolved_location = normalize_space(call.get("location")) in {"* ,*", "*,*", "*", ""}
         if unresolved_location:
             return False
+        call_town = normalize_tag(call.get("call_town"))
+        candidate = edge["raw_candidate"]
+        if call_town in SMALL_TOWN_DATE_MATCH_TOWNS and is_unique_date_town_candidate(call, candidate):
+            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + ["unique_small_town_same_day"]))
+            return True
+        if call_town in CONDITIONAL_DATE_MATCH_TOWNS and is_unique_date_town_candidate(call, candidate):
+            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + ["unique_town_same_day"]))
+            return True
+        if call_town in SMALL_TOWN_DATE_MATCH_TOWNS | CONDITIONAL_DATE_MATCH_TOWNS:
+            if is_ambiguous_date_town_candidate(call, candidate):
+                return False
         if {
             "resident_same_town",
             "same_day",
@@ -1739,8 +2073,8 @@ def build_matches(
             return True
         return False
 
-    def build_candidate_view(arrest_id: str, candidate: dict[str, Any], score: int, reasons: list[str], overlap: list[str]) -> dict[str, Any]:
-        return {
+    def build_candidate_view(call: dict[str, Any], arrest_id: str, candidate: dict[str, Any], score: int, reasons: list[str], overlap: list[str]) -> dict[str, Any]:
+        view = {
             "arrest_id": arrest_id,
             "arrest_name": candidate.get("arrest_name"),
             "arrest_date": candidate.get("arrest_date"),
@@ -1762,6 +2096,10 @@ def build_matches(
             "reasons": reasons,
             "score": score,
         }
+        custody_signals = build_custody_signals(call, candidate, release_lookup)
+        if custody_signals:
+            view["custody_signals"] = custody_signals
+        return view
 
     calls_by_base = {call["base_call_number"]: call for call in calls}
     proposals_by_call: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -1782,7 +2120,8 @@ def build_matches(
                     "score": final_score,
                     "reasons": reasons,
                     "overlap_count": len(overlap),
-                    "candidate": build_candidate_view(arrest_id, candidate, final_score, reasons, overlap),
+                    "candidate": build_candidate_view(call, arrest_id, candidate, final_score, reasons, overlap),
+                    "raw_candidate": candidate,
                     "call_dt": call["call_dt"],
                     "arrest_dt": candidate.get("arrest_date_dt") or datetime.min,
                 }
@@ -1812,6 +2151,9 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
     coroner_calls = load_recent_coroner_calls(calllog_path)
     recent_calls = load_recent_call_chains(calllog_path)
     candidates = load_downloaded_arrest_log_candidates(calllog_path)
+    release_rows = load_downloaded_release_rows(calllog_path)
+    release_lookup = build_release_lookup(release_rows)
+    death_lookup = load_downloaded_death_lookup(calllog_path)
     candidate_source = "downloaded_daily"
     if not candidates:
         client = LocalCrimeNewsClient()
@@ -1823,12 +2165,18 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         else:
             enrich_candidates_with_details_all(client, candidates)
             candidate_source = "live_agency_pages"
-    matches_by_call = build_matches(arrest_calls, candidates)
-    death_client = DeathRegisterClient(load_downloaded_death_lookup(calllog_path))
+    matches_by_call = build_matches(arrest_calls, candidates, release_lookup=release_lookup)
+    death_client = DeathRegisterClient(death_lookup)
     death_matches_by_call = build_death_matches(coroner_calls, death_client)
     coroner_associations = build_coroner_associations(coroner_calls, recent_calls, death_matches_by_call)
     daily_arrests = build_daily_arrest_index(candidates)
     recent_calls_by_base = {call["base_call_number"]: call for call in recent_calls}
+    coroner_call_bases = {call["base_call_number"] for call in coroner_calls}
+    related_death_source_bases = {
+        association["base_call_number"]
+        for association in coroner_associations.values()
+        if association.get("base_call_number")
+    }
 
     payload_calls: dict[str, Any] = {}
     for call in arrest_calls:
@@ -1841,10 +2189,18 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         coroner_base = coroner_call["base_call_number"]
         death_matches = death_matches_by_call.get(coroner_base)
         association = coroner_associations.get(coroner_base)
-        if not death_matches and not association:
-            continue
 
         coroner_entry = payload_calls.get(coroner_base) or build_call_payload_entry(coroner_call)
+        coroner_entry["coroner_call"] = {
+            "base_call_number": coroner_base,
+            "call_number": coroner_call["call_number"],
+            "date_time": coroner_call["date_time"],
+            "call_type": coroner_call["call_type"],
+            "disposition": coroner_call["disposition"],
+            "report_number": coroner_call["report_number"],
+            "location": coroner_call["location"],
+            "call_town": coroner_call["call_town"],
+        }
         if death_matches:
             coroner_entry["death_matches"] = death_matches
         if association:
@@ -1856,8 +2212,6 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
             related_call = recent_calls_by_base.get(related_base)
             if related_call:
                 related_entry = payload_calls.get(related_base) or build_call_payload_entry(related_call)
-                if death_matches:
-                    related_entry["death_matches"] = death_matches
                 related_entry["related_coroner_call"] = {
                     "base_call_number": coroner_base,
                     "call_number": coroner_call["call_number"],
@@ -1870,18 +2224,41 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
                 }
                 payload_calls[related_base] = related_entry
 
+    death_source_call_count = 0
+    for call in recent_calls:
+        base = call["base_call_number"]
+        if base in coroner_call_bases or base in related_death_source_bases:
+            continue
+        if "DB" not in set(call.get("call_types") or []):
+            continue
+        entry = payload_calls.get(base) or build_call_payload_entry(call)
+        entry["death_source_call"] = {
+            "base_call_number": base,
+            "call_number": call["call_number"],
+            "date_time": call["date_time"],
+            "call_type": call["call_type"],
+            "disposition": call["disposition"],
+            "report_number": call["report_number"],
+            "location": call["location"],
+            "call_town": call["call_town"],
+            "reasons": ["db_call_without_related_coroner_call"],
+        }
+        payload_calls[base] = entry
+        death_source_call_count += 1
+
     return {
         "generated_at": iso_now(),
         "lookback_days": LOOKBACK_DAYS,
         "agency_pages_per_run": AGENCY_PAGES_PER_RUN,
         "candidate_source": candidate_source,
+        "entry_count": len(payload_calls),
         "arr_row_count": len(arrest_calls),
         "coroner_row_count": len(coroner_calls),
-        "entry_count": len(payload_calls),
         "matched_call_count": sum(
             1
             for entry in payload_calls.values()
             if entry.get("arrest_matches") or entry.get("death_matches") or entry.get("related_coroner_call")
+            or entry.get("death_source_call")
         ),
         "arrest_annotated_call_count": len(arrest_calls),
         "arrest_matched_call_count": sum(1 for entry in payload_calls.values() if entry.get("arrest_matches")),
@@ -1890,8 +2267,17 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         ),
         "death_matched_coroner_count": len(death_matches_by_call),
         "death_annotated_call_count": sum(1 for entry in payload_calls.values() if entry.get("death_matches")),
+        "death_source_call_count": death_source_call_count,
         "coroner_related_call_count": len(coroner_associations),
         "candidate_count": len(candidates),
+        "death_register_count": len(death_lookup),
+        "release_row_count": len(release_rows),
+        "release_match_count": sum(
+            1
+            for entry in payload_calls.values()
+            for match in entry.get("arrest_matches", [])
+            if (match.get("custody_signals", {}) or {}).get("release_evidence")
+        ),
         "daily_arrests": daily_arrests,
         "calls": payload_calls,
     }
