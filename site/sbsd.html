@@ -602,7 +602,7 @@ const META_URL = new URL("calllog_upload_meta.json", DATA_ROOT).toString();
 const HISTORY_CSV_URL = new URL("calllog.csv", DATA_ROOT).toString();
 const ANNOTATIONS_URL = new URL("calllog_arrest_index.json", DATA_ROOT).toString();
 const API_PREVIEW_URL = new URL("sbsd_api.php", DATA_ROOT).toString();
-const DESCRIPTIONS_URL = new URL("calllog_descriptions.json", DATA_ROOT).toString();
+const DESCRIPTIONS_URL = new URL("calllog_descriptions.php", DATA_ROOT).toString();
 const API_PREVIEW_LIMIT = 1000;
 const REFRESH_MS = 60000;
 const CSV_PARSE_YIELD_ROWS = 1500;
@@ -851,23 +851,6 @@ function renderDescriptionLine(label, description) {
   return `<div class="annotation-meta">${escapeHtml(label)}: ${escapeHtml(description)}</div>`;
 }
 
-function callTypeDescription(type) {
-  const key = String(type || "").trim().toUpperCase();
-  return key ? CALL_TYPE_DESCRIPTIONS[key] || "" : "";
-}
-
-function dispositionDescription(dispo) {
-  const key = String(dispo || "").trim().toUpperCase();
-  if (!key) return "";
-  if (key === "*") return "Open/no final disposition yet";
-  return DISPOSITION_DESCRIPTIONS[key] || "";
-}
-
-function renderDescriptionLine(label, description) {
-  if (!description) return "";
-  return `<div class="annotation-meta">${escapeHtml(label)}: ${escapeHtml(description)}</div>`;
-}
-
 function renderReceivedAt(value) {
   return value ? escapeHtml(formatLocal(value)) : '<span class="muted">Not recorded</span>';
 }
@@ -886,7 +869,7 @@ async function loadCallDescriptions() {
   try {
     const response = await fetch(`${DESCRIPTIONS_URL}?t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) {
-      throw new Error(`calllog_descriptions.json returned HTTP ${response.status}`);
+      throw new Error(`calllog_descriptions.php returned HTTP ${response.status}`);
     }
     const payload = await response.json();
     callDescriptions = {
