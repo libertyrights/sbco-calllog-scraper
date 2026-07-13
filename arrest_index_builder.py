@@ -1832,9 +1832,7 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
 
     payload_calls: dict[str, Any] = {}
     for call in arrest_calls:
-        matches = matches_by_call.get(call["base_call_number"])
-        if not matches:
-            continue
+        matches = matches_by_call.get(call["base_call_number"], [])
         entry = payload_calls.get(call["base_call_number"]) or build_call_payload_entry(call)
         entry["arrest_matches"] = matches
         payload_calls[call["base_call_number"]] = entry
@@ -1879,8 +1877,17 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         "candidate_source": candidate_source,
         "arr_row_count": len(arrest_calls),
         "coroner_row_count": len(coroner_calls),
-        "matched_call_count": len(payload_calls),
+        "entry_count": len(payload_calls),
+        "matched_call_count": sum(
+            1
+            for entry in payload_calls.values()
+            if entry.get("arrest_matches") or entry.get("death_matches") or entry.get("related_coroner_call")
+        ),
+        "arrest_annotated_call_count": len(arrest_calls),
         "arrest_matched_call_count": sum(1 for entry in payload_calls.values() if entry.get("arrest_matches")),
+        "unmatched_arrest_call_count": sum(
+            1 for call in arrest_calls if not matches_by_call.get(call["base_call_number"])
+        ),
         "death_matched_coroner_count": len(death_matches_by_call),
         "death_annotated_call_count": sum(1 for entry in payload_calls.values() if entry.get("death_matches")),
         "coroner_related_call_count": len(coroner_associations),

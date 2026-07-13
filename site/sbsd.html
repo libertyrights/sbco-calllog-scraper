@@ -840,6 +840,23 @@ function prefixDescription(group) {
   return prefix ? `${prefix} Prefix Call` : "Call";
 }
 
+function callTypeDescription(type) {
+  const key = String(type || "").trim().toUpperCase();
+  return key ? CALL_TYPE_DESCRIPTIONS[key] || "" : "";
+}
+
+function dispositionDescription(dispo) {
+  const key = String(dispo || "").trim().toUpperCase();
+  if (!key) return "";
+  if (key === "*") return "Open/no final disposition yet";
+  return DISPOSITION_DESCRIPTIONS[key] || "";
+}
+
+function renderDescriptionLine(label, description) {
+  if (!description) return "";
+  return `<div class="annotation-meta">${escapeHtml(label)}: ${escapeHtml(description)}</div>`;
+}
+
 function renderReceivedAt(value) {
   return value ? escapeHtml(formatLocal(value)) : '<span class="muted">Not recorded</span>';
 }
@@ -972,6 +989,14 @@ function renderLinkedRecords(group) {
         <div class="annotation-block">
           <h4>Linked Records</h4>
           <div class="muted">Linked arrest/death annotations are loading.</div>
+        </div>
+      `;
+    }
+    if (expectsLinked) {
+      return `
+        <div class="annotation-block">
+          <h4>Linked Records</h4>
+          <div class="muted">No linked arrest or death record is published for this call yet.</div>
         </div>
       `;
     }
@@ -1421,7 +1446,12 @@ function renderExtra(group) {
   const current = group.latest || {};
   const extra = current.extra;
   if (!extra) return "";
-  return `<div class="extra-json">${escapeHtml(JSON.stringify(extra, null, 2))}</div>`;
+  return `
+    <details class="extra-details">
+      <summary>Raw JSON</summary>
+      <div class="extra-json">${escapeHtml(JSON.stringify(extra, null, 2))}</div>
+    </details>
+  `;
 }
 
 function renderHistory(group) {
@@ -1464,12 +1494,21 @@ function renderHistory(group) {
 function renderDetails(group) {
   const current = group.latest || {};
   const locationParts = splitLocation(current.loc || "");
+  const prefixText = String(group.prefix || "").trim().toUpperCase();
+  const prefixTextDescription = prefixDescription(group);
+  const typeTextDescription = callTypeDescription(current.type);
+  const dispoTextDescription = dispositionDescription(current.dispo);
   return `
     <div class="detail-card">
       <div class="detail-grid">
         <div class="detail-block">
           <h4>Current Call</h4>
           <div class="value">${escapeHtml(current.callno || group.baseCallNo)}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Prefix</h4>
+          <div class="value">${escapeHtml(prefixText || "")}</div>
+          ${renderDescriptionLine("Prefix", prefixTextDescription)}
         </div>
         <div class="detail-block">
           <h4>Agency / Station</h4>
@@ -1486,6 +1525,8 @@ function renderDetails(group) {
         <div class="detail-block">
           <h4>Type / Dispo</h4>
           <div class="value">${renderTypeDispo(current.type || "", current.dispo || "")}</div>
+          ${renderDescriptionLine("Type", typeTextDescription)}
+          ${renderDescriptionLine("Dispo", dispoTextDescription)}
         </div>
         <div class="detail-block">
           <h4>Revision Count</h4>
