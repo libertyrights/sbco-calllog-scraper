@@ -3,7 +3,7 @@ name: sbco-calllog
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '7,27,47 * * * *'
 
 concurrency:
   group: sbco-calllog-publish
