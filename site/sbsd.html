@@ -60,6 +60,7 @@ body {
 }
 .notice,
 .controls,
+.column-filters,
 .summary,
 .table-shell {
   margin-bottom: 14px;
@@ -118,7 +119,7 @@ body {
 }
 .controls {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(120px, 0.7fr)) auto;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(120px, 0.7fr)) minmax(240px, auto);
   gap: 10px;
   padding: 14px;
 }
@@ -142,6 +143,42 @@ body {
   cursor: pointer;
 }
 .controls button:hover { background: #205086; }
+.control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.controls button.secondary-btn {
+  background: #335f91;
+}
+.controls button.secondary-btn:hover {
+  background: #274e79;
+}
+.column-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filter-field label {
+  color: #546474;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.filter-field input {
+  min-height: 40px;
+  border: 1px solid #bcc9d8;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+}
 .summary {
   display: flex;
   flex-wrap: wrap;
@@ -201,6 +238,10 @@ tbody tr.main-row.row-sbso {
   background: linear-gradient(90deg, rgba(42, 93, 149, 0.16) 0, var(--sbso-bg) 36px, var(--sbso-bg) 100%);
   border-left: 5px solid #2a5d95;
 }
+tbody tr.main-row.row-sbso.row-open {
+  background: linear-gradient(90deg, rgba(18, 64, 117, 0.34) 0, #dbe9f8 42px, #dbe9f8 100%);
+  border-left-color: #123f74;
+}
 tbody tr.main-row.row-chp {
   background: linear-gradient(90deg, rgba(29, 95, 191, 0.18) 0, var(--chp-bg) 36px, var(--chp-bg) 100%);
   border-left: 5px solid #1d5fbf;
@@ -224,8 +265,9 @@ tbody tr.main-row.tone-low {
   font-weight: 700;
   padding: 3px 7px;
   border-radius: 999px;
-  background: #eff4fb;
-  border: 1px solid #c8d5e5;
+  background: var(--callno-bg, #eff4fb);
+  border: 1px solid var(--callno-border, #c8d5e5);
+  color: var(--callno-text, #18212c);
 }
 .pill {
   display: inline-block;
@@ -235,38 +277,36 @@ tbody tr.main-row.tone-low {
   color: #20476d;
   font-size: 11px;
 }
-.agency-pill,
-.sev-pill {
+.agency-pill {
   display: inline-block;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
   padding: 3px 9px;
-}
-.agency-pill {
   color: #fff;
 }
 .agency-sbso { background: #2a5d95; }
 .agency-chp { background: #1d5fbf; }
 .agency-sbcfire { background: #d97706; }
 .agency-other { background: #596b80; }
-.sev-pill {
-  margin-left: 6px;
-  color: #203040;
-  background: #e9eef5;
+.dispo-box {
+  display: inline-block;
+  min-width: 42px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-align: center;
 }
-.sev-pill.high {
-  background: #ffe0e0;
-  color: #8c1d1d;
+.dispo-box.arrest {
+  background: #9f2020;
+  border: 1px solid #7f1717;
+  color: #fff;
 }
-.sev-pill.med {
-  background: #ffeacc;
-  color: #8a5400;
-}
-.sev-pill.low {
-  background: #eef3f9;
-  color: #4c5d70;
+.area-cell {
+  color: #304b68;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 .detail-row td {
   background: #f7faff;
@@ -310,6 +350,55 @@ tbody tr.main-row.tone-low {
 .history th {
   background: #eef4fb;
 }
+.annotation-block {
+  margin-top: 12px;
+  border: 1px solid #d9e4ef;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px 14px;
+}
+.annotation-block h4 {
+  margin: 0 0 8px;
+  color: #304b68;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.annotation-list {
+  display: grid;
+  gap: 10px;
+}
+.annotation-card {
+  border: 1px solid #dce6f1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.annotation-card .value {
+  font-weight: 700;
+}
+.annotation-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.annotation-link {
+  color: var(--accent-2);
+  font-weight: 700;
+  text-decoration: none;
+}
+.annotation-link:hover {
+  text-decoration: underline;
+}
+.extra-details {
+  margin-top: 12px;
+}
+.extra-details summary {
+  cursor: pointer;
+  color: #304b68;
+  font-weight: 700;
+}
 .extra-json {
   margin-top: 10px;
   background: #0f1a27;
@@ -337,6 +426,9 @@ tbody tr.main-row.tone-low {
 }
 @media (max-width: 720px) {
   .controls {
+    grid-template-columns: 1fr;
+  }
+  .column-filters {
     grid-template-columns: 1fr;
   }
   .detail-grid {
@@ -374,9 +466,10 @@ tbody tr.main-row.tone-low {
           <a id="helpToggle" class="help-link" href="#howToReadPanel" aria-expanded="false">How to read this page</a>
         </div>
         <div id="howToReadPanel" class="help-panel" hidden>
-          <p>Blue rows are SBSO, deeper blue rows are CHP, and orange rows are fire/medical responses.</p>
+          <p>Blue rows are SBSO, darker SBSO rows are still open, deeper blue rows are CHP, and orange rows are fire/medical responses.</p>
           <p>The `+` button opens revision history, current details, and any extra structured data attached to that call.</p>
-          <p>Use the prefix filter to jump by call family like `BA`, `CO`, `CHP`, or `SBCFIRE` once full history finishes loading.</p>
+          <p>Call number colors follow prefix, arrest dispositions are boxed red, and the area tag is split from the street address.</p>
+          <p>Use the prefix filter, date range, or typeable column filters to narrow the feed, then export the matched rows to CSV or JSON.</p>
         </div>
       </div>
     </div>
@@ -393,8 +486,64 @@ tbody tr.main-row.tone-low {
         <option value="1000">1000 groups</option>
         <option value="2500">2500 groups</option>
       </select>
-      <button id="refreshBtn" type="button">Refresh</button>
+      <div class="control-actions">
+        <button id="refreshBtn" type="button">Refresh</button>
+        <button id="exportCsvBtn" class="secondary-btn" type="button">Export CSV</button>
+        <button id="exportJsonBtn" class="secondary-btn" type="button">Export JSON</button>
+      </div>
     </div>
+
+    <div class="card column-filters">
+      <div class="filter-field">
+        <label for="filterStartDateTime">Start Date/Time</label>
+        <input id="filterStartDateTime" data-column-filter type="datetime-local" step="1">
+      </div>
+      <div class="filter-field">
+        <label for="filterEndDateTime">End Date/Time</label>
+        <input id="filterEndDateTime" data-column-filter type="datetime-local" step="1">
+      </div>
+      <div class="filter-field">
+        <label for="filterStationText">Station</label>
+        <input id="filterStationText" data-column-filter type="search" list="filterStationList" placeholder="contains station">
+      </div>
+      <div class="filter-field">
+        <label for="filterAgencyText">Agency</label>
+        <input id="filterAgencyText" data-column-filter type="search" list="filterAgencyList" placeholder="contains agency">
+      </div>
+      <div class="filter-field">
+        <label for="filterCallNo">Call No / Prefix</label>
+        <input id="filterCallNo" data-column-filter type="search" list="filterCallNoList" placeholder="contains call no or prefix">
+      </div>
+      <div class="filter-field">
+        <label for="filterReport">Report</label>
+        <input id="filterReport" data-column-filter type="search" list="filterReportList" placeholder="contains report">
+      </div>
+      <div class="filter-field">
+        <label for="filterType">Type</label>
+        <input id="filterType" data-column-filter type="search" list="filterTypeList" placeholder="contains type">
+      </div>
+      <div class="filter-field">
+        <label for="filterDispo">Dispo</label>
+        <input id="filterDispo" data-column-filter type="search" list="filterDispoList" placeholder="contains dispo">
+      </div>
+      <div class="filter-field">
+        <label for="filterLocation">Location</label>
+        <input id="filterLocation" data-column-filter type="search" list="filterLocationList" placeholder="contains address">
+      </div>
+      <div class="filter-field">
+        <label for="filterArea">Area</label>
+        <input id="filterArea" data-column-filter type="search" list="filterAreaList" placeholder="contains area">
+      </div>
+    </div>
+
+    <datalist id="filterAgencyList"></datalist>
+    <datalist id="filterStationList"></datalist>
+    <datalist id="filterCallNoList"></datalist>
+    <datalist id="filterReportList"></datalist>
+    <datalist id="filterTypeList"></datalist>
+    <datalist id="filterDispoList"></datalist>
+    <datalist id="filterLocationList"></datalist>
+    <datalist id="filterAreaList"></datalist>
 
     <div class="card summary">
       <div id="statusText" class="status">Loading...</div>
@@ -418,6 +567,7 @@ tbody tr.main-row.tone-low {
               <th>Type</th>
               <th>Dispo</th>
               <th>Location</th>
+              <th>Area</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -432,6 +582,7 @@ const DATA_ROOT = new URL(new URLSearchParams(window.location.search).get("dataR
 const LIVE_URL = new URL("calllog.json", DATA_ROOT).toString();
 const META_URL = new URL("calllog_upload_meta.json", DATA_ROOT).toString();
 const HISTORY_CSV_URL = new URL("calllog.csv", DATA_ROOT).toString();
+const ANNOTATIONS_URL = new URL("calllog_arrest_index.json", DATA_ROOT).toString();
 const REFRESH_MS = 60000;
 const CSV_PARSE_YIELD_ROWS = 1500;
 
@@ -444,13 +595,91 @@ let historyError = "";
 let historyLoadPromise = null;
 let expanded = new Set();
 let searchApplyTimer = 0;
+let knownAreaCodes = new Set();
+let filterControlSource = null;
+let lastFilteredGroups = [];
+let callAnnotations = new Map();
+let callAnnotationsLoadedAt = "";
+let callAnnotationsError = "";
+let callAnnotationsPromise = null;
+
+const AREA_CODE_PATTERN = /^[A-Z*]{1,5}$/;
+const FILTER_SUGGESTION_LIMITS = {
+  agency: 50,
+  station: 100,
+  callno: 250,
+  report: 250,
+  type: 150,
+  dispo: 100,
+  location: 250,
+  area: 100,
+};
+const PREFIX_DESCRIPTION_OVERRIDES = {
+  CO: "Coroner Call",
+  CS: "Court Services Call",
+  CHP: "California Highway Patrol Incident",
+  SBCFIRE: "San Bernardino County Fire / EMS Incident",
+};
+const DISPOSITION_DESCRIPTIONS = {
+  ARR: "Arrest",
+  CAN: "Cancelled",
+  CIT: "Citation issued",
+  CIV: "Civil matter",
+  GOA: "Gone on arrival",
+  NAT: "Necessary action taken",
+  RTF: "Report taken",
+  SER: "Service rendered",
+  UTL: "Unable to locate",
+  WAR: "Warrant arrest",
+};
+const CALL_TYPE_DESCRIPTIONS = {
+  AOD: "Assist other department",
+  AREACK: "Area check",
+  BUSCK: "Business check",
+  CIVIL: "Civil matter",
+  DB: "Dead body",
+  FD: "Flagged down",
+  FU: "Follow-up",
+  GTAREC: "Stolen vehicle recovery",
+  INFO: "Information call",
+  KTP: "Keep the peace",
+  LOSTP: "Lost property",
+  MANDOW: "Man down",
+  MEDAID: "Medical aid",
+  MISPER: "Missing person",
+  PATINF: "Patrol information",
+  PUBSER: "Public service",
+  REPO: "Repossession",
+  SECCK: "Security check",
+  SUBCK: "Subject check",
+  SUSCON: "Suspicious circumstances",
+  SUSPER: "Suspicious person",
+  SUSVEH: "Suspicious vehicle",
+  T: "Traffic detail",
+  VEHCK: "Vehicle check",
+  W911: "Wireless 911 call",
+  WARSER: "Warrant service",
+  WELCK: "Welfare check",
+  XPAT: "Extra patrol",
+  "11377": "Controlled substance possession",
+  "1182": "Traffic collision, no injuries",
+  "1179": "Traffic collision with medical response",
+  "415CIV": "Civil disturbance",
+  "459": "Burglary",
+  "459A": "Auto burglary",
+  "459C": "Commercial burglary",
+  "487": "Grand theft",
+  "594": "Vandalism",
+  "602": "Trespassing",
+};
 
 function parseDateTime(value) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/.exec((value || "").trim());
   if (!match) return Number.NEGATIVE_INFINITY;
   let hour = Number(match[4]) % 12;
   if (match[7] === "PM") hour += 12;
-  return Date.UTC(Number(match[3]), Number(match[1]) - 1, Number(match[2]), hour, Number(match[5]), Number(match[6]));
+  const date = new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]), hour, Number(match[5]), Number(match[6]));
+  return Number.isNaN(date.getTime()) ? Number.NEGATIVE_INFINITY : date.getTime();
 }
 
 function escapeHtml(value) {
@@ -505,6 +734,7 @@ function rowClass(group) {
   if (agency === "CHP") parts.push("row-chp");
   else if (agency === "SBCFIRE") parts.push("row-sbcfire");
   else parts.push("row-sbso");
+  if (isOpenSbsoCall(group)) parts.push("row-open");
   parts.push(`tone-${sev}`);
   return parts.join(" ");
 }
@@ -517,10 +747,421 @@ function agencyClass(agency) {
   return "agency-other";
 }
 
-function severityLabel(level) {
-  if (level === "high") return "Priority";
-  if (level === "med") return "Active";
-  return "Routine";
+function isBlankDisposition(dispo) {
+  const normalized = String(dispo || "").trim().toUpperCase();
+  return normalized === "" || normalized === "*";
+}
+
+function isOpenSbsoCall(group) {
+  return String(group.agency || "").toUpperCase() === "SBSO" && isBlankDisposition((group.latest || {}).dispo);
+}
+
+function isArrestDisposition(dispo) {
+  return new Set(["ARR", "WAR", "ABA", "CIA"]).has(String(dispo || "").trim().toUpperCase());
+}
+
+function prefixPalette(prefix) {
+  const key = String(prefix || "UNK").toUpperCase();
+  let hash = 0;
+  for (const char of key) {
+    hash = ((hash * 33) + char.charCodeAt(0)) % 360;
+  }
+  const hue = hash;
+  return {
+    bg: `hsl(${hue} 78% 93%)`,
+    border: `hsl(${hue} 42% 58%)`,
+    text: `hsl(${hue} 72% 24%)`,
+  };
+}
+
+function callnoStyle(group) {
+  const palette = prefixPalette(group.prefix || group.baseCallNo || "");
+  return `--callno-bg:${palette.bg};--callno-border:${palette.border};--callno-text:${palette.text};`;
+}
+
+function renderDispo(dispo) {
+  const text = String(dispo || "").trim();
+  if (!text) return "";
+  if (!isArrestDisposition(text)) return escapeHtml(text);
+  return `<span class="dispo-box arrest">${escapeHtml(text)}</span>`;
+}
+
+function renderTypeDispo(type, dispo) {
+  const renderedDispo = renderDispo(dispo);
+  return renderedDispo ? `${escapeHtml(type || "")} / ${renderedDispo}` : escapeHtml(type || "");
+}
+
+function extractAreaToken(location) {
+  const raw = String(location || "").trim();
+  const commaIndex = raw.lastIndexOf(",");
+  if (commaIndex < 0) return "";
+  const base = raw.slice(0, commaIndex).trim();
+  const area = raw.slice(commaIndex + 1).trim().toUpperCase();
+  if (!base || !AREA_CODE_PATTERN.test(area)) return "";
+  return area;
+}
+
+function deriveAreaCodes(groups) {
+  const areas = new Set();
+  for (const group of Array.isArray(groups) ? groups : []) {
+    if (String(group.agency || "").toUpperCase() !== "SBSO") continue;
+    for (const row of Array.isArray(group.chain) ? group.chain : []) {
+      const area = extractAreaToken(row.loc || "");
+      if (area) areas.add(area);
+    }
+  }
+  return areas;
+}
+
+function splitLocation(location) {
+  const raw = String(location || "").trim();
+  if (!raw) return { location: "", area: "" };
+  const commaIndex = raw.lastIndexOf(",");
+  if (commaIndex < 0) return { location: raw, area: "" };
+  const base = raw.slice(0, commaIndex).trim();
+  const area = raw.slice(commaIndex + 1).trim().toUpperCase();
+  if (!base || !AREA_CODE_PATTERN.test(area) || !knownAreaCodes.has(area)) {
+    return { location: raw, area: "" };
+  }
+  return { location: base, area };
+}
+
+function renderArea(area) {
+  return area ? `<span class="area-cell">${escapeHtml(area)}</span>` : "";
+}
+
+function prefixDescription(group) {
+  const prefix = String(group.prefix || "").trim().toUpperCase();
+  const agency = String(group.agency || "").trim().toUpperCase();
+  if (PREFIX_DESCRIPTION_OVERRIDES[prefix]) return PREFIX_DESCRIPTION_OVERRIDES[prefix];
+  if (agency === "CHP") return PREFIX_DESCRIPTION_OVERRIDES.CHP;
+  if (agency === "SBCFIRE") return PREFIX_DESCRIPTION_OVERRIDES.SBCFIRE;
+  if (group.station) return `${group.station} Patrol Deputies Call`;
+  return prefix ? `${prefix} Prefix Call` : "Call";
+}
+
+function renderReceivedAt(value) {
+  return value ? escapeHtml(formatLocal(value)) : '<span class="muted">Not recorded</span>';
+}
+
+function buildCallAnnotationMap(payload) {
+  const map = new Map();
+  const calls = payload && payload.calls && typeof payload.calls === "object" ? payload.calls : {};
+  for (const [key, value] of Object.entries(calls)) {
+    if (!value || typeof value !== "object") continue;
+    map.set(value.base_call_number || key, value);
+  }
+  return map;
+}
+
+function renderTimeline(title, items) {
+  const rows = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!rows.length) return "";
+  return `
+    <div class="annotation-block">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="annotation-list">
+        ${rows.map((item) => {
+          const heading = item.time || item.id || item.status || "Update";
+          const body = item.text || item.status_label || item.description || "";
+          const meta = [];
+          if (item.cleared_at) meta.push(`Cleared ${formatLocal(item.cleared_at)}`);
+          return `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(heading)}</div>
+              ${body ? `<div>${escapeHtml(body)}</div>` : ""}
+              ${meta.length ? `<div class="annotation-meta">${escapeHtml(meta.join(" | "))}</div>` : ""}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderChpFeedDetails(extra) {
+  const status = extra.is_closed
+    ? `Closed${extra.closed_at ? ` ${formatLocal(extra.closed_at)}` : ""}`
+    : extra.is_active
+      ? "Open incident"
+      : "Status unknown";
+  const statusText = extra.closure_reason ? `${status} | ${extra.closure_reason}` : status;
+  return `
+    <div class="annotation-block">
+      <h4>CHP Feed Detail</h4>
+      <div class="detail-grid">
+        <div class="detail-block">
+          <h4>Call Type</h4>
+          <div class="value">${escapeHtml([extra.call_type_code, extra.call_type_description].filter(Boolean).join(" - "))}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Dispatch</h4>
+          <div class="value">${escapeHtml(extra.dispatch_id || extra.log_id || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Status</h4>
+          <div class="value">${escapeHtml(statusText)}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Area / Detail</h4>
+          <div class="value">${escapeHtml([extra.area, extra.location_detail].filter(Boolean).join(" / "))}</div>
+        </div>
+      </div>
+    </div>
+    ${renderTimeline("CHP Notes", extra.detail_lines)}
+    ${renderTimeline("CHP Unit Activity", extra.unit_activity)}
+  `;
+}
+
+function renderPulsePointFeedDetails(extra) {
+  const status = extra.is_closed
+    ? `Closed${extra.closed_at ? ` ${formatLocal(extra.closed_at)}` : ""}`
+    : extra.is_active
+      ? "Open incident"
+      : "Status unknown";
+  return `
+    <div class="annotation-block">
+      <h4>Fire / EMS Feed Detail</h4>
+      <div class="detail-grid">
+        <div class="detail-block">
+          <h4>Call Type</h4>
+          <div class="value">${escapeHtml([extra.call_type_code, extra.call_type_description].filter(Boolean).join(" - "))}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Category</h4>
+          <div class="value">${escapeHtml(extra.call_type_category || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Status</h4>
+          <div class="value">${escapeHtml(status)}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Received</h4>
+          <div class="value">${escapeHtml(formatLocal(extra.received_at || ""))}</div>
+        </div>
+      </div>
+    </div>
+    ${renderTimeline("Units", extra.units)}
+  `;
+}
+
+function renderStructuredFeedDetails(group) {
+  const extra = (group.latest || {}).extra;
+  if (!extra || typeof extra !== "object") return "";
+  if (extra.kind === "chp_incident") return renderChpFeedDetails(extra);
+  if (extra.kind === "pulsepoint_incident") return renderPulsePointFeedDetails(extra);
+  return "";
+}
+
+function renderLinkedRecords(group) {
+  const current = group.latest || {};
+  const annotation = callAnnotations.get(group.baseCallNo);
+  const expectsLinked = isArrestDisposition(current.dispo) || String(group.prefix || "").toUpperCase() === "CO";
+
+  if (!annotation) {
+    if (callAnnotationsError && expectsLinked) {
+      return `
+        <div class="annotation-block">
+          <h4>Linked Records</h4>
+          <div class="muted">Linked arrest/death annotations unavailable: ${escapeHtml(callAnnotationsError)}</div>
+        </div>
+      `;
+    }
+    if ((!callAnnotationsLoadedAt || callAnnotationsPromise) && expectsLinked) {
+      return `
+        <div class="annotation-block">
+          <h4>Linked Records</h4>
+          <div class="muted">Linked arrest/death annotations are loading.</div>
+        </div>
+      `;
+    }
+    return "";
+  }
+
+  const arrestMatches = Array.isArray(annotation.arrest_matches) ? annotation.arrest_matches : [];
+  const deathMatches = Array.isArray(annotation.death_matches) ? annotation.death_matches : [];
+  const hasContent = arrestMatches.length || deathMatches.length || annotation.related_coroner_call;
+  if (!hasContent) {
+    if (!expectsLinked) return "";
+    return `
+      <div class="annotation-block">
+        <h4>Linked Records</h4>
+        <div class="muted">No linked arrest or death record is published for this call yet.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="annotation-block">
+      <h4>Linked Records</h4>
+      ${(arrestMatches.length ? `
+        <div class="annotation-meta"><strong>Arrest Matches</strong></div>
+        <div class="annotation-list">
+          ${arrestMatches.map((match) => {
+            const detailParts = [];
+            if (match.details && match.details.age_gender) detailParts.push(match.details.age_gender);
+            if (match.details && match.details.race) detailParts.push(match.details.race);
+            if (match.details && match.details.release_date && match.details.release_date !== "Not Available") detailParts.push(`Release ${match.details.release_date}`);
+            const reasonText = Array.isArray(match.reasons) && match.reasons.length ? `Reasons: ${match.reasons.join(", ")}` : "";
+            return `
+              <div class="annotation-card">
+                <div class="value">${escapeHtml(match.arrest_name || "Matched arrest")}</div>
+                ${match.charge ? `<div>${escapeHtml(match.charge)}</div>` : ""}
+                <div class="annotation-meta">${escapeHtml([match.arrest_date, match.arrest_location].filter(Boolean).join(" | "))}</div>
+                ${detailParts.length ? `<div class="annotation-meta">${escapeHtml(detailParts.join(" | "))}</div>` : ""}
+                <div class="annotation-meta">${escapeHtml([match.source_agency || (match.details || {}).source_agency || "", match.score != null ? `Score ${match.score}` : "", reasonText].filter(Boolean).join(" | "))}</div>
+                ${match.detail_url ? `<div class="annotation-meta"><a class="annotation-link" href="${escapeHtml(match.detail_url)}" target="_blank" rel="noreferrer">Open arrest detail</a></div>` : ""}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : "")}
+      ${(deathMatches.length || annotation.related_coroner_call ? `
+        <div class="annotation-meta"><strong>Death / Coroner Matches</strong></div>
+        <div class="annotation-list">
+          ${deathMatches.map((match) => `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(match.decedent_name || "Matched death record")}</div>
+              <div class="annotation-meta">${escapeHtml([match.date_of_death, match.case_number ? `Case ${match.case_number}` : "", match.coroner_report_number || ""].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([match.manner, match.place_of_death || match.resolved_location || "", match.score != null ? `Score ${match.score}` : ""].filter(Boolean).join(" | "))}</div>
+            </div>
+          `).join("")}
+          ${annotation.related_coroner_call ? `
+            <div class="annotation-card">
+              <div class="value">${escapeHtml(annotation.related_coroner_call.call_number || annotation.related_coroner_call.base_call_number || "Related coroner call")}</div>
+              <div class="annotation-meta">${escapeHtml([annotation.related_coroner_call.call_type, annotation.related_coroner_call.report_number].filter(Boolean).join(" | "))}</div>
+              <div class="annotation-meta">${escapeHtml([annotation.related_coroner_call.date_time, annotation.related_coroner_call.minutes_after_related_call != null ? `${annotation.related_coroner_call.minutes_after_related_call} minutes apart` : "", annotation.related_coroner_call.score != null ? `Score ${annotation.related_coroner_call.score}` : ""].filter(Boolean).join(" | "))}</div>
+            </div>
+          ` : ""}
+        </div>
+      ` : "")}
+    </div>
+  `;
+}
+
+function uniqueLimited(values, limit) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(text);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function sortedUniqueLimited(values, limit) {
+  return uniqueLimited(
+    [...values].sort((a, b) => String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" })),
+    limit
+  );
+}
+
+function setDatalist(id, values) {
+  const node = document.getElementById(id);
+  if (!node) return;
+  node.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
+}
+
+function buildCallNumberSuggestions(groups) {
+  const prefixes = sortedUniqueLimited(groups.map((group) => group.prefix), 100);
+  const calls = uniqueLimited(groups.map((group) => group.baseCallNo), FILTER_SUGGESTION_LIMITS.callno);
+  return uniqueLimited([...prefixes, ...calls], FILTER_SUGGESTION_LIMITS.callno);
+}
+
+function parseDateInput(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function formatDateTimeLocal(ms) {
+  if (!Number.isFinite(ms)) return "";
+  const date = new Date(ms);
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    "-",
+    pad(date.getMonth() + 1),
+    "-",
+    pad(date.getDate()),
+    "T",
+    pad(date.getHours()),
+    ":",
+    pad(date.getMinutes()),
+    ":",
+    pad(date.getSeconds()),
+  ].join("");
+}
+
+function matchesText(value, search) {
+  return !search || String(value || "").toLowerCase().includes(search);
+}
+
+function getFilterSnapshot() {
+  return {
+    search: document.getElementById("searchBox").value.trim(),
+    agency: document.getElementById("agencyFilter").value,
+    station: document.getElementById("stationFilter").value,
+    prefix: document.getElementById("prefixFilter").value,
+    pageSize: Number(document.getElementById("pageSize").value || "100"),
+    startDateTime: document.getElementById("filterStartDateTime").value,
+    endDateTime: document.getElementById("filterEndDateTime").value,
+    stationText: document.getElementById("filterStationText").value.trim(),
+    agencyText: document.getElementById("filterAgencyText").value.trim(),
+    callNoText: document.getElementById("filterCallNo").value.trim(),
+    reportText: document.getElementById("filterReport").value.trim(),
+    typeText: document.getElementById("filterType").value.trim(),
+    dispoText: document.getElementById("filterDispo").value.trim(),
+    locationText: document.getElementById("filterLocation").value.trim(),
+    areaText: document.getElementById("filterArea").value.trim(),
+  };
+}
+
+function getActiveFilters() {
+  const snapshot = getFilterSnapshot();
+  return {
+    ...snapshot,
+    search: snapshot.search.toLowerCase(),
+    stationText: snapshot.stationText.toLowerCase(),
+    agencyText: snapshot.agencyText.toLowerCase(),
+    callNoText: snapshot.callNoText.toLowerCase(),
+    reportText: snapshot.reportText.toLowerCase(),
+    typeText: snapshot.typeText.toLowerCase(),
+    dispoText: snapshot.dispoText.toLowerCase(),
+    locationText: snapshot.locationText.toLowerCase(),
+    areaText: snapshot.areaText.toLowerCase(),
+    startMs: parseDateInput(snapshot.startDateTime),
+    endMs: parseDateInput(snapshot.endDateTime),
+  };
+}
+
+function getFilteredGroups(groups, filters) {
+  return groups.filter((group) => {
+    const current = group.latest || {};
+    const currentDt = current.dt || group.originalDt || "";
+    const currentMs = parseDateTime(currentDt);
+    const locationParts = splitLocation(current.loc || "");
+
+    if (filters.agency && group.agency !== filters.agency) return false;
+    if (filters.station && group.station !== filters.station) return false;
+    if (filters.prefix && group.prefix !== filters.prefix) return false;
+    if (filters.startMs !== null && (!Number.isFinite(currentMs) || currentMs < filters.startMs)) return false;
+    if (filters.endMs !== null && (!Number.isFinite(currentMs) || currentMs > filters.endMs)) return false;
+    if (!matchesText(group.station || "", filters.stationText)) return false;
+    if (!matchesText(group.agency || "", filters.agencyText)) return false;
+    if (!matchesText(group.baseCallNo || current.callno || "", filters.callNoText)) return false;
+    if (!matchesText(current.report || "", filters.reportText)) return false;
+    if (!matchesText(current.type || "", filters.typeText)) return false;
+    if (!matchesText(current.dispo || "", filters.dispoText)) return false;
+    if (!matchesText(locationParts.location || current.loc || "", filters.locationText)) return false;
+    if (!matchesText(locationParts.area || "", filters.areaText)) return false;
+    return !filters.search || group.searchText.includes(filters.search);
+  });
 }
 
 function normalizeRecord(row) {
@@ -716,6 +1357,10 @@ function formatLocal(value) {
 }
 
 function updateFilters(groups) {
+  if (filterControlSource === groups) return;
+  filterControlSource = groups;
+  knownAreaCodes = deriveAreaCodes(groups);
+
   const agencyFilter = document.getElementById("agencyFilter");
   const stationFilter = document.getElementById("stationFilter");
   const prefixFilter = document.getElementById("prefixFilter");
@@ -731,6 +1376,45 @@ function updateFilters(groups) {
   if (agencies.includes(currentAgency)) agencyFilter.value = currentAgency;
   if (stations.includes(currentStation)) stationFilter.value = currentStation;
   if (prefixes.includes(currentPrefix)) prefixFilter.value = currentPrefix;
+
+  let oldestMs = Number.POSITIVE_INFINITY;
+  let newestMs = Number.NEGATIVE_INFINITY;
+  for (const group of groups) {
+    const current = group.latest || {};
+    const currentMs = parseDateTime(current.dt || group.originalDt || "");
+    if (!Number.isFinite(currentMs)) continue;
+    if (currentMs < oldestMs) oldestMs = currentMs;
+    if (currentMs > newestMs) newestMs = currentMs;
+  }
+  const startDateInput = document.getElementById("filterStartDateTime");
+  const endDateInput = document.getElementById("filterEndDateTime");
+  const minDateValue = formatDateTimeLocal(oldestMs);
+  const maxDateValue = formatDateTimeLocal(newestMs);
+  startDateInput.min = minDateValue;
+  startDateInput.max = maxDateValue;
+  endDateInput.min = minDateValue;
+  endDateInput.max = maxDateValue;
+
+  setDatalist("filterAgencyList", sortedUniqueLimited(agencies, FILTER_SUGGESTION_LIMITS.agency));
+  setDatalist("filterStationList", sortedUniqueLimited(stations, FILTER_SUGGESTION_LIMITS.station));
+  setDatalist("filterCallNoList", buildCallNumberSuggestions(groups));
+  setDatalist(
+    "filterReportList",
+    uniqueLimited(groups.map((group) => (group.latest || {}).report || ""), FILTER_SUGGESTION_LIMITS.report)
+  );
+  setDatalist(
+    "filterTypeList",
+    sortedUniqueLimited(groups.map((group) => (group.latest || {}).type || ""), FILTER_SUGGESTION_LIMITS.type)
+  );
+  setDatalist(
+    "filterDispoList",
+    sortedUniqueLimited(groups.map((group) => (group.latest || {}).dispo || ""), FILTER_SUGGESTION_LIMITS.dispo)
+  );
+  setDatalist(
+    "filterLocationList",
+    uniqueLimited(groups.map((group) => splitLocation((group.latest || {}).loc || "").location), FILTER_SUGGESTION_LIMITS.location)
+  );
+  setDatalist("filterAreaList", sortedUniqueLimited([...knownAreaCodes], FILTER_SUGGESTION_LIMITS.area));
 }
 
 function renderExtra(group) {
@@ -753,17 +1437,24 @@ function renderHistory(group) {
           <th>Type</th>
           <th>Dispo</th>
           <th>Location</th>
+          <th>Area</th>
         </tr>
       </thead>
       <tbody>
         ${group.chain.map((row) => `
+          ${(() => {
+            const locationParts = splitLocation(row.loc || "");
+            return `
           <tr>
             <td>${row.revNum === 0 ? "Original" : "Rev " + row.revNum}</td>
             <td>${escapeHtml(row.callno)}</td>
             <td>${escapeHtml(row.type)}</td>
-            <td>${escapeHtml(row.dispo)}</td>
-            <td>${escapeHtml(row.loc)}</td>
+            <td>${renderDispo(row.dispo)}</td>
+            <td>${escapeHtml(locationParts.location || row.loc || "")}</td>
+            <td>${renderArea(locationParts.area)}</td>
           </tr>
+        `;
+          })()}
         `).join("")}
       </tbody>
     </table>
@@ -772,6 +1463,7 @@ function renderHistory(group) {
 
 function renderDetails(group) {
   const current = group.latest || {};
+  const locationParts = splitLocation(current.loc || "");
   return `
     <div class="detail-card">
       <div class="detail-grid">
@@ -793,14 +1485,23 @@ function renderDetails(group) {
         </div>
         <div class="detail-block">
           <h4>Type / Dispo</h4>
-          <div class="value">${escapeHtml(current.type || "")} / ${escapeHtml(current.dispo || "")}</div>
+          <div class="value">${renderTypeDispo(current.type || "", current.dispo || "")}</div>
         </div>
         <div class="detail-block">
           <h4>Revision Count</h4>
           <div class="value">${group.revisionCount}</div>
         </div>
+        <div class="detail-block">
+          <h4>Location</h4>
+          <div class="value">${escapeHtml(locationParts.location || current.loc || "")}</div>
+        </div>
+        <div class="detail-block">
+          <h4>Area</h4>
+          <div class="value">${escapeHtml(locationParts.area || "")}</div>
+        </div>
       </div>
-      <div><strong>Location:</strong> ${escapeHtml(current.loc || "")}</div>
+      ${renderStructuredFeedDetails(group)}
+      ${renderLinkedRecords(group)}
       ${renderHistory(group)}
       ${renderExtra(group)}
     </div>
@@ -810,18 +1511,10 @@ function renderDetails(group) {
 function applyFilters() {
   const groups = combinedGroups;
   updateFilters(groups);
-  const search = document.getElementById("searchBox").value.trim().toLowerCase();
-  const agency = document.getElementById("agencyFilter").value;
-  const station = document.getElementById("stationFilter").value;
-  const prefix = document.getElementById("prefixFilter").value;
-  const limit = Number(document.getElementById("pageSize").value || "100");
-
-  const filtered = groups.filter((group) => {
-    if (agency && group.agency !== agency) return false;
-    if (station && group.station !== station) return false;
-    if (prefix && group.prefix !== prefix) return false;
-    return !search || group.searchText.includes(search);
-  });
+  const filters = getActiveFilters();
+  const limit = filters.pageSize;
+  const filtered = getFilteredGroups(groups, filters);
+  lastFilteredGroups = filtered.slice();
 
   const sliced = filtered.slice(0, limit);
   const rowsNode = document.getElementById("rows");
@@ -832,7 +1525,7 @@ function applyFilters() {
   rowsNode.innerHTML = sliced.map((group) => {
     const current = group.latest || {};
     const isOpen = expanded.has(group.baseCallNo);
-    const severity = severityFor(current);
+    const locationParts = splitLocation(current.loc || "");
     return `
       <tr class="${rowClass(group)}" data-base="${escapeHtml(group.baseCallNo)}">
         <td class="toggle-cell">
@@ -841,13 +1534,14 @@ function applyFilters() {
         <td>${escapeHtml(current.dt || group.originalDt || "")}</td>
         <td>${escapeHtml(group.station || "")}</td>
         <td><span class="agency-pill ${agencyClass(group.agency)}">${escapeHtml(group.agency || "Unknown")}</span></td>
-        <td><span class="callno">${escapeHtml(group.baseCallNo || "")}</span> ${group.revisionCount ? `<span class="pill">${group.revisionCount} rev</span>` : ""}</td>
+        <td><span class="callno" style="${callnoStyle(group)}">${escapeHtml(group.baseCallNo || "")}</span> ${group.revisionCount ? `<span class="pill">${group.revisionCount} rev</span>` : ""}</td>
         <td>${escapeHtml(current.report || "")}</td>
-        <td>${escapeHtml(current.type || "")}<span class="sev-pill ${severity}">${severityLabel(severity)}</span></td>
-        <td>${escapeHtml(current.dispo || "")}</td>
-        <td>${escapeHtml(current.loc || "")}</td>
+        <td>${escapeHtml(current.type || "")}</td>
+        <td>${renderDispo(current.dispo)}</td>
+        <td>${escapeHtml(locationParts.location || current.loc || "")}</td>
+        <td>${renderArea(locationParts.area)}</td>
       </tr>
-      ${isOpen ? `<tr class="detail-row"><td colspan="9">${renderDetails(group)}</td></tr>` : ""}
+      ${isOpen ? `<tr class="detail-row"><td colspan="10">${renderDetails(group)}</td></tr>` : ""}
     `;
   }).join("");
 
@@ -878,6 +1572,89 @@ function applyFilters() {
     uploadParts.push(`Full term history unavailable: ${historyError}`);
   }
   document.getElementById("uploadText").textContent = uploadParts.join(" | ");
+}
+
+function buildExportRows(groups) {
+  const rows = [];
+  for (const group of groups) {
+    for (const row of Array.isArray(group.chain) ? group.chain : []) {
+      const locationParts = splitLocation(row.loc || "");
+      rows.push({
+        date_time: row.dt || "",
+        agency: row.agency || group.agency || "",
+        station: row.station || group.station || "",
+        group_call_number: group.baseCallNo || "",
+        row_call_number: row.callno || "",
+        prefix: group.prefix || "",
+        revision_number: row.revNum,
+        is_latest: row === group.latest,
+        report_number: row.report || "",
+        call_type: row.type || "",
+        disposition: row.dispo || "",
+        location: locationParts.location || row.loc || "",
+        area: locationParts.area || "",
+        raw_location: row.loc || "",
+        revision_scraped_at: row.rev_at || "",
+      });
+    }
+  }
+  return rows;
+}
+
+function csvEscape(value) {
+  const text = String(value == null ? "" : value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function rowsToCsv(rows) {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(",")),
+  ].join("\r\n");
+}
+
+function downloadTextFile(filename, contents, mimeType) {
+  const blob = new Blob([contents], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportFilteredData(format) {
+  applyFilters();
+  const rows = buildExportRows(lastFilteredGroups);
+  if (!rows.length) {
+    setStatus("No matched rows to export.", "warn");
+    return;
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  if (format === "csv") {
+    downloadTextFile(`sbco-calllog-filtered-${stamp}.csv`, rowsToCsv(rows), "text/csv;charset=utf-8");
+    setStatus(`Exported ${rows.length.toLocaleString()} matched rows to CSV.`, "good");
+    return;
+  }
+
+  const payload = {
+    exported_at: new Date().toISOString(),
+    matched_groups: lastFilteredGroups.length,
+    matched_rows: rows.length,
+    filters: getFilterSnapshot(),
+    rows,
+  };
+  downloadTextFile(
+    `sbco-calllog-filtered-${stamp}.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json;charset=utf-8"
+  );
+  setStatus(`Exported ${rows.length.toLocaleString()} matched rows to JSON.`, "good");
 }
 
 async function loadLiveFeed() {
@@ -1011,6 +1788,40 @@ async function loadFullHistory(options = {}) {
   return historyLoadPromise;
 }
 
+async function loadCallAnnotations(options = {}) {
+  const force = Boolean(options.force);
+  if (callAnnotationsLoadedAt && !force) {
+    return callAnnotations.size;
+  }
+  if (callAnnotationsPromise) {
+    return callAnnotationsPromise;
+  }
+
+  callAnnotationsError = "";
+  callAnnotationsPromise = (async () => {
+    const response = await fetch(`${ANNOTATIONS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`calllog_arrest_index.json returned HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    callAnnotations = buildCallAnnotationMap(payload);
+    callAnnotationsLoadedAt = String(payload && payload.generated_at ? payload.generated_at : new Date().toISOString());
+    callAnnotationsError = "";
+    applyFilters();
+    return callAnnotations.size;
+  })()
+    .catch((error) => {
+      callAnnotationsError = error && error.message ? error.message : "annotation load failed";
+      throw error;
+    })
+    .finally(() => {
+      callAnnotationsPromise = null;
+    });
+
+  return callAnnotationsPromise;
+}
+
 function scheduleApplyFilters() {
   if (searchApplyTimer) {
     window.clearTimeout(searchApplyTimer);
@@ -1029,6 +1840,18 @@ async function refreshPage(options = {}) {
     rebuildCombinedGroups();
     applyFilters();
     const shouldLoadHistory = forceHistory || (!historyGroups.length && !historyLoadPromise);
+    const shouldLoadAnnotations = forceHistory || (!callAnnotationsLoadedAt && !callAnnotationsPromise);
+
+    if (shouldLoadAnnotations) {
+      loadCallAnnotations({ force: forceHistory })
+        .then(() => {
+          applyFilters();
+        })
+        .catch(() => {
+          applyFilters();
+        });
+    }
+
     if (shouldLoadHistory) {
       setStatus(
         historyGroups.length
@@ -1083,7 +1906,13 @@ document.getElementById("agencyFilter").addEventListener("change", applyFilters)
 document.getElementById("stationFilter").addEventListener("change", applyFilters);
 document.getElementById("prefixFilter").addEventListener("change", applyFilters);
 document.getElementById("pageSize").addEventListener("change", applyFilters);
+document.querySelectorAll("[data-column-filter]").forEach((node) => {
+  node.addEventListener("input", scheduleApplyFilters);
+  node.addEventListener("change", scheduleApplyFilters);
+});
 document.getElementById("refreshBtn").addEventListener("click", () => refreshPage({ forceHistory: true }));
+document.getElementById("exportCsvBtn").addEventListener("click", () => exportFilteredData("csv"));
+document.getElementById("exportJsonBtn").addEventListener("click", () => exportFilteredData("json"));
 
 refreshPage({ forceHistory: false });
 setInterval(() => refreshPage({ forceHistory: false }), REFRESH_MS);
