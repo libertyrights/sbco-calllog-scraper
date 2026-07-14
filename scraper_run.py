@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from ftplib import FTP
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -76,8 +77,16 @@ CALLLOG_ARCHIVE_REMOTE_PREFIX = "calllog-archive-"
 
 RELEASES_CSV = os.path.join(BASE_DIR, "releases.csv")
 LEGACY_RELEASES_CSV = os.path.join(BASE_DIR, "daily_release_list.csv")
+RELEASE_ARREST_ENRICHMENT_JSON = os.path.join(BASE_DIR, "release_arrest_enrichment.json")
 DAILY_RELEASE_LOG = os.path.join(BASE_DIR, "daily_release_list.log")
 RELEASE_LOG_URL = "https://jimsnetil.shr.sbcounty.gov/bookingsearch.aspx/GetReleaseLog"
+LCN_BASE_URL = "https://www.localcrimenews.com"
+LCN_SEARCH_URL = LCN_BASE_URL + "/welcome/searchArrests"
+LCN_REQUEST_DELAY_SECONDS = float(os.environ.get("SBCO_LCN_RELEASE_SEARCH_DELAY_SECONDS", "1.0"))
+LCN_RELEASE_LOOKBACK_DAYS = int(os.environ.get("SBCO_LCN_RELEASE_LOOKBACK_DAYS", "30"))
+LCN_RELEASE_MAX_RELEASE_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_RELEASE_ROWS", "30"))
+LCN_RELEASE_MAX_SEARCH_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_SEARCH_ROWS", "80"))
+LCN_RELEASE_MAX_DETAIL_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_DETAIL_ROWS", "20"))
 DEATH_INDEX_PAGE_URL = "https://xcore.sbcounty.gov/sheriff/SheriffCMS/DeathRegister"
 DEATH_INDEX_GRID_URL = DEATH_INDEX_PAGE_URL + "/DataGrid"
 DEATH_INDEX_PAGE_SIZE = int(os.environ.get("SBCO_DEATH_INDEX_PAGE_SIZE", "100"))
@@ -146,6 +155,13 @@ FORMATTED_FIELDS = [
 ]
 
 RELEASE_FIELDS = ["Name", "Sex", "Age", "Height", "Weight", "Release Date"]
+SBSO_LCN_SOURCE_TOKENS = (
+    "SAN BERNARDINO COUNTY SHERIFF",
+    "SAN BERNARDINO COUNTY SD",
+    "SAN BERNARDINO COUNTY S.D",
+    "SBCSD",
+    "SBSD",
+)
 
 FIELDS_TO_COMPARE = ["call type", "disposition", "location", "extra_json"]
 DISPLAY_DATE_FORMAT = "%m/%d/%Y %I:%M:%S %p"
@@ -210,6 +226,9 @@ REMOTE_BACKED_DAILY_FILES = env_flag(
     default=(os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true"),
 )
 ENABLE_DAILY_RELEASES = env_flag("SBCO_ENABLE_DAILY_RELEASES", default=True)
+SKIP_SUPPORT_FILES = env_flag("SBCO_SKIP_SUPPORT_FILES", default=False)
+SKIP_ARREST_INDEX_REBUILD = env_flag("SBCO_SKIP_ARREST_INDEX_REBUILD", default=False)
+SKIP_PUBLISH = env_flag("SBCO_SKIP_PUBLISH", default=False)
 
 
 def log(msg):
@@ -1902,6 +1921,312 @@ def write_release_rows(rows):
         os.replace(tmp_path, path)
 
 
+def normalize_spaces(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def parse_release_person_name(value):
+    text = normalize_spaces(value)
+    if not text:
+        return "", "", ""
+    if "," in text:
+        last, rest = text.split(",", 1)
+        parts = normalize_spaces(rest).split()
+        first = parts[0] if parts else ""
+        return first, normalize_spaces(last), text
+    parts = text.split()
+    if len(parts) == 1:
+        return parts[0], "", text
+    return parts[0], parts[-1], text
+
+
+def normalize_lcn_source(value):
+    return re.sub(r"[^A-Z0-9]+", " ", str(value or "").upper()).strip()
+
+
+def is_sbso_lcn_source(source):
+    normalized = normalize_lcn_source(source)
+    return any(token in normalized for token in SBSO_LCN_SOURCE_TOKENS)
+
+
+def parse_lcn_date(value):
+    text = normalize_spaces(value)
+    for fmt in ("%b %d, %Y", "%B %d, %Y", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def parse_lcn_age(value):
+    match = re.search(r"\b(\d{1,3})\b", str(value or ""))
+    return int(match.group(1)) if match else None
+
+
+def extract_lcn_detail_id(url):
+    match = re.search(r"/welcome/detail/(\d+)/", str(url or ""))
+    return match.group(1) if match else ""
+
+
+def parse_lcn_detail_page(html, detail_url):
+    soup = BeautifulSoup(html, "html.parser")
+    fields = {}
+    for row in soup.find_all("tr"):
+        cells = row.find_all("td")
+        if len(cells) != 2:
+            continue
+        label = normalize_spaces(cells[0].get_text(" ", strip=True)).rstrip(":")
+        value = normalize_spaces(cells[1].get_text(" ", strip=True))
+        if label:
+            fields[label] = value
+
+    age_gender = fields.get("Age / Gender", "")
+    age_match = re.search(r"\b(\d{1,3})\b", age_gender)
+    return {
+        "arrest_id": extract_lcn_detail_id(detail_url),
+        "arrest_name": fields.get("Arrest Name", ""),
+        "detail_url": detail_url,
+        "arrest_date": fields.get("Arrest Date", ""),
+        "release_date": fields.get("Release Date", ""),
+        "charge": fields.get("Arrested For", ""),
+        "arrest_location": fields.get("Arrest Location", ""),
+        "county_of_arrest": fields.get("County of Arrest", ""),
+        "source_agency": fields.get("Source", ""),
+        "age_gender": age_gender,
+        "age": int(age_match.group(1)) if age_match else None,
+        "city_state": fields.get("City, State", ""),
+        "raw_fields": fields,
+    }
+
+
+def parse_lcn_search_page(html):
+    soup = BeautifulSoup(html, "html.parser")
+    records = []
+    seen_ids = set()
+    for link in soup.find_all("a", href=True):
+        href = normalize_spaces(link.get("href"))
+        if "/welcome/detail/" not in href:
+            continue
+        detail_url = href if href.startswith("http") else urljoin(LCN_BASE_URL, href)
+        arrest_id = extract_lcn_detail_id(detail_url)
+        if not arrest_id or arrest_id in seen_ids:
+            continue
+        seen_ids.add(arrest_id)
+
+        card_text = ""
+        node = link
+        for _ in range(8):
+            node = node.parent
+            if node is None or not hasattr(node, "get_text"):
+                break
+            text = normalize_spaces(node.get_text(" ", strip=True))
+            if "Reported On:" in text and "County:" in text:
+                card_text = text
+                break
+
+        name = ""
+        age = None
+        city_state = ""
+        county = ""
+        reported_on = ""
+        charge = ""
+
+        match = re.search(r"^(.*?)\s+Age:\s*(\d{1,3})\s*[-–]\s*(.*?)\s+County:", card_text, flags=re.I)
+        if match:
+            name = normalize_spaces(match.group(1))
+            age = int(match.group(2))
+            city_state = normalize_spaces(match.group(3))
+        match = re.search(r"County:\s*(.*?)\s+Reported On:", card_text, flags=re.I)
+        if match:
+            county = normalize_spaces(match.group(1))
+        match = re.search(r"Reported On:\s*([A-Za-z]{3,9}\s+\d{1,2},\s+\d{4})", card_text, flags=re.I)
+        if match:
+            reported_on = normalize_spaces(match.group(1))
+        match = re.search(r"Arrested For:\s*(.*?)(?:View Arrest Details|$)", card_text, flags=re.I)
+        if match:
+            charge = normalize_spaces(match.group(1))
+
+        records.append(
+            {
+                "arrest_id": arrest_id,
+                "arrest_name": name,
+                "age": age,
+                "city_state": city_state,
+                "county_of_arrest": county,
+                "reported_on": reported_on,
+                "reported_on_dt": parse_lcn_date(reported_on),
+                "charge": charge,
+                "detail_url": detail_url,
+            }
+        )
+    return records
+
+
+def load_release_enrichment_rows():
+    if not os.path.exists(RELEASE_ARREST_ENRICHMENT_JSON):
+        return []
+    try:
+        with open(RELEASE_ARREST_ENRICHMENT_JSON, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        rows = payload.get("records", [])
+        return rows if isinstance(rows, list) else []
+    except Exception:
+        return []
+
+
+def write_release_enrichment_rows(rows):
+    payload = {
+        "generated_at": utc_now().isoformat(),
+        "source": "release_list_lcn_name_search",
+        "records": rows,
+    }
+    tmp_path = RELEASE_ARREST_ENRICHMENT_JSON + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(tmp_path, RELEASE_ARREST_ENRICHMENT_JSON)
+
+
+def release_enrichment_key(row):
+    return "|".join(
+        [
+            normalize_spaces(row.get("release_name") or row.get("Name")).upper(),
+            normalize_spaces(row.get("release_date") or row.get("Release Date")),
+            normalize_spaces(row.get("release_age") or row.get("Age")),
+        ]
+    )
+
+
+def choose_lcn_release_match(release_row, search_records, session):
+    release_age = parse_lcn_age(release_row.get("Age"))
+    release_dt = parse_lcn_date(release_row.get("Release Date"))
+    if not release_dt:
+        return None
+
+    scored = []
+    details_by_id = {}
+    for record in search_records[: max(1, LCN_RELEASE_MAX_SEARCH_ROWS)]:
+        if normalize_spaces(record.get("county_of_arrest")).lower() != "san bernardino":
+            continue
+        reported_dt = record.get("reported_on_dt")
+        if not isinstance(reported_dt, datetime):
+            continue
+        day_delta = (release_dt.date() - reported_dt.date()).days
+        if day_delta < 0 or day_delta > max(0, LCN_RELEASE_LOOKBACK_DAYS):
+            continue
+        record_age = record.get("age")
+        if release_age is not None and record_age is not None and release_age != record_age:
+            continue
+
+        score = 40 - day_delta
+        reasons = ["name_search", "san_bernardino_county", "date_before_release"]
+        if release_age is not None and record_age == release_age:
+            score += 20
+            reasons.append("age_match")
+
+        scored.append((score, day_delta, record, reasons))
+
+    scored.sort(key=lambda item: (item[0], -int(item[2].get("arrest_id") or 0)), reverse=True)
+    for score, day_delta, record, reasons in scored[: max(1, LCN_RELEASE_MAX_DETAIL_ROWS)]:
+        try:
+            time.sleep(max(0.0, LCN_REQUEST_DELAY_SECONDS))
+            response = session.get(record["detail_url"], timeout=30)
+            response.raise_for_status()
+            detail = parse_lcn_detail_page(response.text, record["detail_url"])
+        except Exception as exc:
+            log("WARNING: LCN release detail fetch failed for {}: {}".format(record.get("detail_url"), exc))
+            continue
+
+        details_by_id[record["arrest_id"]] = detail
+        if not is_sbso_lcn_source(detail.get("source_agency")):
+            continue
+        detail_age = detail.get("age")
+        if release_age is not None and detail_age is not None and release_age != detail_age:
+            continue
+        if release_age is not None and detail_age == release_age:
+            score += 20
+            reasons.append("detail_age_match")
+        arrest_dt = parse_lcn_date(detail.get("arrest_date")) or record.get("reported_on_dt")
+        if isinstance(arrest_dt, datetime):
+            day_delta = (release_dt.date() - arrest_dt.date()).days
+            if day_delta < 0 or day_delta > max(0, LCN_RELEASE_LOOKBACK_DAYS):
+                continue
+
+        return {
+            "score": score + 50,
+            "reasons": sorted(set(reasons + ["sbso_source", "detail_verified"])),
+            "release_name": normalize_spaces(release_row.get("Name")),
+            "release_date": normalize_spaces(release_row.get("Release Date")),
+            "release_age": normalize_spaces(release_row.get("Age")),
+            "release_sex": normalize_spaces(release_row.get("Sex")),
+            "release_height": normalize_spaces(release_row.get("Height")),
+            "release_weight": normalize_spaces(release_row.get("Weight")),
+            "arrest_id": detail.get("arrest_id") or record.get("arrest_id"),
+            "arrest_name": detail.get("arrest_name") or record.get("arrest_name"),
+            "detail_url": detail.get("detail_url") or record.get("detail_url"),
+            "arrest_date": detail.get("arrest_date") or record.get("reported_on"),
+            "reported_on": record.get("reported_on"),
+            "charge": detail.get("charge") or record.get("charge"),
+            "arrest_location": detail.get("arrest_location"),
+            "county_of_arrest": detail.get("county_of_arrest") or record.get("county_of_arrest"),
+            "source_agency": detail.get("source_agency"),
+            "age_gender": detail.get("age_gender"),
+            "city_state": detail.get("city_state") or record.get("city_state"),
+            "matched_at": utc_now_text(),
+        }
+    return None
+
+
+def enrich_release_rows_with_lcn(new_rows):
+    rows_to_check = [row for row in new_rows if normalize_spaces(row.get("Name"))]
+    rows_to_check = rows_to_check[: max(1, LCN_RELEASE_MAX_RELEASE_ROWS)]
+    if not rows_to_check:
+        return 0
+
+    existing_rows = load_release_enrichment_rows()
+    by_key = {release_enrichment_key(row): row for row in existing_rows if release_enrichment_key(row)}
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    matched = 0
+
+    for row in rows_to_check:
+        key = release_enrichment_key(row)
+        if key in by_key and by_key[key].get("arrest_id"):
+            continue
+        first, last, full_name = parse_release_person_name(row.get("Name"))
+        if not first or not last:
+            continue
+        try:
+            time.sleep(max(0.0, LCN_REQUEST_DELAY_SECONDS))
+            response = session.get(
+                LCN_SEARCH_URL,
+                params={"firstname": first, "lastname": last},
+                timeout=30,
+            )
+            response.raise_for_status()
+            search_records = parse_lcn_search_page(response.text)
+            match = choose_lcn_release_match(row, search_records, session)
+        except Exception as exc:
+            log("WARNING: LCN release search failed for {}: {}".format(full_name, exc))
+            continue
+        if match:
+            by_key[key] = match
+            matched += 1
+        else:
+            by_key[key] = {
+                "release_name": normalize_spaces(row.get("Name")),
+                "release_date": normalize_spaces(row.get("Release Date")),
+                "release_age": normalize_spaces(row.get("Age")),
+                "release_sex": normalize_spaces(row.get("Sex")),
+                "matched_at": utc_now_text(),
+                "arrest_id": "",
+                "reasons": ["no_lcn_sbso_age_date_match"],
+            }
+
+    write_release_enrichment_rows(sorted(by_key.values(), key=lambda item: release_enrichment_key(item)))
+    return matched
+
+
 def fetch_daily_release_rows():
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
@@ -1974,6 +2299,7 @@ def refresh_releases_csv(output_path):
         added_count += 1
 
     write_release_rows(merged_rows)
+    enriched_count = enrich_release_rows_with_lcn(new_rows)
 
     if output_path != RELEASES_CSV and os.path.exists(RELEASES_CSV):
         with open(RELEASES_CSV, "rb") as src:
@@ -1981,11 +2307,12 @@ def refresh_releases_csv(output_path):
 
     elapsed = log_phase_duration("releases.csv refresh", started_monotonic)
     log(
-        "releases.csv refreshed for {} ({} fetched, {} new, {} total in {:.1f}s)".format(
+        "releases.csv refreshed for {} ({} fetched, {} new, {} total, {} LCN enriched in {:.1f}s)".format(
             target_date,
             len(new_rows),
             added_count,
             len(merged_rows),
+            enriched_count,
             elapsed,
         )
     )
@@ -2020,13 +2347,15 @@ def run_daily_release_if_due():
         added_count += 1
 
     write_release_rows(merged_rows)
+    enriched_count = enrich_release_rows_with_lcn(new_rows)
     mark_daily_done("daily_release_list")
 
-    message = "Release list refreshed for {} ({} fetched, {} new, {} total)".format(
+    message = "Release list refreshed for {} ({} fetched, {} new, {} total, {} LCN enriched)".format(
         target_date,
         len(new_rows),
         added_count,
         len(merged_rows),
+        enriched_count,
     )
     log(message)
     log_daily_release(message)
@@ -2151,46 +2480,59 @@ def main():
     archive_file_specs = build_daily_archive_file_specs(len(merged))
     log_phase_duration("local output write", write_started)
 
-    daily_files_started = time.monotonic()
     extra_file_specs = []
     extra_file_specs.extend(archive_file_specs)
-    extra_file_specs.extend(
-        ensure_remote_backed_daily_file(
-            "death_index.csv",
-            DEATH_INDEX_CSV,
-            refresh_death_index_csv,
-            run_started_monotonic=run_started_monotonic,
-        )
-    )
-    extra_file_specs.extend(
-        ensure_remote_backed_daily_file(
-            "all_records.json",
-            ARREST_LOG_JSON,
-            refresh_arrest_log_json,
-            run_started_monotonic=run_started_monotonic,
-        )
-    )
-    extra_file_specs.extend(
-        ensure_remote_backed_daily_file(
-            "releases.csv",
-            RELEASES_CSV,
-            refresh_releases_csv,
-            run_started_monotonic=run_started_monotonic,
-        )
-    )
-    log_phase_duration("daily supporting files", daily_files_started)
 
-    arrest_index_started = time.monotonic()
-    rebuild_calllog_arrest_index()
-    log_phase_duration("calllog arrest index rebuild", arrest_index_started)
+    if SKIP_SUPPORT_FILES:
+        log("Support file refresh skipped by SBCO_SKIP_SUPPORT_FILES")
+    else:
+        daily_files_started = time.monotonic()
+        extra_file_specs.extend(
+            ensure_remote_backed_daily_file(
+                "death_index.csv",
+                DEATH_INDEX_CSV,
+                refresh_death_index_csv,
+                run_started_monotonic=run_started_monotonic,
+            )
+        )
+        extra_file_specs.extend(
+            ensure_remote_backed_daily_file(
+                "all_records.json",
+                ARREST_LOG_JSON,
+                refresh_arrest_log_json,
+                run_started_monotonic=run_started_monotonic,
+            )
+        )
+        extra_file_specs.extend(
+            ensure_remote_backed_daily_file(
+                "releases.csv",
+                RELEASES_CSV,
+                refresh_releases_csv,
+                run_started_monotonic=run_started_monotonic,
+            )
+        )
+        log_phase_duration("daily supporting files", daily_files_started)
 
-    publish_started = time.monotonic()
-    publish_outputs(extra_file_specs)
-    log_phase_duration("publish outputs", publish_started)
+    if SKIP_ARREST_INDEX_REBUILD or SKIP_SUPPORT_FILES:
+        log("calllog_arrest_index rebuild skipped")
+    else:
+        arrest_index_started = time.monotonic()
+        rebuild_calllog_arrest_index()
+        log_phase_duration("calllog arrest index rebuild", arrest_index_started)
 
-    release_started = time.monotonic()
-    run_daily_release_if_due()
-    log_phase_duration("daily release check", release_started)
+    if SKIP_PUBLISH:
+        log("Publish skipped by SBCO_SKIP_PUBLISH")
+    else:
+        publish_started = time.monotonic()
+        publish_outputs(extra_file_specs)
+        log_phase_duration("publish outputs", publish_started)
+
+    if SKIP_SUPPORT_FILES:
+        log("Daily release check skipped by SBCO_SKIP_SUPPORT_FILES")
+    else:
+        release_started = time.monotonic()
+        run_daily_release_if_due()
+        log_phase_duration("daily release check", release_started)
     log_phase_duration("full run", run_started_monotonic)
     log("Run completed successfully")
 

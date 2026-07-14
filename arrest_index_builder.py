@@ -21,6 +21,7 @@ CITY_MAP_PATH = BASE_DIR / "city_map.json"
 DOWNLOADED_ARREST_LOG_NAME = "all_records.json"
 DOWNLOADED_DEATH_INDEX_NAME = "death_index.csv"
 DOWNLOADED_RELEASE_NAMES = ("releases.csv", "daily_release_list.csv")
+DOWNLOADED_RELEASE_ENRICHMENT_NAME = "release_arrest_enrichment.json"
 
 LCN_BASE_URL = "https://www.localcrimenews.com"
 LCN_MAP_URL = f"{LCN_BASE_URL}/welcome/ArrestMap"
@@ -671,6 +672,10 @@ def downloaded_release_paths(calllog_path: Path) -> list[Path]:
     return [data_dir / name for name in DOWNLOADED_RELEASE_NAMES]
 
 
+def downloaded_release_enrichment_path(calllog_path: Path) -> Path:
+    return calllog_data_dir(calllog_path) / DOWNLOADED_RELEASE_ENRICHMENT_NAME
+
+
 def detail_id_from_url(detail_url: Any) -> str:
     text = normalize_space(detail_url)
     match = re.search(r"/detail/(\d+)/", text)
@@ -762,6 +767,81 @@ def build_release_lookup(release_rows: list[dict[str, Any]]) -> dict[str, list[d
     for key in lookup:
         lookup[key].sort(key=lambda item: (item.get("release_date_dt") or datetime.min, item.get("source_file") or ""))
     return dict(lookup)
+
+
+def load_release_enrichment_candidates(calllog_path: Path) -> dict[str, dict[str, Any]]:
+    path = downloaded_release_enrichment_path(calllog_path)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    records = payload.get("records", []) if isinstance(payload, dict) else []
+    if not isinstance(records, list):
+        return {}
+
+    candidates: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        arrest_id = normalize_space(record.get("arrest_id"))
+        if not arrest_id:
+            continue
+        source_agency = normalize_space(record.get("source_agency"))
+        county = normalize_space(record.get("county_of_arrest"))
+        if not looks_like_sbsd_source(source_agency, county):
+            continue
+        arrest_name = normalize_space(record.get("arrest_name") or record.get("release_name"))
+        arrest_date_text = normalize_space(record.get("arrest_date") or record.get("reported_on"))
+        arrest_date_dt = parse_arrest_date(arrest_date_text)
+        detail_url = normalize_space(record.get("detail_url")) or LCN_DETAIL_URL.format(arrest_id=arrest_id)
+        charge = normalize_space(record.get("charge"))
+        city_state = normalize_space(record.get("city_state"))
+        resident_city = city_state.split(",", 1)[0] if city_state else ""
+        arrest_location = normalize_space(record.get("arrest_location"))
+        candidate = {
+            "arrest_id": arrest_id,
+            "arrest_name": arrest_name,
+            "detail_url": detail_url,
+            "arrest_date": arrest_date_text,
+            "arrest_date_dt": arrest_date_dt,
+            "arrest_date_key": date_key(arrest_date_dt),
+            "charge": charge,
+            "map_charge_codes": sorted(extract_code_variants(charge)),
+            "detail_charge_codes": sorted(extract_code_variants(charge)),
+            "resident_city_state": city_state,
+            "resident_tags": sorted({normalize_tag(resident_city)} - {""}),
+            "area_tags": [],
+            "is_local_resident": bool(normalize_tag(resident_city)),
+            "has_explicit_location": has_specific_location(arrest_location),
+            "arrest_location": arrest_location,
+            "reasons": ["release_lcn_enrichment"],
+            "score": int(record.get("score") or 0),
+            "map_county": county,
+            "map_source_agency": source_agency,
+            "map_record": {
+                "release_name": normalize_space(record.get("release_name")),
+                "release_date": normalize_space(record.get("release_date")),
+                "release_age": normalize_space(record.get("release_age")),
+                "release_sex": normalize_space(record.get("release_sex")),
+                "matched_at": normalize_space(record.get("matched_at")),
+                "reasons": record.get("reasons") if isinstance(record.get("reasons"), list) else [],
+            },
+            "details": {
+                "source_agency": source_agency,
+                "county_of_arrest": county,
+                "arrest_location": arrest_location,
+                "arrested_for": charge,
+                "arrest_date_full": arrest_date_text,
+                "release_date": normalize_space(record.get("release_date")),
+                "age_gender": normalize_space(record.get("age_gender")),
+            },
+            "overlap_tokens": [],
+            "source_kinds": ["release_lcn_enrichment"],
+        }
+        candidates[arrest_id] = candidate
+    return candidates
 
 
 def build_release_evidence(candidate: dict[str, Any], release_lookup: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
@@ -2151,6 +2231,12 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
     coroner_calls = load_recent_coroner_calls(calllog_path)
     recent_calls = load_recent_call_chains(calllog_path)
     candidates = load_downloaded_arrest_log_candidates(calllog_path)
+    release_enrichment_candidates = load_release_enrichment_candidates(calllog_path)
+    for arrest_id, candidate in release_enrichment_candidates.items():
+        if arrest_id in candidates:
+            candidates[arrest_id] = merge_candidate(candidates[arrest_id], candidate)
+        else:
+            candidates[arrest_id] = candidate
     release_rows = load_downloaded_release_rows(calllog_path)
     release_lookup = build_release_lookup(release_rows)
     death_lookup = load_downloaded_death_lookup(calllog_path)
@@ -2270,6 +2356,7 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
         "death_source_call_count": death_source_call_count,
         "coroner_related_call_count": len(coroner_associations),
         "candidate_count": len(candidates),
+        "release_enrichment_candidate_count": len(release_enrichment_candidates),
         "death_register_count": len(death_lookup),
         "release_row_count": len(release_rows),
         "release_match_count": sum(
