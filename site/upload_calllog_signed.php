@@ -14,6 +14,7 @@ const CALLLOG_ALLOWED_REMOTE_NAMES = [
     'calllog_upload_meta.json',
     'death_index.csv',
     'all_records.json',
+    'release_arrest_enrichment.json',
 ];
 
 function calllog_json_response(int $status, array $payload): void

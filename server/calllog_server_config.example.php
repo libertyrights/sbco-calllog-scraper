@@ -19,6 +19,7 @@ return [
         'calllog_arrest_index.json',
         'death_index.csv',
         'all_records.json',
+        'release_arrest_enrichment.json',
     ],
     'required_remote_names' => [
         'calllog.csv',

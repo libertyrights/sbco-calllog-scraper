@@ -35,7 +35,8 @@ def build_status() -> dict:
     }
 
     for name in ("calllog.csv", "calllog.json", "calllog_formatted.csv",
-                  "all_records.json", "death_index.csv", "calllog_arrest_index.json"):
+                  "all_records.json", "death_index.csv", "release_arrest_enrichment.json",
+                  "calllog_arrest_index.json"):
         path = BASE_DIR / name
         size = file_size(path)
         if size:

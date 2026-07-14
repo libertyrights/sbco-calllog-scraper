@@ -2227,6 +2227,35 @@ def enrich_release_rows_with_lcn(new_rows):
     return matched
 
 
+def latest_release_rows(rows):
+    dated_rows = []
+    for row in rows:
+        release_dt = parse_lcn_date(row.get("Release Date"))
+        if release_dt:
+            dated_rows.append((release_dt.date(), row))
+    if not dated_rows:
+        return []
+    latest_date = max(item[0] for item in dated_rows)
+    return [row for row_date, row in dated_rows if row_date == latest_date]
+
+
+def refresh_release_enrichment_json(output_path):
+    started_monotonic = time.monotonic()
+    release_rows = latest_release_rows(load_release_rows())
+    enriched_count = enrich_release_rows_with_lcn(release_rows)
+    if output_path != RELEASE_ARREST_ENRICHMENT_JSON and os.path.exists(RELEASE_ARREST_ENRICHMENT_JSON):
+        with open(RELEASE_ARREST_ENRICHMENT_JSON, "rb") as src:
+            write_bytes(output_path, src.read())
+    elapsed = log_phase_duration("release_arrest_enrichment.json refresh", started_monotonic)
+    log(
+        "release_arrest_enrichment.json refreshed from {} latest release rows ({} LCN enriched in {:.1f}s)".format(
+            len(release_rows),
+            enriched_count,
+            elapsed,
+        )
+    )
+
+
 def fetch_daily_release_rows():
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
@@ -2503,14 +2532,25 @@ def main():
                 run_started_monotonic=run_started_monotonic,
             )
         )
-        extra_file_specs.extend(
-            ensure_remote_backed_daily_file(
-                "releases.csv",
-                RELEASES_CSV,
-                refresh_releases_csv,
-                run_started_monotonic=run_started_monotonic,
-            )
+        release_file_specs = ensure_remote_backed_daily_file(
+            "releases.csv",
+            RELEASES_CSV,
+            refresh_releases_csv,
+            run_started_monotonic=run_started_monotonic,
         )
+        extra_file_specs.extend(release_file_specs)
+        if release_file_specs and os.path.exists(RELEASE_ARREST_ENRICHMENT_JSON):
+            extra_file_specs.append(("release_arrest_enrichment.json", RELEASE_ARREST_ENRICHMENT_JSON))
+            log("release_arrest_enrichment.json queued after releases.csv refresh")
+        else:
+            extra_file_specs.extend(
+                ensure_remote_backed_daily_file(
+                    "release_arrest_enrichment.json",
+                    RELEASE_ARREST_ENRICHMENT_JSON,
+                    refresh_release_enrichment_json,
+                    run_started_monotonic=run_started_monotonic,
+                )
+            )
         log_phase_duration("daily supporting files", daily_files_started)
 
     if SKIP_ARREST_INDEX_REBUILD or SKIP_SUPPORT_FILES:
