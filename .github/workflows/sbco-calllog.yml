@@ -42,6 +42,7 @@ jobs:
           python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
           python deploy_ftp_file.py site/sbsd.html sbsd.html
           python deploy_ftp_file.py site/calllog_descriptions.php calllog_descriptions.php
+          python deploy_ftp_file.py site/trigger_github.php trigger_github.php
 
       - name: Run scraper and publish
         env:

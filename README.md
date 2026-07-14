@@ -11,8 +11,10 @@ Included:
   Arrest log scraper source, included as a companion script.
 - `server/`
   PHP queue receiver, processor, and example config for the serv00 side.
+- `site/trigger_github.php`
+  Optional serv00-side cron trigger that dispatches the GitHub Actions scraper when the live upload is stale.
 - `.github/workflows/sbco-calllog.yml`
-  GitHub Actions workflow that runs every 15 minutes.
+  GitHub Actions workflow that runs every 20 minutes.
 
 Not included:
 - Private credentials
@@ -33,7 +35,8 @@ Add these repository secrets before enabling scheduled runs:
 
 ## Notes
 
-- The GitHub job is scheduled for every 15 minutes.
+- The GitHub job is scheduled for every 20 minutes.
+- `site/trigger_github.php` is safe to deploy publicly, but its live config must stay outside the web root at `domains/<domain>/calllog_github_trigger_config.php` or be pointed to with `SBCO_TRIGGER_CONFIG`. The config must include a GitHub token with permission to dispatch the workflow.
 - The workflow now deploys a signed public uploader to `upnexx.xyz/osint/upload_calllog_signed.php` and signs each HTTP publish with the private key stored in `SBCO_UPLOAD_SIGNING_PRIVATE_KEY`.
 - The public `sbsd.html` recovery viewer reads directly from `calllog.json`, so the live page can stay current even if the older SQLite-backed API falls behind.
 - The GitHub job reuses the already-published public `all_records.json` and `death_index.csv` when those files are still fresh, and only refreshes them locally when they are stale.
