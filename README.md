@@ -36,7 +36,7 @@ Add these repository secrets before enabling scheduled runs:
 ## Notes
 
 - The GitHub job is scheduled for every 20 minutes.
-- `site/trigger_github.php` is safe to deploy publicly, but its live config must stay outside the web root at `domains/<domain>/calllog_github_trigger_config.php` or be pointed to with `SBCO_TRIGGER_CONFIG`. The config must include a GitHub token with permission to dispatch the workflow.
+- `site/trigger_github.php` is safe to deploy publicly, but its GitHub token must stay server-side. Use a private config outside the web root at `domains/<domain>/calllog_github_trigger_config.php`, point `SBCO_TRIGGER_CONFIG` at another config path, or provide `SBCO_GITHUB_TOKEN` in the cron command environment.
 - The workflow now deploys a signed public uploader to `upnexx.xyz/osint/upload_calllog_signed.php` and signs each HTTP publish with the private key stored in `SBCO_UPLOAD_SIGNING_PRIVATE_KEY`.
 - The public `sbsd.html` recovery viewer reads directly from `calllog.json`, so the live page can stay current even if the older SQLite-backed API falls behind.
 - The GitHub job reuses the already-published public `all_records.json` and `death_index.csv` when those files are still fresh, and only refreshes them locally when they are stale.

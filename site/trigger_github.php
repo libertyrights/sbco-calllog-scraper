@@ -44,13 +44,12 @@ function calllog_trigger_log(string $message): void
 function calllog_trigger_load_config(): array
 {
     $configPath = getenv('SBCO_TRIGGER_CONFIG') ?: CALLLOG_TRIGGER_DEFAULT_CONFIG;
-    if (!is_file($configPath)) {
-        throw new RuntimeException('Missing trigger config: ' . $configPath);
-    }
-
-    $config = require $configPath;
-    if (!is_array($config)) {
-        throw new RuntimeException('Trigger config must return an array');
+    $config = [];
+    if (is_file($configPath)) {
+        $config = require $configPath;
+        if (!is_array($config)) {
+            throw new RuntimeException('Trigger config must return an array');
+        }
     }
 
     $defaults = [
@@ -58,8 +57,8 @@ function calllog_trigger_load_config(): array
         'repo' => 'sbco-calllog-scraper',
         'workflow' => 'sbco-calllog.yml',
         'ref' => 'main',
-        'github_token' => '',
-        'trigger_token' => '',
+        'github_token' => getenv('SBCO_GITHUB_TOKEN') ?: getenv('GITHUB_TOKEN') ?: '',
+        'trigger_token' => getenv('SBCO_TRIGGER_TOKEN') ?: '',
         'dispatch_if_upload_older_than_seconds' => 18 * 60,
         'min_seconds_between_dispatches' => 15 * 60,
     ];
@@ -270,4 +269,3 @@ try {
     calllog_trigger_log('Error: ' . $e->getMessage());
     calllog_trigger_response(500, ['ok' => false, 'error' => $e->getMessage()]);
 }
-
