@@ -1039,13 +1039,14 @@ function renderArrestRecordsSection(arrestMatches) {
             if (match.details && match.details.race) detailParts.push(match.details.race);
             if (match.details && match.details.release_date && match.details.release_date !== "Not Available") detailParts.push(`Release ${match.details.release_date}`);
             const reasonText = Array.isArray(match.reasons) && match.reasons.length ? `Reasons: ${match.reasons.join(", ")}` : "";
+            const confidenceText = match.confidence ? `Confidence ${match.confidence}` : "";
             return `
               <div class="annotation-card">
                 <div class="value">${escapeHtml(match.arrest_name || "Matched arrest")}</div>
                 ${match.charge ? `<div>${escapeHtml(match.charge)}</div>` : ""}
                 <div class="annotation-meta">${escapeHtml([match.arrest_date, match.arrest_location].filter(Boolean).join(" | "))}</div>
                 ${detailParts.length ? `<div class="annotation-meta">${escapeHtml(detailParts.join(" | "))}</div>` : ""}
-                <div class="annotation-meta">${escapeHtml([match.source_agency || (match.details || {}).source_agency || "", match.score != null ? `Score ${match.score}` : "", reasonText].filter(Boolean).join(" | "))}</div>
+                <div class="annotation-meta">${escapeHtml([match.source_agency || (match.details || {}).source_agency || "", confidenceText, match.score != null ? `Score ${match.score}` : "", reasonText].filter(Boolean).join(" | "))}</div>
                 ${match.detail_url ? `<div class="annotation-meta"><a class="annotation-link" href="${escapeHtml(match.detail_url)}" target="_blank" rel="noreferrer">Open arrest detail</a></div>` : ""}
               </div>
             `;
@@ -1148,8 +1149,60 @@ function buildCallNumberSuggestions(groups) {
 
 function parseDateInput(value) {
   if (!value) return null;
-  const date = new Date(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(String(value).trim());
+  const date = match
+    ? new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4] || "0"),
+        Number(match[5] || "0"),
+        Number(match[6] || "0")
+      )
+    : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function parseEndDateInput(value) {
+  const ms = parseDateInput(value);
+  if (ms === null) return null;
+  const text = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return ms + 24 * 60 * 60 * 1000 - 1;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text)) {
+    return ms + 60 * 1000 - 1;
+  }
+  return ms;
+}
+
+function groupRows(group) {
+  const rows = Array.isArray(group.chain) && group.chain.length ? group.chain : [group.latest || {}];
+  return rows.filter(Boolean);
+}
+
+function groupDateRange(group) {
+  let oldestMs = Number.POSITIVE_INFINITY;
+  let newestMs = Number.NEGATIVE_INFINITY;
+  for (const row of groupRows(group)) {
+    const rowMs = parseDateTime(row.dt || group.originalDt || "");
+    if (!Number.isFinite(rowMs)) continue;
+    if (rowMs < oldestMs) oldestMs = rowMs;
+    if (rowMs > newestMs) newestMs = rowMs;
+  }
+  return { oldestMs, newestMs };
+}
+
+function groupMatchesDateRange(group, filters) {
+  if (filters.startMs === null && filters.endMs === null) return true;
+  for (const row of groupRows(group)) {
+    const rowMs = parseDateTime(row.dt || group.originalDt || "");
+    if (!Number.isFinite(rowMs)) continue;
+    if (filters.startMs !== null && rowMs < filters.startMs) continue;
+    if (filters.endMs !== null && rowMs > filters.endMs) continue;
+    return true;
+  }
+  return false;
 }
 
 function formatDateTimeLocal(ms) {
@@ -1209,22 +1262,19 @@ function getActiveFilters() {
     locationText: snapshot.locationText.toLowerCase(),
     areaText: snapshot.areaText.toLowerCase(),
     startMs: parseDateInput(snapshot.startDateTime),
-    endMs: parseDateInput(snapshot.endDateTime),
+    endMs: parseEndDateInput(snapshot.endDateTime),
   };
 }
 
 function getFilteredGroups(groups, filters) {
   return groups.filter((group) => {
     const current = group.latest || {};
-    const currentDt = current.dt || group.originalDt || "";
-    const currentMs = parseDateTime(currentDt);
     const locationParts = splitLocation(current.loc || "");
 
     if (filters.agency && group.agency !== filters.agency) return false;
     if (filters.station && group.station !== filters.station) return false;
     if (filters.prefix && group.prefix !== filters.prefix) return false;
-    if (filters.startMs !== null && (!Number.isFinite(currentMs) || currentMs < filters.startMs)) return false;
-    if (filters.endMs !== null && (!Number.isFinite(currentMs) || currentMs > filters.endMs)) return false;
+    if (!groupMatchesDateRange(group, filters)) return false;
     if (!matchesText(group.station || "", filters.stationText)) return false;
     if (!matchesText(group.agency || "", filters.agencyText)) return false;
     if (!matchesText(group.baseCallNo || current.callno || "", filters.callNoText)) return false;
@@ -1494,11 +1544,9 @@ function updateFilters(groups) {
   let oldestMs = Number.POSITIVE_INFINITY;
   let newestMs = Number.NEGATIVE_INFINITY;
   for (const group of groups) {
-    const current = group.latest || {};
-    const currentMs = parseDateTime(current.dt || group.originalDt || "");
-    if (!Number.isFinite(currentMs)) continue;
-    if (currentMs < oldestMs) oldestMs = currentMs;
-    if (currentMs > newestMs) newestMs = currentMs;
+    const range = groupDateRange(group);
+    if (Number.isFinite(range.oldestMs) && range.oldestMs < oldestMs) oldestMs = range.oldestMs;
+    if (Number.isFinite(range.newestMs) && range.newestMs > newestMs) newestMs = range.newestMs;
   }
   const startDateInput = document.getElementById("filterStartDateTime");
   const endDateInput = document.getElementById("filterEndDateTime");

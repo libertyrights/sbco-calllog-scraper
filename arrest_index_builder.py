@@ -97,6 +97,14 @@ DEFAULT_BARSTOW_REGION_CENTERS = {
     "baker",
 }
 
+TOWN_ALIASES = {
+    "newberry": "newberry springs",
+    "newberry spring": "newberry springs",
+    "san b": "san bernardino",
+    "san bern": "san bernardino",
+    "sb": "san bernardino",
+}
+
 STOPWORDS = {
     "AND",
     "AT",
@@ -169,6 +177,47 @@ def normalize_tag(value: Any) -> str:
         "na": "",
     }
     return aliases.get(text, text)
+
+
+KNOWN_TOWN_TAGS = set(TOWN_CENTERS) | {normalize_tag(value) for value in DEFAULT_CITY_MAP.values()}
+KNOWN_TOWN_TAGS.discard("")
+
+
+def infer_town_tags_from_text(value: Any) -> list[str]:
+    text = normalize_tag(value)
+    if not text:
+        return []
+    padded = f" {text} "
+    tags: set[str] = set()
+    for alias, town in TOWN_ALIASES.items():
+        if re.search(rf"\b{re.escape(alias)}\b", text):
+            tags.add(town)
+    for town in KNOWN_TOWN_TAGS:
+        if re.search(rf"\b{re.escape(town)}\b", text):
+            tags.add(town)
+    if padded.endswith(" ca "):
+        without_state = normalize_space(text[:-3])
+        if without_state in KNOWN_TOWN_TAGS:
+            tags.add(without_state)
+    return sorted(tags)
+
+
+def infer_area_tags_from_arrest_location(value: Any) -> list[str]:
+    return infer_town_tags_from_text(value)
+
+
+def candidate_area_tags(candidate: dict[str, Any]) -> set[str]:
+    tags = {normalize_tag(item) for item in candidate.get("area_tags", [])}
+    tags.update(infer_area_tags_from_arrest_location(candidate.get("arrest_location", "")))
+    return {tag for tag in tags if tag}
+
+
+def candidate_resident_tags(candidate: dict[str, Any]) -> set[str]:
+    tags = {normalize_tag(item) for item in candidate.get("resident_tags", [])}
+    resident_city_state = normalize_space(candidate.get("resident_city_state", ""))
+    if resident_city_state:
+        tags.update(infer_town_tags_from_text(resident_city_state.split(",", 1)[0]))
+    return {tag for tag in tags if tag}
 
 
 def canonical_code(value: Any) -> str:
@@ -800,6 +849,7 @@ def load_release_enrichment_candidates(calllog_path: Path) -> dict[str, dict[str
         city_state = normalize_space(record.get("city_state"))
         resident_city = city_state.split(",", 1)[0] if city_state else ""
         arrest_location = normalize_space(record.get("arrest_location"))
+        area_tags = infer_area_tags_from_arrest_location(arrest_location)
         candidate = {
             "arrest_id": arrest_id,
             "arrest_name": arrest_name,
@@ -812,7 +862,7 @@ def load_release_enrichment_candidates(calllog_path: Path) -> dict[str, dict[str
             "detail_charge_codes": sorted(extract_code_variants(charge)),
             "resident_city_state": city_state,
             "resident_tags": sorted({normalize_tag(resident_city)} - {""}),
-            "area_tags": [],
+            "area_tags": area_tags,
             "is_local_resident": bool(normalize_tag(resident_city)),
             "has_explicit_location": has_specific_location(arrest_location),
             "arrest_location": arrest_location,
@@ -979,7 +1029,7 @@ def map_downloaded_record_to_candidate(record: dict[str, Any]) -> dict[str, Any]
         resident_tags = sorted({normalize_tag(resident_city_state.split(",", 1)[0])} - {""})
 
     area_tags = [normalize_tag(item) for item in (record.get("area_tags") or [])]
-    area_tags = sorted({item for item in area_tags if item})
+    area_tags = sorted({item for item in area_tags if item} | set(infer_area_tags_from_arrest_location(arrest_location)))
 
     charge = normalize_space(details.get("arrested_for") or record.get("charge"))
     linked_call_bases = sorted(
@@ -1682,11 +1732,24 @@ def resident_region_match(call_town: str, resident_tags: list[str], area_tags: l
     return score, reasons
 
 
+def score_town_evidence(call_town: str, candidate: dict[str, Any]) -> tuple[int, list[str]]:
+    reasons: list[str] = []
+    if not call_town:
+        return 0, reasons
+    score = 0
+    area_set = candidate_area_tags(candidate)
+    resident_set = candidate_resident_tags(candidate)
+    if call_town in area_set:
+        score += 3
+        reasons.append("arrest_location_town_match")
+    if call_town in resident_set:
+        score += 1
+        reasons.append("resident_same_town")
+    return score, reasons
+
+
 def candidate_context_towns(candidate: dict[str, Any]) -> set[str]:
-    towns = set(candidate.get("resident_tags") or []) | set(candidate.get("area_tags") or [])
-    arrest_location = normalize_space(candidate.get("arrest_location"))
-    if arrest_location and "," in arrest_location:
-        towns.add(normalize_tag(arrest_location.rsplit(",", 1)[-1]))
+    towns = candidate_resident_tags(candidate) | candidate_area_tags(candidate)
     return {town for town in towns if town}
 
 
@@ -1717,11 +1780,7 @@ def score_map_candidate(call: dict[str, Any], candidate: dict[str, Any]) -> tupl
         score += charge_score
         reasons.append(charge_reason)
 
-    region_score, region_reasons = resident_region_match(
-        call.get("call_town", ""),
-        candidate.get("resident_tags", []),
-        candidate.get("area_tags", []),
-    )
+    region_score, region_reasons = score_town_evidence(call.get("call_town", ""), candidate)
     score += region_score
     reasons.extend(region_reasons)
 
@@ -1772,6 +1831,9 @@ def enrich_candidates_for_calls(
             set(candidate.get("resident_tags", [])) | set(detail.get("resident_tags", []))
         )
         candidate["arrest_location"] = detail.get("arrest_location", "")
+        candidate["area_tags"] = sorted(
+            set(candidate.get("area_tags", [])) | set(infer_area_tags_from_arrest_location(candidate["arrest_location"]))
+        )
         candidate["has_explicit_location"] = bool(detail.get("has_explicit_location"))
         candidate["details"] = detail.get("details", {})
         candidate["detail_charge_codes"] = detail.get("detail_charge_codes", [])
@@ -1803,6 +1865,9 @@ def enrich_candidates_with_details_all(
         )
         candidate["is_local_resident"] = bool(candidate.get("resident_tags"))
         candidate["arrest_location"] = detail.get("arrest_location", "")
+        candidate["area_tags"] = sorted(
+            set(candidate.get("area_tags", [])) | set(infer_area_tags_from_arrest_location(candidate["arrest_location"]))
+        )
         candidate["has_explicit_location"] = bool(detail.get("has_explicit_location"))
         candidate["details"] = detail.get("details", {})
         candidate["detail_charge_codes"] = detail.get("detail_charge_codes", [])
@@ -2126,30 +2191,47 @@ def build_matches(
     def is_confident(edge: dict[str, Any], second_best_score: int, call: dict[str, Any]) -> bool:
         reasons = set(edge["reasons"])
         if "linked_call_number_match" in reasons or "linked_report_number_match" in reasons:
+            edge["candidate"]["confidence"] = "high"
             return True
         if "charge_code_match" in reasons or "detail_charge_code_match" in reasons:
+            edge["candidate"]["confidence"] = "high"
+            return True
+        if (
+            ("charge_code_root_match" in reasons or "detail_charge_code_root_match" in reasons)
+            and ("same_day" in reasons or "within_1_day" in reasons)
+        ):
+            edge["candidate"]["confidence"] = "medium"
             return True
         if "strong_location_overlap" in reasons:
+            edge["candidate"]["confidence"] = "high"
             return True
-        unresolved_location = normalize_space(call.get("location")) in {"* ,*", "*,*", "*", ""}
-        if unresolved_location:
-            return False
         call_town = normalize_tag(call.get("call_town"))
         candidate = edge["raw_candidate"]
+        same_day = "same_day" in reasons
+        area_town_match = call_town and call_town in candidate_area_tags(candidate)
+        resident_town_match = call_town and call_town in candidate_resident_tags(candidate)
         if call_town in SMALL_TOWN_DATE_MATCH_TOWNS and is_unique_date_town_candidate(call, candidate):
-            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + ["unique_small_town_same_day"]))
+            reason = "unique_small_town_same_day" if area_town_match else "unique_small_town_resident_same_day"
+            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + [reason]))
+            edge["candidate"]["confidence"] = "medium" if area_town_match else "lower"
             return True
         if call_town in CONDITIONAL_DATE_MATCH_TOWNS and is_unique_date_town_candidate(call, candidate):
-            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + ["unique_town_same_day"]))
+            reason = "unique_town_same_day" if area_town_match else "unique_resident_town_same_day"
+            edge["candidate"]["reasons"] = sorted(set(edge["candidate"]["reasons"] + [reason]))
+            edge["candidate"]["confidence"] = "medium" if area_town_match else "lower"
             return True
         if call_town in SMALL_TOWN_DATE_MATCH_TOWNS | CONDITIONAL_DATE_MATCH_TOWNS:
             if is_ambiguous_date_town_candidate(call, candidate):
                 return False
+        unresolved_location = normalize_space(call.get("location")) in {"* ,*", "*,*", "*", ""}
+        if unresolved_location:
+            return False
         if {
             "resident_same_town",
             "same_day",
             "sbsd_source",
-        }.issubset(reasons) and edge["score"] >= second_best_score + 2:
+        }.issubset(reasons) and same_day and resident_town_match and edge["score"] >= second_best_score + 2:
+            edge["candidate"]["confidence"] = "lower"
             return True
         return False
 
@@ -2175,6 +2257,7 @@ def build_matches(
             "overlap_tokens": overlap,
             "reasons": reasons,
             "score": score,
+            "confidence": "unverified",
         }
         custody_signals = build_custody_signals(call, candidate, release_lookup)
         if custody_signals:
@@ -2241,8 +2324,20 @@ def build_payload(calllog_path: Path = CALLLOG_CSV) -> dict[str, Any]:
     release_lookup = build_release_lookup(release_rows)
     death_lookup = load_downloaded_death_lookup(calllog_path)
     candidate_source = "downloaded_daily"
-    if not candidates:
+    client: LocalCrimeNewsClient | None = None
+    if arrest_calls:
         client = LocalCrimeNewsClient()
+        map_candidates = collect_map_candidates(client, arrest_calls)
+        for arrest_id, candidate in map_candidates.items():
+            if arrest_id in candidates:
+                candidates[arrest_id] = merge_candidate(candidates[arrest_id], candidate)
+            else:
+                candidates[arrest_id] = candidate
+        if map_candidates:
+            candidate_source = "{}+map".format(candidate_source) if candidates else "live_map"
+            enrich_candidates_for_calls(client, arrest_calls, candidates)
+    if not candidates:
+        client = client or LocalCrimeNewsClient()
         candidates = collect_agency_candidates(client, pages_per_run=AGENCY_PAGES_PER_RUN)
         if not candidates:
             candidates = collect_map_candidates(client, arrest_calls)

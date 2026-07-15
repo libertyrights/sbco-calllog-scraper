@@ -47,6 +47,7 @@ class ArrestLikeTests(unittest.TestCase):
 
 
 def make_call(base="BA261400001", town="daggett", call_type="SUSPER"):
+    location = "35300 Santa Fe St, DAG" if town == "daggett" else "Main St, BAR"
     return {
         "base_call_number": base,
         "call_number": base,
@@ -56,19 +57,19 @@ def make_call(base="BA261400001", town="daggett", call_type="SUSPER"):
         "report_number": "",
         "call_type": call_type,
         "disposition": "ARR",
-        "location": "35300 Santa Fe St, DAG" if town == "daggett" else "Main St, BAR",
+        "location": location,
         "call_dt": datetime(2026, 5, 20, 13, 23),
         "call_date_key": "2026-05-20",
         "call_town": town,
         "call_suffix": "DAG" if town == "daggett" else "BAR",
         "call_prefix": "BA",
-        "location_tokens": builder.extract_location_tokens("35300 Santa Fe St, DAG"),
+        "location_tokens": builder.extract_location_tokens(location),
         "has_specific_location": True,
         "call_code_variants": sorted(builder.extract_code_variants(call_type)),
     }
 
 
-def make_candidate(arrest_id, town="daggett", charge="484(A) - Petty Theft"):
+def make_candidate(arrest_id, town="daggett", charge="484(A) - Petty Theft", arrest_location="Not Available"):
     return {
         "arrest_id": arrest_id,
         "arrest_name": f"Person {arrest_id}",
@@ -83,8 +84,8 @@ def make_candidate(arrest_id, town="daggett", charge="484(A) - Petty Theft"):
         "resident_tags": [town],
         "area_tags": [],
         "is_local_resident": True,
-        "arrest_location": "Not Available",
-        "has_explicit_location": False,
+        "arrest_location": arrest_location,
+        "has_explicit_location": builder.has_specific_location(arrest_location),
         "map_county": "San Bernardino",
         "map_source_agency": "San Bernardino County Sheriff",
         "details": {"source_agency": "San Bernardino County Sheriff", "county_of_arrest": "San Bernardino"},
@@ -101,7 +102,23 @@ class SmallTownDateMatchTests(unittest.TestCase):
         matches = builder.build_matches([call], {"1": candidate})
 
         self.assertEqual(matches[call["base_call_number"]][0]["arrest_id"], "1")
-        self.assertIn("unique_small_town_same_day", matches[call["base_call_number"]][0]["reasons"])
+        self.assertIn("unique_small_town_resident_same_day", matches[call["base_call_number"]][0]["reasons"])
+        self.assertEqual(matches[call["base_call_number"]][0]["confidence"], "lower")
+
+    def test_arrest_location_town_is_stronger_than_resident_town(self):
+        call = make_call(town="barstow", call_type="SUSPER")
+        candidate = make_candidate(
+            "1",
+            town="ontario",
+            charge="484(A) - Petty Theft",
+            arrest_location="215 E Main St Barstow Ca",
+        )
+
+        matches = builder.build_matches([call], {"1": candidate})
+
+        self.assertEqual(matches[call["base_call_number"]][0]["arrest_id"], "1")
+        self.assertIn("unique_town_same_day", matches[call["base_call_number"]][0]["reasons"])
+        self.assertEqual(matches[call["base_call_number"]][0]["confidence"], "medium")
 
     def test_multiple_daggett_arrests_same_day_do_not_match_without_tie_breaker(self):
         call = make_call(call_type="SUSPER")
