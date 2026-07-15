@@ -42,7 +42,9 @@ jobs:
           python deploy_ftp_file.py site/upload_calllog_signed.php upload_calllog_signed.php
           python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
           python deploy_ftp_file.py site/sbsd.html sbsd.html
+          python deploy_ftp_file.py site/records.html records.html
           python deploy_ftp_file.py site/calllog_descriptions.php calllog_descriptions.php
+          python deploy_ftp_file.py site/record_lookup_request.php record_lookup_request.php
           if [ -f runtime/calllog_descriptions_deploy.env ]; then . runtime/calllog_descriptions_deploy.env; fi
           if [ "${CALLLOG_DESCRIPTIONS_UPLOAD:-0}" = "1" ] && [ -f site/calllog_descriptions.json ]; then
             python deploy_ftp_file.py site/calllog_descriptions.json calllog_descriptions.json

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SBCO Arrest, Death, Release, and Court Records</title>
+<style>
+:root {
+  --bg: #edf3f9;
+  --panel: #ffffff;
+  --line: #d8e2ed;
+  --text: #18212c;
+  --muted: #627181;
+  --accent: #163c69;
+  --accent-2: #245c99;
+  --good: #1d6b3b;
+  --warn: #9a5b00;
+  --danger: #9f2020;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(65, 114, 173, 0.12), transparent 25%),
+    linear-gradient(180deg, #f5f8fc 0%, #e8eff7 100%);
+}
+.topbar {
+  background: linear-gradient(135deg, #173a66 0%, #0d2745 100%);
+  color: #fff;
+  padding: 16px 20px;
+  box-shadow: 0 10px 30px rgba(12, 27, 46, 0.18);
+}
+.topbar h1 { margin: 0; font-size: 23px; }
+.topbar p { margin: 6px 0 0; color: #ccdaea; font-size: 13px; }
+.shell { max-width: 1360px; margin: 0 auto; padding: 18px; }
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(16, 38, 64, 0.06);
+  margin-bottom: 14px;
+}
+.notice { padding: 14px 16px; }
+.notice p { margin: 0; color: var(--muted); line-height: 1.45; }
+a { color: var(--accent-2); }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+}
+.stat {
+  padding: 14px 16px;
+}
+.stat .label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.stat .value {
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(150px, 220px) minmax(150px, 220px) auto;
+  gap: 10px;
+  padding: 14px;
+}
+.controls input,
+.controls select,
+.controls button {
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.controls input,
+.controls select {
+  border: 1px solid #bcc9d8;
+  padding: 0 12px;
+}
+button {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  padding: 0 14px;
+  min-height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+button.secondary { background: #335f91; }
+button.danger { background: var(--danger); }
+button:hover { filter: brightness(1.08); }
+button:disabled { cursor: wait; opacity: 0.65; }
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.status { font-weight: 700; }
+.status.warn { color: var(--warn); }
+.status.good { color: var(--good); }
+.table-wrap { overflow: auto; max-height: 72vh; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  text-align: left;
+  color: #fff;
+  background: var(--accent);
+  padding: 10px 12px;
+}
+tbody td {
+  padding: 9px 12px;
+  border-top: 1px solid #e5ebf2;
+  vertical-align: top;
+}
+tbody tr.main-row:hover { background: #eef5fd; }
+.toggle-cell { width: 40px; }
+.toggle-btn {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #afbdd0;
+  background: #fff;
+  color: var(--text);
+  font-weight: 700;
+}
+.pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.pill-arrest { background: #9f2020; }
+.pill-death { background: #4b5563; }
+.pill-release { background: #1d6b3b; }
+.pill-court { background: #6b4b16; }
+.muted { color: var(--muted); }
+.detail-row td {
+  background: #f7faff;
+  border-top: none;
+  padding: 0 0 14px;
+}
+.detail-card {
+  margin: 0 12px 0 48px;
+  border: 1px solid #d5e1ee;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.detail-block h4 {
+  margin: 0 0 5px;
+  color: #546474;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.detail-block .value { font-weight: 700; }
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.raw-details { margin-top: 12px; }
+.raw-details summary {
+  cursor: pointer;
+  color: #304b68;
+  font-weight: 700;
+}
+.raw-json {
+  margin-top: 10px;
+  background: #0f1a27;
+  color: #d9e7f4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--muted);
+}
+@media (max-width: 900px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .controls { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .stats { grid-template-columns: 1fr; }
+  thead th:nth-child(4),
+  tbody td:nth-child(4) { display: none; }
+  .detail-card { margin-left: 12px; }
+}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>SBCO Records Lists</h1>
+    <p>Search arrest, death index, release, and court case records from the published support files.</p>
+  </div>
+
+  <div class="shell">
+    <div class="card notice">
+      <p>
+        This page is separate from the <a href="sbsd.html">live call log</a> but uses the same data folder.
+        Expand a row to see raw source data and request an LCN/death-index refresh for that person or record.
+      </p>
+    </div>
+
+    <div class="stats">
+      <div class="card stat"><div class="label">Number of Arrest Records</div><div id="arrestCount" class="value">...</div></div>
+      <div class="card stat"><div class="label">Number of Death Records</div><div id="deathCount" class="value">...</div></div>
+      <div class="card stat"><div class="label">Number of Release Records</div><div id="releaseCount" class="value">...</div></div>
+      <div class="card stat"><div class="label">Number of Court Case Records</div><div id="courtCount" class="value">...</div></div>
+    </div>
+
+    <div class="card controls">
+      <input id="searchBox" type="search" placeholder="Search name, case number, charge, date, city, location">
+      <select id="typeFilter">
+        <option value="">All record types</option>
+        <option value="arrest">Arrests</option>
+        <option value="death">Deaths</option>
+        <option value="release">Releases</option>
+        <option value="court">Court cases</option>
+      </select>
+      <select id="pageSize">
+        <option value="100">100 rows</option>
+        <option value="250" selected>250 rows</option>
+        <option value="500">500 rows</option>
+        <option value="1000">1000 rows</option>
+      </select>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div class="card summary">
+      <div id="statusText" class="status">Loading records...</div>
+      <div id="resultText"></div>
+      <div id="sourceText" class="muted"></div>
+      <button id="requestSearchBtn" class="secondary" type="button" hidden>Request scrape for this search</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="toggle-cell"></th>
+              <th>Type</th>
+              <th>Name</th>
+              <th>Date</th>
+              <th>Key Info</th>
+              <th>Location / Agency</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty" hidden>No records match this search.</div>
+    </div>
+  </div>
+
+<script>
+const DATA_ROOT = new URL(new URLSearchParams(window.location.search).get("dataRoot") || ".", window.location.href);
+const URLS = {
+  arrests: new URL("all_records.json", DATA_ROOT).toString(),
+  deaths: new URL("death_index.csv", DATA_ROOT).toString(),
+  releases: new URL("releases.csv", DATA_ROOT).toString(),
+  releaseEnrichment: new URL("release_arrest_enrichment.json", DATA_ROOT).toString(),
+  courtJson: new URL("court_records.json", DATA_ROOT).toString(),
+  courtCsv: new URL("court_records.csv", DATA_ROOT).toString(),
+  request: new URL("record_lookup_request.php", DATA_ROOT).toString(),
+};
+
+let allRecords = [];
+let sourceNotes = [];
+let expandedId = "";
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  }[char]));
+}
+
+function setStatus(text, state = "") {
+  const node = document.getElementById("statusText");
+  node.textContent = text;
+  node.className = state === "warn" ? "status warn" : state === "good" ? "status good" : "status";
+}
+
+function normalize(value) {
+  return String(value ?? "").trim();
+}
+
+function textBlob(value) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(textBlob).join(" ");
+  if (typeof value === "object") return Object.entries(value).map(([key, val]) => `${key} ${textBlob(val)}`).join(" ");
+  return "";
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        value += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        value += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(value);
+      value = "";
+    } else if (char === "\n") {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = "";
+    } else if (char !== "\r") {
+      value += char;
+    }
+  }
+  if (value || row.length) {
+    row.push(value);
+    rows.push(row);
+  }
+  if (!rows.length) return [];
+  const headers = rows.shift().map((item) => item.trim());
+  return rows
+    .filter((cells) => cells.some((cell) => String(cell).trim()))
+    .map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""])));
+}
+
+async function fetchTextIfOk(url) {
+  const response = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`${url.split("/").pop()} returned HTTP ${response.status}`);
+  return response.text();
+}
+
+async function fetchJsonIfOk(url) {
+  return JSON.parse(await fetchTextIfOk(url));
+}
+
+function releaseKey(row) {
+  return [
+    normalize(row.Name || row.release_name).toUpperCase(),
+    normalize(row["Release Date"] || row.release_date),
+    normalize(row.Age || row.release_age),
+  ].join("|");
+}
+
+function recordBase(type, title, date, summary, location, raw, extra = {}) {
+  const id = `${type}:${extra.id || title}:${date}:${summary}`.replace(/\s+/g, " ").slice(0, 240);
+  return {
+    id,
+    type,
+    title: title || "(name unavailable)",
+    date: date || "",
+    summary: summary || "",
+    location: location || "",
+    raw,
+    search: textBlob({ type, title, date, summary, location, raw, extra }).toLowerCase(),
+    ...extra,
+  };
+}
+
+function normalizeArrest(record) {
+  const details = record.details || {};
+  return recordBase(
+    "arrest",
+    record.name || details.arrest_name,
+    details.arrest_date_full || record.arrest_date,
+    details.arrested_for || record.charge,
+    [details.arrest_location, details.city_state, details.source_agency || record.source_agency].filter(Boolean).join(" | "),
+    record,
+    {
+      id: details.arrest_id || record.arrest_id || record.detail_url,
+      agency: details.source_agency || record.source_agency || "",
+      detailUrl: details.detail_url || record.detail_url || "",
+      requestKind: "lcn",
+      requestQuery: record.name || details.arrest_name || "",
+    }
+  );
+}
+
+function normalizeDeath(row) {
+  return recordBase(
+    "death",
+    row.decedentName || [row.lastName, row.firstName, row.middleName].filter(Boolean).join(", "),
+    row.dateOfDeath,
+    [row.caseNumberDisplay ? `Case ${row.caseNumberDisplay}` : "", row.currentMode].filter(Boolean).join(" | "),
+    [row.placeOfDeath, row.podCity, row.decedentCity].filter(Boolean).join(" | "),
+    row,
+    {
+      id: row.caseNumberDisplay || row.caseNumber,
+      requestKind: "death",
+      requestQuery: row.decedentName || "",
+    }
+  );
+}
+
+function normalizeRelease(row, enrichment) {
+  const match = enrichment.get(releaseKey(row)) || {};
+  return recordBase(
+    "release",
+    row.Name,
+    row["Release Date"],
+    [
+      row.Sex ? `Sex ${row.Sex}` : "",
+      row.Age ? `Age ${row.Age}` : "",
+      match.arrest_id ? `LCN ${match.arrest_id}` : "No LCN arrest detail yet",
+    ].filter(Boolean).join(" | "),
+    [match.arrest_location, match.city_state, match.source_agency].filter(Boolean).join(" | "),
+    { ...row, lcn_enrichment: match },
+    {
+      id: releaseKey(row),
+      detailUrl: match.detail_url || "",
+      requestKind: "lcn",
+      requestQuery: row.Name || "",
+    }
+  );
+}
+
+function normalizeCourt(row) {
+  return recordBase(
+    "court",
+    row.name || row.defendantName || row.defendant || row.party || row.caseName,
+    row.date || row.filingDate || row.hearingDate || row.updated_at,
+    row.caseNumber || row.case_number || row.case || row.charge || row.status,
+    row.court || row.location || row.department || "",
+    row,
+    {
+      id: row.caseNumber || row.case_number || row.case || "",
+      requestKind: "court",
+      requestQuery: row.name || row.defendantName || row.defendant || "",
+    }
+  );
+}
+
+async function loadRecords() {
+  setStatus("Loading records...");
+  sourceNotes = [];
+  const [arrestPayload, deathText, releaseText, enrichmentPayload] = await Promise.all([
+    fetchJsonIfOk(URLS.arrests).catch((error) => ({ error })),
+    fetchTextIfOk(URLS.deaths).catch((error) => ({ error })),
+    fetchTextIfOk(URLS.releases).catch((error) => ({ error })),
+    fetchJsonIfOk(URLS.releaseEnrichment).catch(() => ({ records: [] })),
+  ]);
+
+  const records = [];
+  const arrestRows = Array.isArray(arrestPayload.records) ? arrestPayload.records : [];
+  if (arrestPayload.error) sourceNotes.push(`arrests: ${arrestPayload.error.message}`);
+  records.push(...arrestRows.map(normalizeArrest));
+
+  const deathRows = typeof deathText === "string" ? parseCsv(deathText) : [];
+  if (deathText && deathText.error) sourceNotes.push(`deaths: ${deathText.error.message}`);
+  records.push(...deathRows.map(normalizeDeath));
+
+  const releaseRows = typeof releaseText === "string" ? parseCsv(releaseText) : [];
+  if (releaseText && releaseText.error) sourceNotes.push(`releases: ${releaseText.error.message}`);
+  const enrichmentRows = Array.isArray(enrichmentPayload.records) ? enrichmentPayload.records : [];
+  const enrichment = new Map(enrichmentRows.map((row) => [releaseKey(row), row]));
+  records.push(...releaseRows.map((row) => normalizeRelease(row, enrichment)));
+
+  let courtRows = [];
+  try {
+    const courtPayload = await fetchJsonIfOk(URLS.courtJson);
+    courtRows = Array.isArray(courtPayload.records) ? courtPayload.records : Array.isArray(courtPayload) ? courtPayload : [];
+  } catch {
+    try {
+      courtRows = parseCsv(await fetchTextIfOk(URLS.courtCsv));
+    } catch {
+      sourceNotes.push("court records: not published yet");
+    }
+  }
+  records.push(...courtRows.map(normalizeCourt));
+
+  allRecords = records;
+  document.getElementById("arrestCount").textContent = arrestRows.length.toLocaleString();
+  document.getElementById("deathCount").textContent = deathRows.length.toLocaleString();
+  document.getElementById("releaseCount").textContent = releaseRows.length.toLocaleString();
+  document.getElementById("courtCount").textContent = courtRows.length.toLocaleString();
+  setStatus(`Loaded ${records.length.toLocaleString()} records`, "good");
+  render();
+}
+
+function matches(record, query, type) {
+  if (type && record.type !== type) return false;
+  if (!query) return true;
+  return query.split(/\s+/).filter(Boolean).every((term) => record.search.includes(term));
+}
+
+function typePill(type) {
+  return `<span class="pill pill-${escapeHtml(type)}">${escapeHtml(type.toUpperCase())}</span>`;
+}
+
+function renderDetail(record) {
+  const refreshLabel = record.requestKind === "death" ? "Request death-index refresh" : "Request LCN scrape";
+  return `
+    <tr class="detail-row">
+      <td colspan="6">
+        <div class="detail-card">
+          <div class="detail-grid">
+            <div class="detail-block"><h4>Name</h4><div class="value">${escapeHtml(record.title)}</div></div>
+            <div class="detail-block"><h4>Date</h4><div class="value">${escapeHtml(record.date || "Not listed")}</div></div>
+            <div class="detail-block"><h4>Record Key</h4><div class="value">${escapeHtml(record.id)}</div></div>
+            <div class="detail-block"><h4>Summary</h4><div class="value">${escapeHtml(record.summary || "Not listed")}</div></div>
+            <div class="detail-block"><h4>Location / Agency</h4><div class="value">${escapeHtml(record.location || "Not listed")}</div></div>
+            <div class="detail-block"><h4>Source</h4><div class="value">${record.detailUrl ? `<a href="${escapeHtml(record.detailUrl)}" target="_blank" rel="noreferrer">Open detail</a>` : "Published support file"}</div></div>
+          </div>
+          <div class="detail-actions">
+            <button class="secondary" type="button" data-request-id="${escapeHtml(record.id)}">${escapeHtml(refreshLabel)}</button>
+          </div>
+          <details class="raw-details">
+            <summary>Raw JSON</summary>
+            <div class="raw-json">${escapeHtml(JSON.stringify(record.raw, null, 2))}</div>
+          </details>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function render() {
+  const query = document.getElementById("searchBox").value.trim().toLowerCase();
+  const type = document.getElementById("typeFilter").value;
+  const pageSize = Number(document.getElementById("pageSize").value || 250);
+  const filtered = allRecords.filter((record) => matches(record, query, type));
+  const visible = filtered.slice(0, pageSize);
+  const rows = document.getElementById("rows");
+  rows.innerHTML = visible.map((record) => `
+    <tr class="main-row">
+      <td class="toggle-cell"><button class="toggle-btn" type="button" data-expand-id="${escapeHtml(record.id)}">${expandedId === record.id ? "-" : "+"}</button></td>
+      <td>${typePill(record.type)}</td>
+      <td><strong>${escapeHtml(record.title)}</strong></td>
+      <td>${escapeHtml(record.date)}</td>
+      <td>${escapeHtml(record.summary)}</td>
+      <td>${escapeHtml(record.location)}</td>
+    </tr>
+    ${expandedId === record.id ? renderDetail(record) : ""}
+  `).join("");
+  document.getElementById("emptyState").hidden = filtered.length > 0;
+  document.getElementById("resultText").textContent =
+    `${filtered.length.toLocaleString()} matched; showing ${visible.length.toLocaleString()}`;
+  document.getElementById("sourceText").textContent = sourceNotes.length ? sourceNotes.join(" | ") : "";
+  document.getElementById("requestSearchBtn").hidden = !query || filtered.length > 0;
+}
+
+async function requestLookup(kind, query, record = null) {
+  const buttonText = document.getElementById("statusText").textContent;
+  setStatus("Submitting lookup request...");
+  try {
+    const response = await fetch(URLS.request, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, query, record }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      throw new Error(payload.error || `request failed with HTTP ${response.status}`);
+    }
+    const dispatch = payload.dispatched ? " GitHub refresh triggered." : " Request queued.";
+    setStatus(`${payload.message || "Lookup request saved."}${dispatch}`, "good");
+  } catch (error) {
+    setStatus(`Lookup request unavailable: ${error && error.message ? error.message : "unknown error"}`, "warn");
+    setTimeout(() => setStatus(buttonText || "Loaded records", "good"), 5000);
+  }
+}
+
+document.getElementById("searchBox").addEventListener("input", render);
+document.getElementById("typeFilter").addEventListener("change", render);
+document.getElementById("pageSize").addEventListener("change", render);
+document.getElementById("refreshBtn").addEventListener("click", loadRecords);
+document.getElementById("requestSearchBtn").addEventListener("click", () => {
+  const query = document.getElementById("searchBox").value.trim();
+  const type = document.getElementById("typeFilter").value;
+  requestLookup(type === "death" ? "death" : "lcn", query);
+});
+document.getElementById("rows").addEventListener("click", (event) => {
+  const expandButton = event.target.closest("[data-expand-id]");
+  if (expandButton) {
+    const id = expandButton.getAttribute("data-expand-id");
+    expandedId = expandedId === id ? "" : id;
+    render();
+    return;
+  }
+  const requestButton = event.target.closest("[data-request-id]");
+  if (requestButton) {
+    const id = requestButton.getAttribute("data-request-id");
+    const record = allRecords.find((item) => item.id === id);
+    if (record) requestLookup(record.requestKind || "lcn", record.requestQuery || record.title, record.raw);
+  }
+});
+
+loadRecords().catch((error) => {
+  setStatus(error && error.message ? error.message : "Unable to load records", "warn");
+});
+</script>
+</body>
+</html>

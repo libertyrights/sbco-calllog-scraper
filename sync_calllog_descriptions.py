@@ -124,6 +124,10 @@ def first_value(row: list[str], headers: dict[str, int], names: Iterable[str]) -
     return ""
 
 
+def is_useful_description(value: str) -> bool:
+    return value.strip().lower() not in {"", "unknown", "unk", "n/a", "na", "none", "null", "?"}
+
+
 def parse_description_csv(text: str, default_section: str | None) -> dict[str, dict[str, str]]:
     payload: dict[str, dict[str, str]] = {"prefixes": {}, "dispositions": {}, "call_types": {}}
     reader = csv.reader(io.StringIO(text))
@@ -180,7 +184,7 @@ def parse_description_csv(text: str, default_section: str | None) -> dict[str, d
         description = first_value(row, headers, ["description", "desc", "label", "meaning", "text"])
         if not description and len(row) >= 2:
             description = row[-1].strip()
-        if code and description:
+        if code and is_useful_description(description):
             payload[section][code.strip().upper()] = description.strip()
 
     return payload

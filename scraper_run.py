@@ -66,6 +66,7 @@ CALLLOG_JSON = os.path.join(BASE_DIR, "calllog.json")
 CALLLOG_ARREST_INDEX_JSON = os.path.join(BASE_DIR, "calllog_arrest_index.json")
 DEATH_INDEX_CSV = os.path.join(BASE_DIR, "death_index.csv")
 ARREST_LOG_JSON = os.path.join(BASE_DIR, "all_records.json")
+COURT_RECORDS_JSON = os.path.join(BASE_DIR, "court_records.json")
 CALLLOG_UPLOAD_META_JSON = os.path.join(BASE_DIR, "calllog_upload_meta.json")
 ARCHIVE_RUNTIME_DIR = os.path.join(BASE_DIR, "runtime", "archive")
 SECRET_CONFIG_PATH = os.environ.get("SBCO_SECRET_CONFIG", os.path.join(BASE_DIR, "secrets.local.json"))
@@ -78,6 +79,7 @@ CALLLOG_ARCHIVE_REMOTE_PREFIX = "calllog-archive-"
 RELEASES_CSV = os.path.join(BASE_DIR, "releases.csv")
 LEGACY_RELEASES_CSV = os.path.join(BASE_DIR, "daily_release_list.csv")
 RELEASE_ARREST_ENRICHMENT_JSON = os.path.join(BASE_DIR, "release_arrest_enrichment.json")
+RECORD_LOOKUP_RESULTS_JSON = os.path.join(BASE_DIR, "record_lookup_results.json")
 DAILY_RELEASE_LOG = os.path.join(BASE_DIR, "daily_release_list.log")
 RELEASE_LOG_URL = "https://jimsnetil.shr.sbcounty.gov/bookingsearch.aspx/GetReleaseLog"
 LCN_BASE_URL = "https://www.localcrimenews.com"
@@ -87,6 +89,11 @@ LCN_RELEASE_LOOKBACK_DAYS = int(os.environ.get("SBCO_LCN_RELEASE_LOOKBACK_DAYS",
 LCN_RELEASE_MAX_RELEASE_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_RELEASE_ROWS", "30"))
 LCN_RELEASE_MAX_SEARCH_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_SEARCH_ROWS", "80"))
 LCN_RELEASE_MAX_DETAIL_ROWS = int(os.environ.get("SBCO_LCN_RELEASE_MAX_DETAIL_ROWS", "20"))
+RECORD_LOOKUP_QUEUE_URL = os.environ.get(
+    "SBCO_RECORD_LOOKUP_QUEUE_URL",
+    "https://upnexx.xyz/osint/runtime/record-lookup/record_lookup_queue.json",
+)
+RECORD_LOOKUP_MAX_REQUESTS = int(os.environ.get("SBCO_RECORD_LOOKUP_MAX_REQUESTS", "20"))
 DEATH_INDEX_PAGE_URL = "https://xcore.sbcounty.gov/sheriff/SheriffCMS/DeathRegister"
 DEATH_INDEX_GRID_URL = DEATH_INDEX_PAGE_URL + "/DataGrid"
 DEATH_INDEX_PAGE_SIZE = int(os.environ.get("SBCO_DEATH_INDEX_PAGE_SIZE", "100"))
@@ -1547,6 +1554,10 @@ def build_publish_file_specs(extra_file_specs=None):
     ]
     if os.path.exists(CALLLOG_ARREST_INDEX_JSON):
         specs.append(("calllog_arrest_index.json", CALLLOG_ARREST_INDEX_JSON))
+    if os.path.exists(COURT_RECORDS_JSON):
+        specs.append(("court_records.json", COURT_RECORDS_JSON))
+    if os.path.exists(RECORD_LOOKUP_RESULTS_JSON):
+        specs.append(("record_lookup_results.json", RECORD_LOOKUP_RESULTS_JSON))
 
     seen_names = {remote_name for remote_name, _ in specs}
     for remote_name, local_path in extra_file_specs or []:

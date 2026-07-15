@@ -14,6 +14,8 @@ const CALLLOG_ALLOWED_REMOTE_NAMES = [
     'calllog_upload_meta.json',
     'death_index.csv',
     'all_records.json',
+    'court_records.json',
+    'record_lookup_results.json',
     'release_arrest_enrichment.json',
 ];
 
@@ -68,6 +70,10 @@ function calllog_atomic_replace(string $tmpPath, string $finalPath): void
 {
     calllog_ensure_dir(dirname($finalPath));
     $backupPath = $finalPath . '.bak';
+    if (is_file($finalPath) && filesize($finalPath) !== false && filesize($tmpPath) !== false && filesize($finalPath) > filesize($tmpPath)) {
+        $stamp = gmdate('Ymd\THis\Z');
+        @copy($finalPath, $finalPath . '.larger-before-override.' . $stamp . '.bak');
+    }
     if (is_file($backupPath)) {
         @unlink($backupPath);
     }

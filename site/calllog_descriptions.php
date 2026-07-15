@@ -36,6 +36,11 @@ function csv_value(array $row, array $headers, array $names): string
     return '';
 }
 
+function is_useful_description(string $value): bool
+{
+    return !in_array(strtolower(trim($value)), ['', 'unknown', 'unk', 'n/a', 'na', 'none', 'null', '?'], true);
+}
+
 function description_section(string $value, ?string $default): string
 {
     $key = normalize_header($value);
@@ -109,7 +114,7 @@ function read_csv_description_file(string $path, ?string $default_section = null
         if ($description === '' && count($row) >= 2) {
             $description = trim((string) $row[count($row) - 1]);
         }
-        if ($code !== '' && $description !== '') {
+        if ($code !== '' && is_useful_description($description)) {
             $payload[$section][$code] = $description;
         }
     }
@@ -126,7 +131,7 @@ function clean_map($value): array
     foreach ($value as $key => $description) {
         $code = strtoupper(trim((string) $key));
         $text = trim((string) $description);
-        if ($code !== '' && $text !== '') {
+        if ($code !== '' && is_useful_description($text)) {
             $out[$code] = $text;
         }
     }
@@ -145,10 +150,48 @@ function normalize_descriptions(array $payload): array
 
 $fallback = [
     'prefixes' => [
+        'BA' => 'Barstow Station routine patrol',
+        'AJ' => 'Adelanto Jail (now known as High Desert Detention Center)',
+        'BR' => 'Barstow PD',
         'CHP' => 'California Highway Patrol incident',
-        'CO' => 'Coroner call',
+        'CH' => 'Chino',
+        'CO' => 'Coroner',
+        'CR' => 'Colorado River',
         'CS' => 'Court Services call',
+        'FN' => 'Fontana',
+        'GD' => 'Gang Detail',
+        'GT' => 'Grand Terrace',
+        'HE' => 'Hesperia',
+        'HI' => 'Highland',
+        'IR' => 'IRNET (Inland Regional Narcotics Enforcement Team)',
+        'LL' => 'Ludlow',
+        'MB' => 'Morongo Basin',
+        'MT' => 'Metrolink',
+        'ND' => 'Narcotics Division',
+        'NE' => 'Needles',
+        'OR' => 'Outreach',
+        'PO' => 'Probation Ops',
+        'RC' => 'Rancho Cucamonga',
+        'RE' => 'Redlands',
+        'SB' => 'San Bernardino City',
         'SBCFIRE' => 'San Bernardino County Fire / EMS incident',
+        'SD' => 'Specialized Detectives',
+        'SE' => 'Specialized Enforcement',
+        'SF' => 'BNSF Police',
+        'SM' => 'San Manuel',
+        'SN' => 'SANCAT',
+        'SP' => 'Special Patrol',
+        'TO' => 'OHV Enforcement',
+        'TP' => 'Twin Peaks',
+        'TR' => 'Trona Substation',
+        'TW' => 'Twentynine Palms',
+        'UP' => 'Union Pacific Railroad Police',
+        'VC' => 'Victorville City',
+        'VT' => 'Victorville Transit',
+        'VV' => 'Victorville County Area',
+        'WE' => 'West End',
+        'YU' => 'Yucaipa',
+        'YV' => 'Yucca Valley',
     ],
     'dispositions' => [
         '*' => 'Open/no final disposition yet',
