@@ -1,0 +1,18 @@
+name: restore-arrest-records
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Restore merged arrest support file
+        env:
+          SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
+        run: python deploy_ftp_file.py site/all_records.restore.json all_records.json

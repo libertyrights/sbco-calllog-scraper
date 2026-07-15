@@ -1196,13 +1196,184 @@ def refresh_death_index_csv(output_path):
     )
 
 
+def arrest_record_key(record):
+    details = record.get("details") if isinstance(record.get("details"), dict) else {}
+    key = (
+        details.get("detail_url")
+        or record.get("detail_url")
+        or details.get("arrest_id")
+        or record.get("arrest_id")
+    )
+    if key:
+        return str(key).strip().lower()
+    return "|".join(
+        str(value or "").strip().lower()
+        for value in (
+            record.get("name") or details.get("arrest_name"),
+            record.get("arrest_date") or details.get("arrest_date_full"),
+            record.get("charge") or details.get("arrested_for"),
+            details.get("source_agency") or record.get("source_agency"),
+        )
+    )
+
+
+def merge_arrest_record(existing, incoming):
+    if not isinstance(existing, dict):
+        return incoming
+    if not isinstance(incoming, dict):
+        return existing
+    merged = dict(existing)
+    for key, value in incoming.items():
+        if value not in (None, "", [], {}):
+            if key == "details" and isinstance(value, dict) and isinstance(merged.get("details"), dict):
+                details = dict(merged["details"])
+                details.update({k: v for k, v in value.items() if v not in (None, "", [], {})})
+                merged["details"] = details
+            else:
+                merged[key] = value
+    return merged
+
+
+SAN_BERNARDINO_ARREST_PLACES = {
+    "adelanto",
+    "apple valley",
+    "barstow",
+    "big bear",
+    "chino",
+    "chino hills",
+    "colton",
+    "crestline",
+    "daggett",
+    "fontana",
+    "grand terrace",
+    "helendale",
+    "hesperia",
+    "highland",
+    "joshua tree",
+    "lake arrowhead",
+    "lenwood",
+    "loma linda",
+    "lucerne valley",
+    "mentone",
+    "montclair",
+    "morongo basin",
+    "morongo valley",
+    "needles",
+    "newberry springs",
+    "ontario",
+    "rancho cucamonga",
+    "redlands",
+    "rialto",
+    "san bernardino",
+    "trona",
+    "twentynine palms",
+    "twin peaks",
+    "upland",
+    "victorville",
+    "wrightwood",
+    "yermo",
+    "yucaipa",
+    "yucca valley",
+}
+
+
+def is_san_bernardino_county_arrest(record):
+    if not isinstance(record, dict):
+        return False
+    details = record.get("details") if isinstance(record.get("details"), dict) else {}
+    county = str(details.get("county_of_arrest") or record.get("county_of_arrest") or "").strip().lower()
+    agency = str(details.get("source_agency") or record.get("source_agency") or "").strip().lower()
+    location = str(details.get("arrest_location") or record.get("arrest_location") or "").strip().lower()
+    city_state = str(details.get("city_state") or record.get("city_state") or "").strip().lower()
+    if county:
+        return "san bernardino" in county
+    if "san bernardino" in agency:
+        return True
+    if "sheriff" in agency and "county" in agency:
+        return False
+    return any(
+        place in agency or place in location or place in city_state
+        for place in SAN_BERNARDINO_ARREST_PLACES
+    )
+
+
+def load_arrest_payload(path):
+    if not os.path.exists(path):
+        return {"records": []}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception as e:
+        log("WARNING: unable to read existing arrest payload {}: {}".format(path, e))
+        return {"records": []}
+    if isinstance(payload, list):
+        return {"records": payload}
+    if isinstance(payload, dict):
+        records = payload.get("records")
+        if isinstance(records, list):
+            return payload
+    return {"records": []}
+
+
+def write_arrest_payload(path, payload):
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    os.replace(tmp_path, path)
+
+
+def merge_arrest_payloads(previous_payload, fresh_payload):
+    merged_by_key = {}
+    for record in previous_payload.get("records", []) if isinstance(previous_payload, dict) else []:
+        if not isinstance(record, dict):
+            continue
+        if not is_san_bernardino_county_arrest(record):
+            continue
+        key = arrest_record_key(record)
+        if key:
+            merged_by_key[key] = record
+    previous_count = len(merged_by_key)
+    fresh_added = 0
+    fresh_updated = 0
+    for record in fresh_payload.get("records", []) if isinstance(fresh_payload, dict) else []:
+        if not isinstance(record, dict):
+            continue
+        if not is_san_bernardino_county_arrest(record):
+            continue
+        key = arrest_record_key(record)
+        if not key:
+            continue
+        if key in merged_by_key:
+            merged_by_key[key] = merge_arrest_record(merged_by_key[key], record)
+            fresh_updated += 1
+        else:
+            merged_by_key[key] = record
+            fresh_added += 1
+
+    records = list(merged_by_key.values())
+    payload = dict(fresh_payload) if isinstance(fresh_payload, dict) else {}
+    payload["generated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    payload["count"] = len(records)
+    payload["records"] = records
+    payload["merge"] = {
+        "previous_unique_records": previous_count,
+        "fresh_records": len(fresh_payload.get("records", [])) if isinstance(fresh_payload, dict) else 0,
+        "fresh_added": fresh_added,
+        "fresh_updated": fresh_updated,
+    }
+    return payload
+
+
 def refresh_arrest_log_json(output_path):
     started_monotonic = time.monotonic()
+    previous_payload = load_arrest_payload(output_path)
+    fresh_path = output_path + ".fresh"
     command = [
         sys.executable,
         ARREST_LOG_SCRIPT,
         "--output-json",
-        output_path,
+        fresh_path,
         "--request-delay",
         str(ARREST_LOG_REQUEST_DELAY_SECONDS),
         "--max-pages",
@@ -1227,10 +1398,25 @@ def refresh_arrest_log_json(output_path):
         log("Arrest log refresh stdout: {}".format(stdout[:1000]))
     if stderr:
         log("Arrest log refresh stderr: {}".format(stderr[:1000]))
-    if not os.path.exists(output_path):
-        raise RuntimeError("arrest log refresh did not create {}".format(output_path))
+    if not os.path.exists(fresh_path):
+        raise RuntimeError("arrest log refresh did not create {}".format(fresh_path))
+    fresh_payload = load_arrest_payload(fresh_path)
+    merged_payload = merge_arrest_payloads(previous_payload, fresh_payload)
+    write_arrest_payload(output_path, merged_payload)
+    try:
+        os.remove(fresh_path)
+    except OSError:
+        pass
     elapsed = log_phase_duration("all_records.json refresh", started_monotonic)
-    log("all_records.json refreshed locally in {:.1f}s".format(elapsed))
+    merge_meta = merged_payload.get("merge", {})
+    log(
+        "all_records.json refreshed locally in {:.1f}s (fresh {}, previous {}, merged {})".format(
+            elapsed,
+            merge_meta.get("fresh_records", 0),
+            merge_meta.get("previous_unique_records", 0),
+            merged_payload.get("count", 0),
+        )
+    )
 
 
 def ensure_remote_backed_daily_file(remote_name, local_path, refresh_callback, run_started_monotonic=None):
