@@ -324,6 +324,7 @@ const URLS = {
   courtCsv: new URL("court_records.csv", DATA_ROOT).toString(),
   request: new URL("record_lookup_request.php", DATA_ROOT).toString(),
 };
+const SOURCE_TIMEOUT_MS = 45000;
 
 let allRecords = [];
 let sourceNotes = [];
@@ -364,8 +365,13 @@ function updateLoadProgress(message = "") {
 }
 
 async function trackLoad(label, loader) {
-  loadProgress.sources[label] = "loading";
+  const started = Date.now();
+  loadProgress.sources[label] = "loading 0s";
   updateLoadProgress(`Loading ${label}...`);
+  const timer = window.setInterval(() => {
+    loadProgress.sources[label] = `loading ${Math.round((Date.now() - started) / 1000)}s`;
+    updateLoadProgress(`Still loading ${label}...`);
+  }, 1000);
   try {
     const value = await loader();
     loadProgress.sources[label] = "ok";
@@ -374,6 +380,7 @@ async function trackLoad(label, loader) {
     loadProgress.sources[label] = "error";
     return { error };
   } finally {
+    window.clearInterval(timer);
     loadProgress.completed += 1;
     updateLoadProgress(`${label} finished.`);
   }
@@ -433,10 +440,25 @@ function parseCsv(text) {
     .map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""])));
 }
 
-async function fetchTextIfOk(url) {
-  const response = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(`${url.split("/").pop()} returned HTTP ${response.status}`);
-  return response.text();
+async function fetchTextIfOk(url, timeoutMs = SOURCE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  const fileName = url.split("/").pop();
+  try {
+    const response = await fetch(`${url}?t=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`${fileName} returned HTTP ${response.status}`);
+    return await response.text();
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      throw new Error(`${fileName} timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 async function fetchJsonIfOk(url) {
