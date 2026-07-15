@@ -290,12 +290,6 @@ $candidate_specs = array_merge($candidate_specs, [
     ['path' => __DIR__ . '/calltypes.csv', 'section' => 'call_types'],
     ['path' => __DIR__ . '/dispos.csv', 'section' => 'dispositions'],
     ['path' => __DIR__ . '/callprefix.csv', 'section' => 'prefixes'],
-    ['path' => __DIR__ . '/calllog_descriptions.pdf.json', 'section' => null],
-    ['path' => __DIR__ . '/calllog_descriptions.local.json', 'section' => null],
-    ['path' => __DIR__ . '/calllog_descriptions.json', 'section' => null],
-    ['path' => __DIR__ . '/descriptions/calllog.json', 'section' => null],
-    ['path' => dirname(__DIR__) . '/calllog_descriptions.json', 'section' => null],
-    ['path' => __DIR__ . '/calllog_descriptions.manual.json', 'section' => null],
 ]);
 
 $sources = [];

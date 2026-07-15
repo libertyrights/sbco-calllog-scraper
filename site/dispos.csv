@@ -1,29 +1,30 @@
 dispo_code,short_description,when_used_explanation
-ACT,Active,Used when a CHP or fire incident is still active.
-CLS,Closed,Used when a CHP or fire incident has closed.
+*,PENDING,"Call has not been disposed yet, therefore, no disposition has been provided"
 ABA,AB109 Arrest,Used when a subject is arrested specifically for a violation of AB109 post-release community supervision conditions.
 ABI,AB109 Incident,Used when an incident involves an AB109 supervisee but does not result in an arrest.
 ABR,AB109 Report,Used when a report is taken documenting AB109-related activity or compliance without immediate enforcement action.
-ADM,Administrative Activity,Used for internal or administrative actions such as documentation, coordination, or status updates that are not enforcement-related.
+ACT,Active,Used when a CHP or fire incident is still active.
+ADM,Administrative Activity,"Used for internal or administrative actions such as documentation, coordination, or status updates that are not enforcement-related."
 ARR,Arrest,Used when a subject is taken into custody based on probable cause for a criminal offense.
 CAN,Cancel,Used when a call for service is canceled before deputies arrive or before any action is taken.
 CIA,Crisis Intervention Arrest,Used when a subject in mental health crisis is taken into custody under crisis intervention protocols.
 CIR,Crisis Intervention with Report,Used when deputies respond to a mental health crisis and document the incident without making an arrest.
 CIT,Citation Issued,Used when a subject is cited and released in lieu of arrest for a misdemeanor or infraction.
 CIV,Non-Police Civil Incident,Used when the matter is civil in nature and law enforcement action is not appropriate.
+CLS,Closed,Used when a CHP or fire incident has closed.
 CRT,Crisis Response Team,Used when a specialized crisis response or mental health team is deployed or involved.
 FAL,False Alarm,Used when an alarm or reported incident is determined to be false or unfounded upon arrival.
 FIC,Field Interview Card,Used when deputies conduct a consensual field contact and document it without enforcement action.
 GOA,Gone on Arrival,Used when deputies arrive but the involved parties or issue are no longer present.
 NAT,Necessary Action Taken,Used when deputies resolve the situation through appropriate action that does not require a report or arrest.
 NIR,Non-Investigative Report,Used when documentation is required but no investigation or enforcement is conducted.
+NK,Not Known,
 NRD,No Report Desired,Used when a reporting party declines to have a report taken after deputy contact.
 OAA,Other Agency Assist,Used when deputies assist another law enforcement or public safety agency.
 PSR,Public Service Rendered,Used when deputies provide assistance or help that is non-enforcement in nature.
 RTF,Report to Follow,Used when a report will be completed later due to time constraints or priority conflicts.
-SER,Service Rendered,Used when a requested service is completed, such as standby or welfare assistance.
+SER,Service Rendered,"Used when a requested service is completed, such as standby or welfare assistance."
 SUP,Supplemental,Used when deputies add information to an existing report or case.
 UNF,Unfounded,Used when an investigation determines the reported incident did not occur.
-UTL,Unable to Locate,Used when deputies are unable to locate the subject, victim, or involved party.
+UTL,Unable to Locate,"Used when deputies are unable to locate the subject, victim, or involved party."
 WAR,Warrant Arrest,Used when a subject is arrested based on an outstanding arrest warrant.
-*,PENDING,Call has not been disposed yet, therefore, no disposition has been provided
