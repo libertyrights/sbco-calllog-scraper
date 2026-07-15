@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSINT Downloads</title>
+<style>
+:root { --ink:#1f2623; --muted:#5b685f; --paper:#fffaf0; --line:rgba(31,38,35,.14); --copper:#a85f3a; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Georgia, "Times New Roman", serif; color:var(--ink); background:linear-gradient(145deg,#f7f0e2,#d7c3a2); }
+.shell { width:min(1040px, calc(100% - 28px)); margin:0 auto; padding:32px 0 46px; }
+.hero,.card { border:1px solid rgba(255,255,255,.72); border-radius:26px; background:rgba(255,250,240,.76); box-shadow:0 18px 48px rgba(74,65,52,.12); }
+.hero { padding:30px; margin-bottom:16px; background:linear-gradient(135deg,rgba(31,38,35,.94),rgba(55,65,57,.9)); color:#f5efe3; }
+h1 { margin:0; font-size:clamp(2.2rem,6vw,4.4rem); line-height:.95; letter-spacing:-.055em; }
+.hero p { max-width:680px; color:rgba(245,239,227,.82); font-size:1.08rem; }
+.actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+a.button { display:inline-flex; align-items:center; min-height:42px; padding:11px 15px; border-radius:999px; background:#f5efe3; color:var(--ink); text-decoration:none; font:700 .85rem Verdana,sans-serif; }
+.list { display:grid; gap:12px; }
+.card { padding:18px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; }
+h2 { margin:0 0 5px; font-size:1.35rem; }
+p { margin:0; color:var(--muted); }
+.download { color:var(--copper); font:700 .86rem Verdana,sans-serif; text-decoration:none; white-space:nowrap; }
+@media (max-width:620px){ .card{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <h1>Downloads</h1>
+    <p>Direct access to the public data files behind the call log, records pages, descriptions, and support indexes.</p>
+    <div class="actions">
+      <a class="button" href="index.html">Back to OSINT home</a>
+      <a class="button" href="status.html">Data status</a>
+    </div>
+  </section>
+  <section class="list">
+    <div class="card"><div><h2>Full call log CSV</h2><p>Primary raw call-log history, including generated hidden BA placeholders.</p></div><a class="download" href="calllog.csv">Download CSV</a></div>
+    <div class="card"><div><h2>Live call log JSON</h2><p>Fast current/scoped JSON used by the call-log page before deeper history loads.</p></div><a class="download" href="calllog.json">Open JSON</a></div>
+    <div class="card"><div><h2>Formatted call log CSV</h2><p>Address/city split version for spreadsheet work.</p></div><a class="download" href="calllog_formatted.csv">Download CSV</a></div>
+    <div class="card"><div><h2>Record annotations</h2><p>Call-to-arrest/death linkage index used by expanded cards.</p></div><a class="download" href="calllog_arrest_index.json">Open JSON</a></div>
+    <div class="card"><div><h2>Descriptions</h2><p>Merged call type, prefix, and disposition descriptions.</p></div><a class="download" href="calllog_descriptions.php">Open JSON</a></div>
+    <div class="card"><div><h2>Arrest records</h2><p>Published arrest-support data used by the records page.</p></div><a class="download" href="all_records.json">Open JSON</a></div>
+    <div class="card"><div><h2>Death index</h2><p>Published coroner/death-index CSV.</p></div><a class="download" href="death_index.csv">Download CSV</a></div>
+    <div class="card"><div><h2>Release list</h2><p>Published release-list CSV.</p></div><a class="download" href="releases.csv">Download CSV</a></div>
+    <div class="card"><div><h2>Court records</h2><p>Public court-record summary export.</p></div><a class="download" href="court_records.json">Open JSON</a></div>
+  </section>
+</main>
+</body>
+</html>

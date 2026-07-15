@@ -636,6 +636,7 @@ let callAnnotationsError = "";
 let callAnnotationsPromise = null;
 let callDescriptions = { prefixes: {}, dispositions: {}, call_types: {} };
 let callDescriptionsError = "";
+let initialQueryFiltersApplied = false;
 
 const AREA_CODE_PATTERN = /^[A-Z*]{1,5}$/;
 const ARREST_DISPOSITIONS = new Set(["ARR", "WAR", "ABA", "CIA"]);
@@ -2167,12 +2168,46 @@ function scheduleApplyFilters() {
   }, 60);
 }
 
+function applyInitialFiltersFromQuery() {
+  if (initialQueryFiltersApplied) return;
+  initialQueryFiltersApplied = true;
+  const params = new URLSearchParams(window.location.search);
+  const mappings = [
+    ["q", "searchBox"],
+    ["search", "searchBox"],
+    ["type", "filterType"],
+    ["dispo", "filterDispo"],
+    ["call", "filterCallNo"],
+    ["callno", "filterCallNo"],
+    ["prefix", "filterCallNo"],
+    ["agencyText", "filterAgencyText"],
+    ["stationText", "filterStationText"],
+    ["location", "filterLocation"],
+    ["area", "filterArea"],
+    ["pageSize", "pageSize"],
+  ];
+  for (const [paramName, elementId] of mappings) {
+    const value = params.get(paramName);
+    const node = document.getElementById(elementId);
+    if (value && node) node.value = value;
+  }
+  if (params.get("hidden") === "1" || params.get("hidden") === "true") {
+    const node = document.getElementById("filterType");
+    if (node) node.value = "HIDDEN";
+  }
+  if (params.get("removed") === "1" || params.get("removed") === "true") {
+    const node = document.getElementById("searchBox");
+    if (node && !node.value) node.value = "removed";
+  }
+}
+
 async function refreshPage(options = {}) {
   const forceHistory = Boolean(options.forceHistory);
   setStatus("Refreshing live call feed...", "plain");
   try {
     await Promise.all([loadCallDescriptions(), loadLiveFeed()]);
     rebuildCombinedGroups();
+    applyInitialFiltersFromQuery();
     applyFilters();
     const shouldLoadApiPreview = !historyGroups.length && !apiPreviewGroups.length && !apiPreviewPromise;
     const shouldLoadHistory = forceHistory && !historyLoadPromise;

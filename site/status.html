@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSINT Data Status</title>
+<style>
+:root { --ink:#1f2623; --muted:#5b685f; --paper:#fffaf0; --bg:#efe2cb; --line:rgba(31,38,35,.14); --sage:#667a68; --copper:#a85f3a; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Georgia, "Times New Roman", serif; color:var(--ink); background:linear-gradient(145deg,#f7f0e2,#d7c3a2); }
+.shell { width:min(1120px, calc(100% - 28px)); margin:0 auto; padding:32px 0 46px; }
+.hero, .card { border:1px solid rgba(255,255,255,.7); border-radius:26px; background:rgba(255,250,240,.76); box-shadow:0 18px 48px rgba(74,65,52,.12); }
+.hero { padding:30px; margin-bottom:16px; background:linear-gradient(135deg,rgba(31,38,35,.94),rgba(55,65,57,.9)); color:#f5efe3; }
+h1 { margin:0; font-size:clamp(2.2rem,6vw,4.4rem); line-height:.95; letter-spacing:-.055em; }
+.hero p { max-width:680px; color:rgba(245,239,227,.82); font-size:1.08rem; }
+.actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+a.button { display:inline-flex; align-items:center; min-height:42px; padding:11px 15px; border-radius:999px; background:#f5efe3; color:var(--ink); text-decoration:none; font:700 .85rem Verdana,sans-serif; }
+.grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.card { padding:18px; }
+.label { color:var(--muted); font:700 .72rem Verdana,sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+.value { margin-top:7px; font-size:2rem; font-weight:800; }
+.wide { grid-column:1/-1; }
+table { width:100%; border-collapse:collapse; font-size:.95rem; }
+th,td { padding:10px 8px; border-top:1px solid var(--line); text-align:left; }
+th { color:var(--muted); font:700 .72rem Verdana,sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+.ok { color:#315d3f; font-weight:700; }
+.warn { color:#8a4c2c; font-weight:700; }
+@media (max-width:760px){ .grid{grid-template-columns:1fr 1fr;} .wide{grid-column:1/-1;} }
+@media (max-width:520px){ .grid{grid-template-columns:1fr;} .hero{padding:24px;} }
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <h1>OSINT data status</h1>
+    <p>Quick health view for the public files that power the call log, records page, and record-linking workflow.</p>
+    <div class="actions">
+      <a class="button" href="index.html">Back to OSINT home</a>
+      <a class="button" href="downloads.html">Downloads</a>
+      <a class="button" href="sbsd.html?hidden=1">Hidden BA calls</a>
+      <a class="button" href="sbsd.html?removed=1">Removed calls</a>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="card"><div class="label">Live call JSON rows</div><div id="callRows" class="value">...</div></div>
+    <div class="card"><div class="label">Hidden BA placeholders</div><div id="hiddenRows" class="value">...</div></div>
+    <div class="card"><div class="label">Removed-source revisions</div><div id="removedRows" class="value">...</div></div>
+    <div class="card"><div class="label">Record links</div><div id="annotationRows" class="value">...</div></div>
+    <div class="card wide">
+      <div class="label">Published files</div>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Size</th><th>Updated</th></tr></thead>
+        <tbody id="fileRows"><tr><td colspan="4">Checking files...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+const files = [
+  "calllog.json",
+  "calllog.csv",
+  "calllog_formatted.csv",
+  "calllog_arrest_index.json",
+  "calllog_descriptions.php",
+  "all_records.json",
+  "death_index.csv",
+  "releases.csv",
+  "court_records.json",
+  "calllog_upload_meta.json"
+];
+function fmt(n) { return Number.isFinite(n) ? n.toLocaleString() : "..."; }
+function sizeText(bytes) {
+  if (!Number.isFinite(bytes)) return "unknown";
+  if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes > 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+async function headFile(name) {
+  try {
+    const response = await fetch(name, { method: "HEAD", cache: "no-store" });
+    return {
+      name,
+      ok: response.ok,
+      status: response.status,
+      size: Number(response.headers.get("content-length")),
+      updated: response.headers.get("last-modified") || ""
+    };
+  } catch (error) {
+    return { name, ok:false, status:"ERR", size:NaN, updated:error.message || "failed" };
+  }
+}
+async function loadJson(name) {
+  const response = await fetch(name, { cache: "no-store" });
+  if (!response.ok) throw new Error(`${name} HTTP ${response.status}`);
+  return response.json();
+}
+async function main() {
+  try {
+    const rows = await loadJson("calllog.json");
+    const callRows = Array.isArray(rows) ? rows : [];
+    document.getElementById("callRows").textContent = fmt(callRows.length);
+    document.getElementById("hiddenRows").textContent = fmt(callRows.filter((row) => String(row["call type"] || row.type || "").toUpperCase() === "HIDDEN").length);
+    document.getElementById("removedRows").textContent = fmt(callRows.filter((row) => {
+      try { return Boolean(JSON.parse(row.extra_json || row.extra || "{}").removed_from_source); }
+      catch (_) { return false; }
+    }).length);
+  } catch (_) {
+    document.getElementById("callRows").textContent = "n/a";
+    document.getElementById("hiddenRows").textContent = "n/a";
+    document.getElementById("removedRows").textContent = "n/a";
+  }
+  try {
+    const annotations = await loadJson("calllog_arrest_index.json");
+    document.getElementById("annotationRows").textContent = fmt(Object.keys(annotations.annotations || annotations.calls || annotations || {}).length);
+  } catch (_) {
+    document.getElementById("annotationRows").textContent = "n/a";
+  }
+  const results = await Promise.all(files.map(headFile));
+  document.getElementById("fileRows").innerHTML = results.map((file) => `
+    <tr>
+      <td><a href="${file.name}">${file.name}</a></td>
+      <td class="${file.ok ? "ok" : "warn"}">${file.ok ? "OK" : file.status}</td>
+      <td>${sizeText(file.size)}</td>
+      <td>${file.updated}</td>
+    </tr>
+  `).join("");
+}
+main();
+</script>
+</body>
+</html>

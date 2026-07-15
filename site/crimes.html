@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crime Data Rebuild</title>
+<style>
+body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background:linear-gradient(145deg,#f7f0e2,#d7c3a2); color:#1f2623; font-family:Georgia,"Times New Roman",serif; }
+.card { max-width:860px; padding:34px; border-radius:28px; background:rgba(255,250,240,.82); box-shadow:0 22px 70px rgba(31,38,35,.16); border:1px solid rgba(255,255,255,.75); }
+h1 { margin:0 0 12px; font-size:clamp(2rem,6vw,4rem); line-height:.95; letter-spacing:-.05em; }
+p { color:#53625b; font-size:1.08rem; }
+.actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+a { display:inline-flex; padding:12px 16px; border-radius:999px; background:#1f2623; color:#fffaf0; text-decoration:none; font:700 .9rem Verdana,sans-serif; }
+a.secondary { background:#fffaf0; color:#1f2623; border:1px solid rgba(31,38,35,.18); }
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>Crime page needs a rebuild.</h1>
+  <p>The old crimes page was a static dump from older call-log data. Use the live call log filters for now; a rebuilt crime dashboard should be generated from the current call-log dataset with reliable descriptions and dates.</p>
+  <div class="actions">
+    <a href="sbsd.html">Open live call log</a>
+    <a class="secondary" href="sbsd.html?hidden=1">Hidden BA calls</a>
+    <a class="secondary" href="sbsd.html?removed=1">Removed calls</a>
+    <a class="secondary" href="downloads.html">Download raw data</a>
+  </div>
+</main>
+</body>
+</html>

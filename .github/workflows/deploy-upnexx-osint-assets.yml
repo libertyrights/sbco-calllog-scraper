@@ -23,6 +23,10 @@ jobs:
         run: |
           python sync_calllog_descriptions.py
           python deploy_ftp_file.py site/index.html index.html
+          python deploy_ftp_file.py site/status.html status.html
+          python deploy_ftp_file.py site/downloads.html downloads.html
+          python deploy_ftp_file.py site/arrests.html arrests.html
+          python deploy_ftp_file.py site/crimes.html crimes.html
           python deploy_ftp_file.py site/upload_calllog_signed.php upload_calllog_signed.php
           python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
           python deploy_ftp_file.py site/sbsd.html sbsd.html

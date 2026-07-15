@@ -332,6 +332,7 @@ if (window.self !== window.top) {
       <div class="hero-actions">
         <a class="action primary" href="sbsd.html">Open call log</a>
         <a class="action" href="records.html">Search records</a>
+        <a class="action" href="status.html">Data status</a>
         <a class="action" href="https://form.jotform.com/240654316817155" target="_blank" rel="noreferrer">Police activity alerts</a>
       </div>
     </section>
@@ -357,19 +358,47 @@ if (window.self !== window.top) {
         </div>
         <div class="meta"><span class="tag live">Live</span><span class="tag">Full page</span></div>
       </button>
+      <button class="card" data-target="sbsd.html?hidden=1" data-state="live">
+        <div>
+          <h3>Hidden BA Calls</h3>
+          <p>Generated placeholders for missing Barstow sequence numbers.</p>
+        </div>
+        <div class="meta"><span class="tag live">Shortcut</span><span class="tag">Call log</span></div>
+      </button>
+      <button class="card" data-target="sbsd.html?removed=1" data-state="live">
+        <div>
+          <h3>Removed Calls</h3>
+          <p>Previously captured BA calls later missing from accessible sheriff log pages.</p>
+        </div>
+        <div class="meta"><span class="tag live">Shortcut</span><span class="tag">Call log</span></div>
+      </button>
+      <button class="card" data-target="status.html" data-state="live">
+        <div>
+          <h3>Data Status</h3>
+          <p>Counts and file health for the public call-log and record datasets.</p>
+        </div>
+        <div class="meta"><span class="tag live">New</span><span class="tag">Dashboard</span></div>
+      </button>
+      <button class="card" data-target="downloads.html" data-state="live">
+        <div>
+          <h3>Downloads</h3>
+          <p>Direct links to public CSV and JSON exports.</p>
+        </div>
+        <div class="meta"><span class="tag live">New</span><span class="tag">Files</span></div>
+      </button>
       <button class="card" data-target="arrests.html" data-state="review">
         <div>
           <h3>Recent Arrests</h3>
-          <p>Legacy arrest view. Kept available while the records page becomes the primary interface.</p>
+          <p>Legacy URL now points users into the newer records search.</p>
         </div>
-        <div class="meta"><span class="tag review">Review</span><span class="tag">Legacy</span></div>
+        <div class="meta"><span class="tag live">Redirect</span><span class="tag">Records</span></div>
       </button>
       <button class="card" data-target="crimes.html" data-state="maintenance">
         <div>
           <h3>Crimes</h3>
-          <p>Older static crime page. Available, but likely should be rebuilt from the current call-log data.</p>
+          <p>Rebuild notice with links into live call-log filters and downloads.</p>
         </div>
-        <div class="meta"><span class="tag review">Needs check</span></div>
+        <div class="meta"><span class="tag review">Rebuild</span></div>
       </button>
       <button class="card" data-target="earthquakes.html" data-state="live">
         <div>
@@ -439,7 +468,12 @@ if (window.self !== window.top) {
 
     function loadTool(target) {
       if (!target) return;
-      if (target === "sbsd.html" || target === "records.html") {
+      if (
+        target.startsWith("sbsd.html") ||
+        target.startsWith("records.html") ||
+        target.startsWith("status.html") ||
+        target.startsWith("downloads.html")
+      ) {
         window.location.href = target;
         return;
       }
