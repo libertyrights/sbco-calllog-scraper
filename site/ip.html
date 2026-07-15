@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IP Lookup</title>
+<style>
+:root{--ink:#1f2623;--muted:#5f6d66;--paper:#fffaf0;--line:#d7c6a9}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(145deg,#f7f0e2,#d7c6a9);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+.shell{width:min(980px,calc(100% - 28px));margin:0 auto;padding:28px 0}.hero,.card{border:1px solid rgba(255,255,255,.75);border-radius:24px;background:rgba(255,250,240,.82);box-shadow:0 18px 48px rgba(74,65,52,.12)}
+.hero{padding:28px;background:linear-gradient(135deg,#1f2623,#3e4a42);color:#fffaf0}h1{margin:0;font-size:clamp(2rem,5vw,4rem);letter-spacing:-.05em;line-height:.95}.hero p{color:rgba(255,250,240,.82)}
+.card{margin-top:16px;padding:18px}.lookup{display:grid;grid-template-columns:1fr auto auto;gap:10px}input{min-height:46px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font-size:18px}
+button,.button{min-height:46px;border:0;border-radius:12px;background:#163c69;color:#fff;padding:0 16px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.secondary{background:#53625b}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.field{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.45)}.field b{display:block;font:700 .72rem Verdana,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}.muted{color:var(--muted)}.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+@media(max-width:640px){.lookup,.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero"><h1>IP lookup</h1><p>Basic IP geolocation, ASN, ISP, and reputation-launch links.</p></section>
+  <section class="card">
+    <form class="lookup" id="lookupForm">
+      <input id="ip" placeholder="8.8.8.8 or leave blank for your IP">
+      <button type="submit">Lookup</button>
+      <button class="secondary" id="myIpBtn" type="button">My IP</button>
+    </form>
+    <p id="status" class="muted">Uses ipwho.is for the live lookup.</p>
+  </section>
+  <section class="card" id="results" hidden><div class="grid" id="fields"></div><div class="links" id="links"></div></section>
+</main>
+<script>
+function esc(value){return String(value ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function field(label,value){return `<div class="field"><b>${esc(label)}</b>${esc(value || "Unknown")}</div>`}
+async function lookup(ip=""){
+  document.getElementById("status").textContent = "Loading IP data...";
+  const url = ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : "https://ipwho.is/";
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.success === false) throw new Error(data.message || "Lookup failed");
+  document.getElementById("fields").innerHTML = [
+    field("IP", data.ip),
+    field("Type", data.type),
+    field("Location", [data.city, data.region, data.country].filter(Boolean).join(", ")),
+    field("Coordinates", data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : ""),
+    field("ISP", data.connection?.isp),
+    field("ASN", data.connection?.asn ? `AS${data.connection.asn} ${data.connection.org || ""}` : ""),
+    field("Timezone", data.timezone?.id),
+    field("Calling code", data.calling_code ? `+${data.calling_code}` : ""),
+  ].join("");
+  const ipText = encodeURIComponent(data.ip);
+  document.getElementById("links").innerHTML = [
+    `<a class="button" href="https://www.ipqualityscore.com/ip-reputation-check/lookup/${ipText}" target="_blank" rel="noreferrer">IPQS reputation</a>`,
+    `<a class="button secondary" href="https://www.abuseipdb.com/check/${ipText}" target="_blank" rel="noreferrer">AbuseIPDB</a>`,
+    `<a class="button secondary" href="https://search.censys.io/hosts/${ipText}" target="_blank" rel="noreferrer">Censys</a>`,
+  ].join("");
+  document.getElementById("results").hidden = false;
+  document.getElementById("status").textContent = "Lookup complete.";
+}
+document.getElementById("lookupForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try { await lookup(document.getElementById("ip").value.trim()); } catch (error) { document.getElementById("status").textContent = error.message || "Lookup failed."; }
+});
+document.getElementById("myIpBtn").addEventListener("click", async () => {
+  document.getElementById("ip").value = "";
+  try { await lookup(""); } catch (error) { document.getElementById("status").textContent = error.message || "Lookup failed."; }
+});
+</script>
+</body>
+</html>

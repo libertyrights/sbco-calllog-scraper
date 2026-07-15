@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recent Earthquakes</title>
+<style>
+body{margin:0;background:#f4f7fb;color:#17202a;font-family:Arial,sans-serif}.shell{max-width:1180px;margin:0 auto;padding:18px}.top{background:#163c69;color:#fff;border-radius:18px;padding:20px}h1{margin:0}.card{margin-top:14px;background:#fff;border:1px solid #d8e2ed;border-radius:16px;padding:14px;box-shadow:0 12px 28px rgba(16,38,64,.06)}.controls{display:flex;flex-wrap:wrap;gap:10px}input,select,button{min-height:38px;border-radius:10px;border:1px solid #bcc9d8;padding:0 10px}button{background:#163c69;color:#fff;border:0;font-weight:700}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:left}th{background:#163c69;color:#fff;position:sticky;top:0}.low{background:#e8f7ee}.med{background:#fff6d6}.high{background:#ffe2e2}.status{font-weight:700}.muted{color:#627181}
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="top"><h1>Recent earthquakes</h1><p>USGS events centered near Daggett / Barstow, with magnitude, distance, and time filters.</p></section>
+  <section class="card controls">
+    <label>Min magnitude <input id="minMag" type="number" step="0.1" value="0"></label>
+    <label>Radius miles <input id="radius" type="number" value="200"></label>
+    <label>Time <select id="hours"><option value="24">Last 24 hours</option><option value="72">Last 3 days</option><option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option></select></label>
+    <button id="refresh" type="button">Refresh</button>
+    <span id="status" class="status">Loading...</span>
+  </section>
+  <section class="card">
+    <table><thead><tr><th>Local Time</th><th>Mag</th><th>Distance</th><th>Depth</th><th>Location</th></tr></thead><tbody id="rows"></tbody></table>
+    <p id="empty" class="muted" hidden>No matching earthquakes.</p>
+  </section>
+</main>
+<script>
+const CENTER = { lat: 34.865, lon: -116.888 };
+let events = [];
+function miles(lat1,lon1,lat2,lon2){const R=3958.8,toRad=d=>d*Math.PI/180,dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
+function magClass(m){return m>=4?"high":m>=2.5?"med":"low"}
+async function load(){
+  document.getElementById("status").textContent="Loading USGS feed...";
+  const hours=Number(document.getElementById("hours").value || 168);
+  const start=new Date(Date.now()-hours*60*60*1000).toISOString();
+  const url=`https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${CENTER.lat}&longitude=${CENTER.lon}&maxradiuskm=500&starttime=${encodeURIComponent(start)}&orderby=time`;
+  const res=await fetch(url);
+  const data=await res.json();
+  events=data.features || [];
+  render();
+}
+function render(){
+  const minMag=Number(document.getElementById("minMag").value || 0);
+  const radius=Number(document.getElementById("radius").value || 200);
+  const rows=events.map(eq=>{const p=eq.properties,g=eq.geometry.coordinates;return {p,g,dist:miles(CENTER.lat,CENTER.lon,g[1],g[0])}}).filter(x=>(x.p.mag || 0)>=minMag && x.dist<=radius);
+  document.getElementById("rows").innerHTML=rows.map(({p,g,dist})=>`<tr class="${magClass(p.mag || 0)}"><td>${new Date(p.time).toLocaleString()}</td><td><b>${p.mag ?? ""}</b></td><td>${dist.toFixed(1)} mi</td><td>${Number(g[2] || 0).toFixed(1)} km</td><td><a href="${p.url}" target="_blank" rel="noreferrer">${p.place || "USGS event"}</a></td></tr>`).join("");
+  document.getElementById("empty").hidden=rows.length>0;
+  document.getElementById("status").textContent=`${rows.length} of ${events.length} events shown`;
+}
+document.getElementById("refresh").addEventListener("click",load);
+document.getElementById("minMag").addEventListener("input",render);
+document.getElementById("radius").addEventListener("input",render);
+document.getElementById("hours").addEventListener("change",load);
+load().catch(error=>{document.getElementById("status").textContent=error.message || "Unable to load earthquakes";});
+</script>
+</body>
+</html>

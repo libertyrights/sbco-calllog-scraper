@@ -27,6 +27,10 @@ jobs:
           python deploy_ftp_file.py site/downloads.html downloads.html
           python deploy_ftp_file.py site/arrests.html arrests.html
           python deploy_ftp_file.py site/crimes.html crimes.html
+          python deploy_ftp_file.py site/ip.html ip.html
+          python deploy_ftp_file.py site/phone.html phone.html
+          python deploy_ftp_file.py site/earthquakes.html earthquakes.html
+          python deploy_ftp_file.py site/property/index.html property/index.html
           python deploy_ftp_file.py site/upload_calllog_signed.php upload_calllog_signed.php
           python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
           python deploy_ftp_file.py site/sbsd.html sbsd.html

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daggett Area Property Sales</title>
+<style>
+body{margin:0;background:#f4f6f8;color:#20252d;font-family:Arial,sans-serif}.shell{max-width:1240px;margin:0 auto;padding:18px}header{background:#1c2733;color:#fff;border-radius:18px;padding:18px}h1{margin:0}.card{margin-top:14px;background:#fff;border:1px solid #d7dde5;border-radius:16px;padding:14px;box-shadow:0 12px 28px rgba(16,38,64,.06)}.controls{display:flex;gap:10px;flex-wrap:wrap}input,select,button{min-height:38px;border-radius:10px;border:1px solid #aeb8c5;padding:0 10px}input{flex:1;min-width:220px}button{background:#1c6aa9;color:#fff;border:0;font-weight:700}.secondary{background:#4b5663}.stats{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.stat{background:#f8fbff;border:1px solid #d7dde5;border-radius:14px;padding:12px}.stat b{display:block;color:#596575;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.stat span{font-size:24px;font-weight:800}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #e3e8ef;text-align:left}th{background:#2e4054;color:#fff;position:sticky;top:0}.money{text-align:right}.muted{color:#66717f}.warn{color:#8a4a13;font-weight:700}@media(max-width:720px){.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header><h1>Daggett area property sales</h1><p>Local property-sale workspace for Daggett and surrounding desert communities. County tax-sale data is loaded only on request because the file is large.</p></header>
+  <section class="card stats">
+    <div class="stat"><b>County tax-sale rows</b><span id="countyCount">...</span></div>
+    <div class="stat"><b>County sold rows</b><span id="soldCount">...</span></div>
+    <div class="stat"><b>Daggett/local rows</b><span id="localCount">...</span></div>
+    <div class="stat"><b>Current auctions</b><span id="auctionCount">...</span></div>
+  </section>
+  <section class="card controls">
+    <input id="search" placeholder="Search APN, date, price, notes, address">
+    <select id="view"><option value="local">Daggett / surrounding sales</option><option value="current">Current auctions</option><option value="county">County tax-sale results</option></select>
+    <select id="statusFilter"><option value="">All statuses</option><option value="sold">Sold</option><option value="no_bid">No bid</option></select>
+    <button id="loadCounty" type="button">Load county file</button>
+  </section>
+  <section class="card">
+    <p id="status" class="muted">Loading summary...</p>
+    <table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
+    <p id="empty" class="muted" hidden>No rows match this view.</p>
+  </section>
+</main>
+<script>
+const state={summary:null,local:[],current:[],county:[],countyLoaded:false};
+const LOCAL_PLACES=["daggett","barstow","newberry springs","yermo","lenwood","hinkley","helendale","ludlow"];
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function money(v){const n=Number(String(v??"").replace(/[$,]/g,""));return Number.isFinite(n)&&String(v)!==""?"$"+n.toLocaleString():esc(v)}
+async function getJson(url,fallback){try{const r=await fetch(url+"?t="+Date.now());if(!r.ok)throw new Error(r.status);return await r.json()}catch{return fallback}}
+async function loadBase(){
+  const [summary,local,current]=await Promise.all([
+    getJson("property_summary.json",{}),
+    getJson("daggett_sales.json",[]),
+    getJson("current_tax_sales.json",{auctions:[]})
+  ]);
+  state.summary=summary; state.local=local; state.current=current.auctions||[];
+  document.getElementById("countyCount").textContent=(summary.tax_sale_result_count??"?").toLocaleString?.() || summary.tax_sale_result_count || "?";
+  document.getElementById("soldCount").textContent=(summary.tax_sale_sold_count??"?").toLocaleString?.() || summary.tax_sale_sold_count || "?";
+  document.getElementById("localCount").textContent=state.local.length.toLocaleString();
+  document.getElementById("auctionCount").textContent=state.current.length.toLocaleString();
+  render();
+}
+async function loadCounty(){
+  document.getElementById("status").textContent="Loading large county tax-sale file...";
+  state.county=await getJson("tax_sales_results.json",[]);
+  state.countyLoaded=true;
+  document.getElementById("view").value="county";
+  render();
+}
+function rowBlob(row){return Object.values(row).join(" ").toLowerCase()}
+function rowsForView(){
+  const view=document.getElementById("view").value;
+  if(view==="current")return state.current;
+  if(view==="county")return state.countyLoaded?state.county:[];
+  return state.local;
+}
+function render(){
+  const view=document.getElementById("view").value;
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  const status=document.getElementById("statusFilter").value;
+  const rows=rowsForView().filter(row=>(!q||rowBlob(row).includes(q))&&(!status||row.status===status));
+  const columns=view==="current"?["batch_closing_end","item_count","auction_status","deposit_status"]:["apn","sale_date","price","opening_bid","status","address","notes"];
+  document.getElementById("head").innerHTML=columns.map(c=>`<th>${esc(c.replaceAll("_"," "))}</th>`).join("");
+  document.getElementById("rows").innerHTML=rows.slice(0,1000).map(row=>`<tr>${columns.map(c=>`<td class="${c==="price"||c==="opening_bid"?"money":""}">${c==="price"||c==="opening_bid"?money(row[c+"_num"]||row[c]):esc(row[c]||"")}</td>`).join("")}</tr>`).join("");
+  document.getElementById("empty").hidden=rows.length>0;
+  if(view==="local"&&state.local.length===0){
+    document.getElementById("status").innerHTML="<span class='warn'>No Daggett/surrounding sale rows are published yet.</span> The page is ready for a separate local property-sales scraper to populate daggett_sales.json.";
+  }else if(view==="county"&&!state.countyLoaded){
+    document.getElementById("status").textContent="County tax-sale file is not loaded yet. Click Load county file.";
+  }else{
+    document.getElementById("status").textContent=`${rows.length.toLocaleString()} rows shown${rows.length>1000 ? " (first 1,000 rendered)" : ""}.`;
+  }
+}
+document.getElementById("loadCounty").addEventListener("click",loadCounty);
+document.getElementById("search").addEventListener("input",render);
+document.getElementById("view").addEventListener("change",render);
+document.getElementById("statusFilter").addEventListener("change",render);
+loadBase();
+</script>
+</body>
+</html>
