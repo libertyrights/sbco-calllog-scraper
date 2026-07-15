@@ -332,22 +332,22 @@ if (window.self !== window.top) {
       <div class="hero-actions">
         <a class="action primary" href="sbsd.html">Open call log</a>
         <a class="action" href="records.html">Search records</a>
-        <a class="action" href="status.html">Data status</a>
-        <a class="action" href="https://form.jotform.com/240654316817155" target="_blank" rel="noreferrer">Police activity alerts</a>
+        <a class="action" href="status.html">Data stats</a>
+        <a class="action" href="downloads.html">Downloads</a>
       </div>
     </section>
 
     <div class="section-heading">
       <div>
         <h2>Public Safety & Records</h2>
-        <p>Current pages and high-value local datasets. These should stay prominent.</p>
+        <p>Current tools and high-value local datasets.</p>
       </div>
     </div>
     <section class="grid" aria-label="Public safety tools">
       <button class="card" data-target="sbsd.html" data-state="live">
         <div>
           <h3>Barstow Sheriff Call Log</h3>
-          <p>Live and historical call activity with descriptions, linked records, and hidden-sequence markers.</p>
+          <p>Live and historical call activity with descriptions and linked records.</p>
         </div>
         <div class="meta"><span class="tag live">Live</span><span class="tag">Full page</span></div>
       </button>
@@ -358,47 +358,33 @@ if (window.self !== window.top) {
         </div>
         <div class="meta"><span class="tag live">Live</span><span class="tag">Full page</span></div>
       </button>
-      <button class="card" data-target="sbsd.html?hidden=1" data-state="live">
-        <div>
-          <h3>Hidden BA Calls</h3>
-          <p>Generated placeholders for missing Barstow sequence numbers.</p>
-        </div>
-        <div class="meta"><span class="tag live">Shortcut</span><span class="tag">Call log</span></div>
-      </button>
-      <button class="card" data-target="sbsd.html?removed=1" data-state="live">
-        <div>
-          <h3>Removed Calls</h3>
-          <p>Previously captured BA calls later missing from accessible sheriff log pages.</p>
-        </div>
-        <div class="meta"><span class="tag live">Shortcut</span><span class="tag">Call log</span></div>
-      </button>
       <button class="card" data-target="status.html" data-state="live">
         <div>
-          <h3>Data Status</h3>
+          <h3>Data Stats</h3>
           <p>Counts and file health for the public call-log and record datasets.</p>
         </div>
-        <div class="meta"><span class="tag live">New</span><span class="tag">Dashboard</span></div>
+        <div class="meta"><span class="tag live">Tool</span><span class="tag">Dashboard</span></div>
       </button>
       <button class="card" data-target="downloads.html" data-state="live">
         <div>
           <h3>Downloads</h3>
           <p>Direct links to public CSV and JSON exports.</p>
         </div>
-        <div class="meta"><span class="tag live">New</span><span class="tag">Files</span></div>
+        <div class="meta"><span class="tag live">Tool</span><span class="tag">Files</span></div>
       </button>
       <button class="card" data-target="arrests.html" data-state="review">
         <div>
           <h3>Recent Arrests</h3>
-          <p>Legacy URL now points users into the newer records search.</p>
+          <p>Arrest-focused entry point for recent booking and records work.</p>
         </div>
-        <div class="meta"><span class="tag live">Redirect</span><span class="tag">Records</span></div>
+        <div class="meta"><span class="tag live">Tool</span><span class="tag">Records</span></div>
       </button>
       <button class="card" data-target="crimes.html" data-state="maintenance">
         <div>
           <h3>Crimes</h3>
-          <p>Rebuild notice with links into live call-log filters and downloads.</p>
+          <p>Crime and public-safety lookup page.</p>
         </div>
-        <div class="meta"><span class="tag review">Rebuild</span></div>
+        <div class="meta"><span class="tag review">Tool</span></div>
       </button>
       <button class="card" data-target="earthquakes.html" data-state="live">
         <div>
@@ -425,29 +411,12 @@ if (window.self !== window.top) {
     <section class="grid" aria-label="Lookup utilities">
       <button class="card" data-target="ip.html"><div><h3>IP Address</h3><p>Network lookup utility.</p></div><div class="meta"><span class="tag">Tool</span></div></button>
       <button class="card" data-target="phone.html"><div><h3>Phone</h3><p>Phone lookup utility.</p></div><div class="meta"><span class="tag">Tool</span></div></button>
-      <button class="card" data-target="referral.html"><div><h3>Referrals</h3><p>Referral and resource page.</p></div><div class="meta"><span class="tag">Info</span></div></button>
-    </section>
-    <div class="audit-note">
-      <strong>Hidden from navigation for now:</strong>
-      Address lookup, name lookup, link checker, chat, blog, AI, and donate pages currently return 404s on the live server.
-      They should either be rebuilt intentionally or removed from the old tool list.
-    </div>
-
-    <div class="section-heading">
-      <div>
-        <h2>Community & Support</h2>
-        <p>Lower-priority pages that may be candidates for pruning or rebuilding.</p>
-      </div>
-    </div>
-    <section class="grid" aria-label="Community and support pages">
-      <button class="card" data-target="default.html"><div><h3>Original Welcome Panel</h3><p>The old default OSINT welcome page is still available as a lightweight fallback.</p></div><div class="meta"><span class="tag">Available</span></div></button>
-      <button class="card" data-target="referral.html"><div><h3>Support / Referrals</h3><p>The referral page is currently the only working support-style page.</p></div><div class="meta"><span class="tag">Available</span></div></button>
     </section>
 
     <section class="panel" aria-label="Tool preview">
       <div class="panel-header">
         <div class="panel-title" id="panelTitle">Preview panel</div>
-        <a class="panel-link" id="openPanelLink" href="sbsd.html" target="_blank" rel="noreferrer">Open call log</a>
+        <a class="panel-link" id="openPanelLink" href="ip.html" target="_blank" rel="noreferrer">Open selected tool</a>
       </div>
       <iframe
         id="myframe"
@@ -457,7 +426,7 @@ if (window.self !== window.top) {
     </section>
 
     <footer>
-      Digital Desert Daggett / Upnexx OSINT tools. Older utilities are being reviewed and cleaned up.
+      Digital Desert Daggett / Upnexx OSINT tools.
     </footer>
   </main>
 
