@@ -59,13 +59,11 @@ th { color:var(--muted); font:700 .72rem Verdana,sans-serif; letter-spacing:.08e
 const files = [
   "calllog.json",
   "calllog.csv",
-  "calllog_formatted.csv",
   "calllog_arrest_index.json",
   "calllog_descriptions.php",
   "all_records.json",
   "death_index.csv",
   "releases.csv",
-  "court_records.json",
   "calllog_upload_meta.json"
 ];
 function fmt(n) { return Number.isFinite(n) ? n.toLocaleString() : "..."; }
@@ -78,11 +76,12 @@ function sizeText(bytes) {
 async function headFile(name) {
   try {
     const response = await fetch(name, { method: "HEAD", cache: "no-store" });
+    const sizeHeader = response.headers.get("content-length");
     return {
       name,
       ok: response.ok,
       status: response.status,
-      size: Number(response.headers.get("content-length")),
+      size: sizeHeader === null ? NaN : Number(sizeHeader),
       updated: response.headers.get("last-modified") || ""
     };
   } catch (error) {
@@ -111,7 +110,11 @@ async function main() {
   }
   try {
     const annotations = await loadJson("calllog_arrest_index.json");
-    document.getElementById("annotationRows").textContent = fmt(Object.keys(annotations.annotations || annotations.calls || annotations || {}).length);
+    document.getElementById("annotationRows").textContent = fmt(
+      annotations.entry_count ||
+      annotations.matched_call_count ||
+      Object.keys(annotations.annotations || annotations.calls || {}).length
+    );
   } catch (_) {
     document.getElementById("annotationRows").textContent = "n/a";
   }
