@@ -558,7 +558,7 @@ def call_number_has_valid_shape(agency, call_number):
     if agency_upper == PULSEPOINT_AGENCY_CODE.upper():
         return re.fullmatch(r"{}-[A-Z0-9]+(?:\.\d+)?".format(re.escape(PULSEPOINT_AGENCY_CODE.upper())), call_text) is not None
     if agency_upper == PRIMARY_AGENCY_CODE.upper():
-        return re.fullmatch(r"[A-Z]{2}\d{6,12}(?:\.\d+)?", call_text) is not None
+        return re.fullmatch(r"[A-Z]{2}(?:[A-Z0-9]\d+|\$[A-Z]+\d+)(?:\.\d+)?", call_text) is not None
     return re.fullmatch(r"[A-Z0-9_-]{6,}(?:\.\d+)?", call_text) is not None
 
 
@@ -568,8 +568,6 @@ def row_has_valid_shape(record):
         return False
     agency = (normalized.get("agency", "") or "").strip().upper()
     if not looks_like_agency_code(agency):
-        return False
-    if parse_datetime(normalized.get("date/time", "")) is None:
         return False
     return call_number_has_valid_shape(agency, normalized.get("call number", ""))
 
