@@ -1,5 +1,8 @@
 {
   "source": "user-provided call type corrections",
+  "dispositions": {
+    "NK": "Not Known"
+  },
   "call_types": {
     "1013": "Road/weather conditions",
     "10851": "Vehicle taken/driven without owner's consent (joyriding/GTA)",
@@ -32,6 +35,7 @@
     "CZP": "COZEEP",
     "EXPANDED TRAFFIC COLLISION": "Expanded traffic collision",
     "GCC": "Government/City Code violation",
+    "HIDDEN": "The Sheriffs Department did not disclose details of this call in their call log, and we therefore do not have any details. It is also possible, due to an error, that this record was not downloaded from the call log. The call time is not known; the next disclosed call's time is used as a placeholder.",
     "HOMER": "Home visit",
     "HR": "Hour / on-hour break",
     "INC": "Incident report requested",

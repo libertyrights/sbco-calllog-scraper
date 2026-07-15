@@ -632,6 +632,109 @@ def call_base(call_number):
     return call_number.split(".")[0] if "." in call_number else call_number
 
 
+def is_hidden_placeholder(record):
+    normalized = normalize_record(record)
+    return (
+        (normalized.get("agency", "") or "").strip().upper() == PRIMARY_AGENCY_CODE.upper()
+        and (normalized.get("call type", "") or "").strip().upper() == "HIDDEN"
+        and (normalized.get("disposition", "") or "").strip().upper() == "NK"
+    )
+
+
+BA_SEQUENCE_RE = re.compile(r"^BA(?P<year>\d{2})(?P<julian>\d{3})(?P<sequence>\d+)(?:\.\d+)?$")
+
+
+def ba_sequence_parts(call_number):
+    match = BA_SEQUENCE_RE.fullmatch((call_number or "").strip().upper())
+    if not match:
+        return None
+    julian = int(match.group("julian"))
+    if not 1 <= julian <= 366:
+        return None
+    sequence_text = match.group("sequence")
+    return int(match.group("year")), julian, int(sequence_text), len(sequence_text)
+
+
+def date_from_ba_sequence(year, julian):
+    try:
+        return datetime(2000 + year, 1, 1) + timedelta(days=julian - 1)
+    except ValueError:
+        return None
+
+
+def build_hidden_ba_row(year, julian, sequence, width, date_text=""):
+    call_date = date_from_ba_sequence(year, julian)
+    call_number = "BA{:02d}{:03d}{}".format(year, julian, str(sequence).zfill(width))
+    return normalize_record(
+        {
+            "date/time": date_text or (call_date.strftime(DISPLAY_DATE_FORMAT) if call_date else ""),
+            "agency": PRIMARY_AGENCY_CODE,
+            "station": "Barstow",
+            "call number": call_number,
+            "report number": "",
+            "call type": "HIDDEN",
+            "disposition": "NK",
+            "location": "* ,*",
+            "revision_scraped_at": "",
+            "extra_json": dump_extra_json_value(
+                {
+                    "kind": "hidden_call_placeholder",
+                    "reason": "missing_ba_sequence_number",
+                    "generated_from": "ba_call_sequence",
+                }
+            ),
+        }
+    )
+
+
+def propagate_missing_ba_sequence_rows(rows):
+    normalized_rows = filter_scoped_rows(rows)
+    by_call_number = {}
+    for row in normalized_rows:
+        normalized = normalize_record(row)
+        call_number = normalized.get("call number", "")
+        if call_number:
+            by_call_number[call_number] = normalized
+    sequences_by_day = {}
+    widths_by_day = {}
+    date_by_day_sequence = {}
+    for row in normalized_rows:
+        normalized = normalize_record(row)
+        if (normalized.get("agency", "") or "").strip().upper() != PRIMARY_AGENCY_CODE.upper():
+            continue
+        parts = ba_sequence_parts(call_base(normalized.get("call number", "")))
+        if not parts:
+            continue
+        year, julian, sequence, width = parts
+        day_key = (year, julian)
+        sequences_by_day.setdefault(day_key, set()).add(sequence)
+        widths_by_day[day_key] = max(widths_by_day.get(day_key, 3), width)
+        if not is_hidden_placeholder(normalized):
+            date_by_day_sequence[(year, julian, sequence)] = normalized.get("date/time", "")
+
+    hidden_count = 0
+    for (year, julian), sequences in sequences_by_day.items():
+        width = widths_by_day.get((year, julian), 3)
+        for sequence in range(1, max(sequences) + 1):
+            if sequence in sequences:
+                continue
+            next_sequence = min((value for value in sequences if value > sequence), default=None)
+            next_date_text = (
+                date_by_day_sequence.get((year, julian, next_sequence), "")
+                if next_sequence is not None
+                else ""
+            )
+            hidden_row = build_hidden_ba_row(year, julian, sequence, width, next_date_text)
+            call_number = hidden_row.get("call number", "")
+            if call_number and call_number not in by_call_number:
+                by_call_number[call_number] = hidden_row
+                hidden_count += 1
+
+    if hidden_count:
+        log("Propagated {} hidden BA sequence placeholder rows".format(hidden_count))
+    return filter_scoped_rows(by_call_number.values()), hidden_count
+
+
 def revision_number(call_number):
     if "." not in call_number:
         return 0
@@ -726,6 +829,70 @@ def close_missing_feed_rows(existing_rows, current_rows, agency_code, extra_kind
     return merge_revisions(existing_rows, closure_candidates), len(closure_candidates)
 
 
+def is_ba_sheriff_row(record):
+    normalized = normalize_record(record)
+    return (
+        (normalized.get("agency", "") or "").strip().upper() == PRIMARY_AGENCY_CODE.upper()
+        and call_base(normalized.get("call number", "")).upper().startswith("BA")
+    )
+
+
+def row_removed_from_sheriff_source(record):
+    extra_payload = parse_extra_json_value(normalize_record(record).get("extra_json", ""))
+    return bool(extra_payload.get("removed_from_source"))
+
+
+def build_sheriff_source_removed_revision(latest_row):
+    revision_row = normalize_record(latest_row)
+    extra_payload = parse_extra_json_value(revision_row.get("extra_json", ""))
+    extra_payload.update(
+        {
+            "removed_from_source": True,
+            "removed_detected_at": utc_now_text(),
+            "removed_reason": "missing_from_accessible_sheriff_log_page",
+            "source_status": "not present in latest accessible sheriff call log scrape",
+        }
+    )
+    revision_row["extra_json"] = dump_extra_json_value(extra_payload)
+    revision_row["revision_scraped_at"] = revision_scrape_timestamp()
+    return revision_row
+
+
+def mark_removed_sheriff_rows(existing_rows, current_rows):
+    current_by_base = {
+        call_base(normalize_record(row).get("call number", ""))
+        for row in current_rows
+        if is_ba_sheriff_row(row)
+    }
+    current_datetimes = [
+        parse_datetime(normalize_record(row).get("date/time", ""))
+        for row in current_rows
+        if is_ba_sheriff_row(row)
+    ]
+    current_datetimes = [value for value in current_datetimes if value is not None]
+    if not current_by_base or not current_datetimes:
+        return filter_scoped_rows(existing_rows), 0
+
+    oldest_current = min(current_datetimes)
+    newest_current = max(current_datetimes)
+    removal_candidates = []
+    for base_call_number, latest_row in latest_rows_by_base(existing_rows).items():
+        normalized = normalize_record(latest_row)
+        if not is_ba_sheriff_row(normalized) or is_hidden_placeholder(normalized):
+            continue
+        if base_call_number in current_by_base or row_removed_from_sheriff_source(normalized):
+            continue
+        row_datetime = parse_datetime(normalized.get("date/time", ""))
+        if row_datetime is None or row_datetime < oldest_current or row_datetime > newest_current:
+            continue
+        removal_candidates.append(build_sheriff_source_removed_revision(normalized))
+
+    if not removal_candidates:
+        return filter_scoped_rows(existing_rows), 0
+
+    return merge_revisions(existing_rows, removal_candidates), len(removal_candidates)
+
+
 def parse_datetime(dt_str):
     if not dt_str:
         return None
@@ -739,7 +906,7 @@ def parse_datetime(dt_str):
 
 def parse_location(location):
     clean_loc = (location or "").strip()
-    if clean_loc in ["*.*", "*,*", "* , *", "*", ""]:
+    if clean_loc in ["*.*", "*,*", "* ,*", "* , *", "*", ""]:
         return "Location Not Provided", ""
 
     if "," in clean_loc:
@@ -1899,7 +2066,7 @@ def merge_revisions(existing, scraped):
     for row in scraped:
         normalized = normalize_record(row)
         call_number = normalized.get("call number", "")
-        if not call_number or not row_is_in_scope(normalized):
+        if not call_number or not row_has_valid_shape(normalized) or not row_is_in_scope(normalized):
             continue
 
         base = call_base(call_number)
@@ -1910,6 +2077,11 @@ def merge_revisions(existing, scraped):
             continue
 
         latest = max(matches, key=lambda value: revision_number(value["call number"]))
+        if is_hidden_placeholder(latest) and not is_hidden_placeholder(normalized):
+            out.pop(latest.get("call number", ""), None)
+            out[call_number] = normalized
+            continue
+
         if any(normalized.get(field, "") != latest.get(field, "") for field in FIELDS_TO_COMPARE):
             next_revision = max(revision_number(value["call number"]) for value in matches) + 1
             revision_row = dict(normalized)
@@ -2476,6 +2648,9 @@ def main():
             page_rows, _ = parse_grid(current_html)
             all_rows.extend(page_rows)
 
+        merged, removed_count = mark_removed_sheriff_rows(merged, all_rows)
+        if removed_count:
+            log("Marked {} BA calls as removed from accessible sheriff log pages".format(removed_count))
         merged = merge_revisions(merged, all_rows)
     log_phase_duration("SBSO scrape", sbso_started)
 
@@ -2526,6 +2701,9 @@ def main():
             log_phase_duration("PulsePoint scrape", pulsepoint_started)
     else:
         log("PulsePoint scraper unavailable; skipping PulsePoint merge")
+
+    merged, hidden_ba_count = propagate_missing_ba_sequence_rows(merged)
+    log("BA hidden sequence propagation complete ({} placeholders added)".format(hidden_ba_count))
 
     write_started = time.monotonic()
     write_csv(LOCAL_CSV, merged)

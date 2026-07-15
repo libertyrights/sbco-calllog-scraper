@@ -983,6 +983,22 @@ function renderStructuredFeedDetails(group) {
   return "";
 }
 
+function renderSourceStatus(group) {
+  const extra = (group.latest || {}).extra;
+  if (!extra || typeof extra !== "object" || !extra.removed_from_source) return "";
+  const parts = [
+    extra.source_status || "This call was previously captured but is no longer present in the accessible sheriff call log pages.",
+    extra.removed_detected_at ? `Detected ${formatLocal(extra.removed_detected_at)}` : "",
+    extra.removed_reason || "",
+  ].filter(Boolean);
+  return `
+    <div class="annotation-block">
+      <h4>Source Status</h4>
+      <div class="muted">${escapeHtml(parts.join(" | "))}</div>
+    </div>
+  `;
+}
+
 function renderLinkedRecords(group) {
   const annotation = callAnnotations.get(group.baseCallNo);
   const expectsLinked = isArrestLikeCall(group) || isDeathSourceCall(group);
@@ -1408,6 +1424,7 @@ function finalizeGroup(group) {
       latest.type || "",
       latest.dispo || "",
       latest.loc || "",
+      latest.extra && latest.extra.removed_from_source ? "removed" : "",
       originalDt,
     ].join(" ").toLowerCase(),
   };
@@ -1679,6 +1696,7 @@ function renderDetails(group) {
           <div class="value">${escapeHtml(locationParts.area || "")}</div>
         </div>
       </div>
+      ${renderSourceStatus(group)}
       ${renderStructuredFeedDetails(group)}
       ${renderLinkedRecords(group)}
       ${renderHistory(group)}
@@ -1713,7 +1731,7 @@ function applyFilters() {
         <td>${escapeHtml(current.dt || group.originalDt || "")}</td>
         <td>${escapeHtml(group.station || "")}</td>
         <td><span class="agency-pill ${agencyClass(group.agency)}">${escapeHtml(group.agency || "Unknown")}</span></td>
-        <td><span class="callno" style="${callnoStyle(group)}">${escapeHtml(group.baseCallNo || "")}</span> ${group.revisionCount ? `<span class="pill">${group.revisionCount} rev</span>` : ""}</td>
+        <td><span class="callno" style="${callnoStyle(group)}">${escapeHtml(group.baseCallNo || "")}</span> ${group.revisionCount ? `<span class="pill">${group.revisionCount} rev</span>` : ""} ${current.extra && current.extra.removed_from_source ? `<span class="pill">REMOVED</span>` : ""}</td>
         <td>${escapeHtml(current.report || "")}</td>
         <td>${escapeHtml(current.type || "")}</td>
         <td>${renderDispo(current.dispo)}</td>
