@@ -1,0 +1,9 @@
+{
+  "mode": "authoritative_maintain_backup",
+  "note": "Upload this as calllog_descriptions.status.json and change mode when a one-shot sync action is needed.",
+  "modes": {
+    "authoritative_override_reverse": "Server live copy is authoritative and replaces the GitHub backup, then this status resets to authoritative_maintain_backup.",
+    "authoritative_maintain_backup": "Server live copy is authoritative; GitHub maintains its backup but does not overwrite the server copy.",
+    "restore_backup": "GitHub backup is restored to the server live copy, then this status resets to authoritative_maintain_backup."
+  }
+}

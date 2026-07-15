@@ -43,7 +43,12 @@ jobs:
           python deploy_ftp_file.py site/calllog_upload_public.pem calllog_upload_public.pem
           python deploy_ftp_file.py site/sbsd.html sbsd.html
           python deploy_ftp_file.py site/calllog_descriptions.php calllog_descriptions.php
-          if [ -f site/calllog_descriptions.json ]; then python deploy_ftp_file.py site/calllog_descriptions.json calllog_descriptions.json; fi
+          if [ -f runtime/calllog_descriptions_deploy.env ]; then . runtime/calllog_descriptions_deploy.env; fi
+          if [ "${CALLLOG_DESCRIPTIONS_UPLOAD:-0}" = "1" ] && [ -f site/calllog_descriptions.json ]; then
+            python deploy_ftp_file.py site/calllog_descriptions.json calllog_descriptions.json
+          else
+            echo "Skipping calllog_descriptions.json live deploy (${CALLLOG_DESCRIPTIONS_REASON:-status-controlled})."
+          fi
           python deploy_ftp_file.py site/trigger_github.php trigger_github.php
 
       - name: Run scraper and publish

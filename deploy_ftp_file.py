@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import time
 from ftplib import FTP
@@ -47,6 +48,27 @@ def remote_exists(ftp: FTP, remote_name: str) -> bool:
         return False
 
 
+def remote_size(ftp: FTP, remote_name: str) -> int | None:
+    try:
+        size = ftp.size(remote_name)
+    except Exception:
+        return None
+    return int(size) if size is not None else None
+
+
+def backup_larger_remote_file(ftp: FTP, remote_name: str, local_size: int) -> None:
+    size = remote_size(ftp, remote_name)
+    if size is None or size <= local_size:
+        return
+
+    chunks: list[bytes] = []
+    ftp.retrbinary(f"RETR {remote_name}", chunks.append)
+    backup_name = f"{remote_name}.larger-before-override.{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.bak"
+    data = b"".join(chunks)
+    ftp.storbinary(f"STOR {backup_name}", io.BytesIO(data))
+    print(f"Backed up larger target before override: {remote_name} -> {backup_name} ({len(data)} bytes)")
+
+
 def delete_if_exists(ftp: FTP, remote_name: str) -> None:
     try:
         ftp.delete(remote_name)
@@ -60,6 +82,7 @@ def atomic_upload(local_path: Path, remote_name: str) -> None:
     backup_name = f"{remote_name}.bak"
 
     try:
+        backup_larger_remote_file(ftp, remote_name, local_path.stat().st_size)
         with local_path.open("rb") as fh:
             ftp.storbinary(f"STOR {temp_name}", fh)
 
