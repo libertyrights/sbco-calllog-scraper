@@ -36,6 +36,32 @@ function csv_value(array $row, array $headers, array $names): string
     return '';
 }
 
+function csv_combined_values(array $row, array $headers, array $names): string
+{
+    $values = [];
+    $maxHeaderIndex = count($headers) > 0 ? max($headers) : -1;
+    foreach ($names as $name) {
+        $key = normalize_header($name);
+        if (!isset($headers[$key])) {
+            continue;
+        }
+        $index = $headers[$key];
+        if (!array_key_exists($index, $row)) {
+            continue;
+        }
+        if ($index === $maxHeaderIndex && count($row) > $maxHeaderIndex + 1) {
+            $parts = array_map('trim', array_slice($row, $index));
+            $value = trim(implode(', ', array_filter($parts, static fn($part) => $part !== '')));
+        } else {
+            $value = trim((string) $row[$index]);
+        }
+        if ($value !== '' && is_useful_description($value)) {
+            $values[strtolower($value)] = $value;
+        }
+    }
+    return implode(' - ', array_values($values));
+}
+
 function is_useful_description(string $value): bool
 {
     return !in_array(strtolower(trim($value)), ['', 'unknown', 'unk', 'n/a', 'na', 'none', 'null', '?'], true);
@@ -70,7 +96,7 @@ function read_csv_description_file(string $path, ?string $default_section = null
     }
 
     $payload = ['prefixes' => [], 'dispositions' => [], 'call_types' => []];
-    $header = fgetcsv($handle);
+    $header = fgetcsv($handle, 0, ',', '"', '\\');
     if ($header === false) {
         fclose($handle);
         return null;
@@ -87,12 +113,11 @@ function read_csv_description_file(string $path, ?string $default_section = null
     ])) > 0;
 
     $rows = [];
-    if ($hasNamedColumns) {
-        $rows[] = $header;
-    } else {
+    if (!$hasNamedColumns) {
         $headers = ['code' => 0, 'description' => 1];
+        $rows[] = $header;
     }
-    while (($row = fgetcsv($handle)) !== false) {
+    while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
         $rows[] = $row;
     }
     fclose($handle);
@@ -110,7 +135,15 @@ function read_csv_description_file(string $path, ?string $default_section = null
         }
 
         $code = csv_value($row, $headers, ['code', 'key', 'call type', 'call_type', 'type', 'dispo', 'disposition', 'prefix']);
-        $description = csv_value($row, $headers, ['description', 'desc', 'label', 'meaning', 'text']);
+        $description = csv_combined_values($row, $headers, [
+            'description',
+            'short_description',
+            'when_used_explanation',
+            'desc',
+            'label',
+            'meaning',
+            'text',
+        ]);
         if ($description === '' && count($row) >= 2) {
             $description = trim((string) $row[count($row) - 1]);
         }
@@ -254,26 +287,9 @@ foreach (['SBCO_CALLLOG_DESCRIPTION_FILE', 'CALLLOG_DESCRIPTION_FILE'] as $env_k
 }
 
 $candidate_specs = array_merge($candidate_specs, [
-    ['path' => __DIR__ . '/calllog_descriptions.local.csv', 'section' => null],
-    ['path' => __DIR__ . '/calllog_descriptions.csv', 'section' => null],
-    ['path' => __DIR__ . '/calllog_desc.csv', 'section' => null],
-    ['path' => __DIR__ . '/descriptions.csv', 'section' => null],
-    ['path' => __DIR__ . '/descriptions/calllog.csv', 'section' => null],
-    ['path' => dirname(__DIR__) . '/calllog_descriptions.csv', 'section' => null],
-    ['path' => dirname(__DIR__) . '/calllog_desc.csv', 'section' => null],
-    ['path' => __DIR__ . '/call_type_descriptions.csv', 'section' => 'call_types'],
-    ['path' => __DIR__ . '/call_type_desc.csv', 'section' => 'call_types'],
-    ['path' => __DIR__ . '/call_types.csv', 'section' => 'call_types'],
-    ['path' => __DIR__ . '/disposition_descriptions.csv', 'section' => 'dispositions'],
-    ['path' => __DIR__ . '/disposition_desc.csv', 'section' => 'dispositions'],
-    ['path' => __DIR__ . '/dispo_descriptions.csv', 'section' => 'dispositions'],
-    ['path' => __DIR__ . '/dispo_desc.csv', 'section' => 'dispositions'],
-    ['path' => __DIR__ . '/dispositions.csv', 'section' => 'dispositions'],
-    ['path' => __DIR__ . '/prefix_descriptions.csv', 'section' => 'prefixes'],
-    ['path' => __DIR__ . '/prefix_desc.csv', 'section' => 'prefixes'],
-    ['path' => __DIR__ . '/call_prefix_descriptions.csv', 'section' => 'prefixes'],
-    ['path' => __DIR__ . '/call_prefix_desc.csv', 'section' => 'prefixes'],
-    ['path' => __DIR__ . '/prefixes.csv', 'section' => 'prefixes'],
+    ['path' => __DIR__ . '/calltypes.csv', 'section' => 'call_types'],
+    ['path' => __DIR__ . '/dispos.csv', 'section' => 'dispositions'],
+    ['path' => __DIR__ . '/callprefix.csv', 'section' => 'prefixes'],
     ['path' => __DIR__ . '/calllog_descriptions.pdf.json', 'section' => null],
     ['path' => __DIR__ . '/calllog_descriptions.local.json', 'section' => null],
     ['path' => __DIR__ . '/calllog_descriptions.json', 'section' => null],

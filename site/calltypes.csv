@@ -1,0 +1,814 @@
+487H,F,P2,Felony Theft of Cargo over $950
+WIRES DOWN,N,SERV,Wires down or utility wire hazard
+2800,M,P5,Disobeying a peace officer or lawful out of service order
+HOMER,A,ADM,Parole or Probation home visit
+CPSFU,N,SERV,Child Protective Services Follow Up
+INC,A,ADM,Incident report requested
+COUNTR,A,ADN,Sheriff's office counter visit or call
+INFO,A,ADM,General information received from the public
+FU,A,ADM,Following up on a previous call
+10-6,N,ADM,Officer busy or unavailable for calls
+1010,N,ADM,Subject requesting contact with law enforcement
+1014,N,SERV,Public service escort provided by deputies
+1016,A,ADM,Transport of a prisoner or detainee
+1017,A,ADM,Pickup or service of official paperwork
+1019,N,ADM,Officer currently at station
+1021,N,ADM,Officer making or handling a phone call
+1023,N,SERV,Officer standing by for an event or situation
+1048,N,ADM,Officer on break
+10751,F,P3,Vehicle with altered or removed serial number
+10752,F,P3,Fraudulent use or alteration of a vehicle identification number
+10801,F,P3,Operation of a vehicle chop shop by owner
+10802,F,P3,Chop shop activities involving dismantling vehicles
+10803,F,P3,Buying or selling vehicles or parts through a chop shop
+10851,F,P3,Grand theft auto just occurred
+10851,F,P2,Grand theft auto in progress
+10851,F,P4, grand theft auto after the fact
+10851R,F,P4,Report of grand theft auto
+10852,M,P3,Vehicle tampering just occurred
+10852,M,P3,Vehicle tampering in progress
+10852,M,P4,Report of vehicle tampering
+10853,M,P3,Vehicle vandalism or tampering just occurred
+10853,M,P3,Vehicle vandalism or tampering in progress
+10853,M,P4,Report of vehicle vandalism or tampering
+10855,F,P4,Report of vehicle embezzlement
+1087,N,SERV,Meeting requested with deputy or unit
+109,N,ADM,Undefined or legacy status code
+1124,M,P4,Abandoned vehicle reported
+1125,N,SERV,Traffic hazard creating unsafe roadway conditions
+1126,N,SERV,Motorist stranded and requesting assistance
+1126B,N,SERV,Boat stranded or disabled
+11350,M,P3,Possession of controlled substances
+11350,M,P4,Report of narcotics possession
+11351,F,P2,Sale or possession for sale of heroin
+11351,F,P4,Report of heroin sales
+11352,F,P2,Transportation of heroin
+11352,F,P4,Report of heroin transportation
+11352R,F,P4,Report of heroin transportation
+11357,M,P3,Possession of marijuana
+11357,M,P4,Report of marijuana possession
+11357A,M,P4,Report of cannabis possession
+11357B,M,P4,Report of marijuana possession under one ounce
+11357C,M,P4,Report of marijuana possession over legal amount
+11357E,M,P3,Marijuana possession involving a school
+11358,W,P2,Cultivation of marijuana
+11358,W,P4,Report of marijuana cultivation
+11359,F,P2,Possession of marijuana for sale
+11359,F,P4,Report of marijuana for sale
+11360,F,P2,Sale or transportation of marijuana
+11360,F,P4,Report of marijuana sales
+11364,M,P3,Possession of drug paraphernalia
+11364,M,P4,Report of drug paraphernalia
+11366,F,P3,Illegal dispensing of narcotics
+113668,F,P3,Vehicle with false or concealed compartment
+11368,W,P3,Forging or altering a prescription
+11368,W,P4,Report of forged prescription
+11369,F,P2,Alien smuggling involving controlled substances
+11369,F,P4,Report of drug-related alien smuggling
+11377,F,P3,Possession of dangerous or controlled drugs
+11377,F,P4,Report of dangerous drug possession
+11377A,M,P4,Report of controlled substance possession
+11377B,M,P4,Report of controlled substance possession
+11378,F,P2,Possession of controlled substances for sale
+11378,F,P4,Report of possession for sale
+11379,F,P2,Sale of methamphetamine or similar stimulants
+11379,F,P4,Report of stimulant sales
+113795,F,P2,Sale of PCP
+113796,F,P2,PCP or methamphetamine laboratory
+11383A,F,P3,Possession of chemicals used to manufacture methamphetamine
+11383B,F,P3,Possession of chemicals used to manufacture PCP
+11383C,M,P3,Possession of ephedrine or precursor chemicals
+1144,F,P1,Fatal traffic collision
+1144,F,P4,Report of fatal traffic collision
+1144B,F,P1,Fatal boating collision
+1144B,F,P4,Report of fatal boating collision
+1144BR,F,P4,Report of fatal boating collision
+1144R,F,P4,Report of fatal traffic collision
+1148,A,ADM,Transport of person or property
+11550,M,P3,Under the influence of drugs
+11550,M,P4,Report of drug intoxication
+call_type,crime_severity,priority_code,description
+11590,A,P4,Health and Safety Code registrant compliance or status check
+1179,N,SERV,Traffic collision with medical aid responding
+1179B,N,SERV,Boating collision with medical aid responding
+1179BR,N,SERV,Boating collision with medical aid responding
+1179R,N,P4,Report of traffic collision involving medical aid
+118,F,P4,Report of perjury or false sworn statement
+1180,N,P2,Major injury traffic collision
+1180,N,P4,Report of major injury traffic collision
+1180B,N,P2,Major injury boating collision
+1180B,N,P4,Report of major injury boating collision
+1180BR,N,P4,Report of major injury boating collision
+1180R,N,P4,Report of major injury traffic collision
+1181,N,P3,Minor injury traffic collision
+1181,N,P4,Report of minor injury traffic collision
+1181B,N,P3,Minor injury boating collision
+1181B,N,P4,Report of minor injury boating collision
+1181R,N,P4,Report of minor injury traffic collision
+1182,N,SERV,Non-injury traffic collision
+1182,N,P4,Report of non-injury traffic collision
+1182B,N,SERV,Non-injury boating collision
+1182B,N,P4,Report of non-injury boating collision
+1183,N,P3,Traffic collision with unknown injuries
+1183B,N,P3,Boating collision with unknown injuries
+1184,N,SERV,Traffic direction or traffic control by deputies
+1185,N,SERV,Tow truck request or coordination
+118G,F,P4,Report of perjury involving gang enhancement
+12020,W,P3,Illegal possession or manufacture of a firearm
+12020,W,P4,Report of illegal firearm possession or manufacture
+12020G,W,P3,Illegal firearm offense with gang involvement
+12020R,W,P4,Report of illegal firearm offense
+12021,W,P3,Possession of firearm by prohibited person
+12021,W,P4,Report of prohibited person firearm possession
+12021G,W,P3,Prohibited firearm possession with gang enhancement
+12021R,W,P4,Report of prohibited firearm possession
+12022,W,P3,Firearm sentencing enhancement allegation
+12022G,W,P3,Firearm enhancement with gang allegation
+12025,W,P3,Carrying a concealed firearm
+12025,W,P4,Report of concealed firearm violation
+12025G,W,P3,Concealed firearm offense with gang involvement
+12025R,W,P4,Report of concealed firearm violation
+1203.2,A,P3,Probation violation
+1203.2G,A,P3,Probation violation with gang involvement
+1203.9,A,P4,Residence verification for probation or court order
+12031,W,P3,Possession of short-barreled firearm
+12031,W,P4,Report of short-barreled firearm possession
+12031G,W,P3,Short-barreled firearm offense with gang involvement
+12031R,W,P4,Report of short-barreled firearm offense
+12034,W,P3,Discharge of a firearm with negligence
+12034,W,P4,Report of negligent firearm discharge
+12034G,W,P3,Negligent firearm discharge with gang involvement
+12072,W,P3,Illegal firearm sale or transfer
+12091,A,P4,Firearm registration or compliance issue
+12091G,A,P4,Firearm registration issue with gang involvement
+12101B1,W,P3,Minor in possession of firearm
+12101B1(F),W,P3,Firearm offense involving a minor (felony circumstances)
+12280,W,P3,Possession or manufacture of assault weapon
+12303,W,P3,Possession of destructive device or explosive
+12303,W,P4,Report of destructive device or explosive
+12303G,W,P3,Explosive offense with gang involvement
+12303R,W,P4,Report of explosive offense
+12308,F,P2,Explosion causing injury or property damage
+12309,F,P2,Explosion with intent to cause harm
+12310,F,P2,Possession of explosive with intent to use
+12310,F,P4,Report of explosive possession
+12310R,F,P4,Report of explosive possession
+12312,F,P2,Malicious explosion causing injury
+12355,A,P4,Fireworks permit or regulatory violation
+12500A,M,P3,Driving without a valid driver's license
+12671,M,P3,Unregistered fireworks possession
+12671,M,P4,Report of unregistered fireworks
+12677,M,P3,Dangerous or illegal fireworks
+136,W,P3,Intimidating or influencing a witness
+136.1,W,P3,Dissuading a witness from reporting a crime
+136B,W,P3,Intimidation of witness or victim
+137,F,P3,Influencing testimony through force or threat
+14,N,ADM,Legacy or undefined administrative code
+140,W,P3,Threatening a witness
+140,W,P4,Report of threatening a witness
+146,M,P3,Impersonating a peace officer
+146,M,P4,Report of impersonating an officer
+14601,M,P3,Driving with suspended or revoked license
+148,M,P3,Resisting, delaying, or obstructing an officer
+148,M,P4,Report of resisting an officer
+148.1,F,P1,Bomb threat
+148.1,F,P4,Report of bomb threat
+148.1R,F,P4,Report of bomb threat
+148.3,M,P4,False report to law enforcement
+148.5,M,P4,False report of a crime
+148.9,M,P3,False identification given to a deputy
+148.9,M,P4,Report of false identification
+148.9G,M,P3,False identification with gang involvement
+148G,M,P3,Resisting officer with gang involvement
+148R,M,P4,Report of resisting an officer
+149,W,P3,Assault committed against a public officer
+166.4,W,P3,Violation of a court or protective order
+166.4,W,P2,Active violation of a court or protective order
+166.4,W,P4,Report of court order violation
+166.4G,W,P3,Court order violation with gang involvement
+call_type,crime_severity,priority_code,description
+166.4R,W,P4,Report of violation of a court or protective order
+180,A,P4,Tow report or tow-related documentation
+180,A,SERV,Tow request requiring deputy coordination
+182,W,P4,Report of criminal conspiracy
+186.10,F,P3,Money laundering involving criminal proceeds
+186.30,A,P4,Gang registration or compliance matter
+187,F,P1,Homicide just occurred
+187,F,P1,Homicide in progress or active scene
+187,F,P4,Report of homicide
+187R,F,P4,Report of homicide
+19,N,ADM,Legacy or undefined administrative code
+192,F,P1,Manslaughter just occurred
+192,F,P4,Report of manslaughter
+20001,W,P2,Injury hit-and-run collision just occurred
+20001,W,P2,Injury hit-and-run in progress or suspect fleeing
+20001,W,P4,Report of injury hit-and-run
+20001R,W,P4,Report of injury hit-and-run
+20002,M,P3,Non-injury hit-and-run just occurred
+20002,M,P3,Non-injury hit-and-run in progress
+20002,M,P4,Report of non-injury hit-and-run
+203,F,P2,Mayhem just occurred involving serious bodily injury
+203,F,P2,Mayhem in progress
+203,F,P4,Report of mayhem
+203R,F,P4,Report of mayhem
+205,F,P2,Aggravated mayhem involving permanent injury
+205,F,P4,Report of aggravated mayhem
+206,F,P1,Torture involving intentional infliction of extreme pain
+206,F,P4,Report of torture
+207,F,P1,Kidnapping just occurred
+207,F,P1,Kidnapping in progress
+207,F,P4,Report of kidnapping
+207R,F,P4,Report of kidnapping
+210.5,F,P1,Taking or holding hostages
+210.5R,F,P4,Report of hostage taking
+211,F,P2,Robbery just occurred
+211,F,P2,Robbery in progress
+211,F,P4,Report of robbery
+211A,F,P2,Armed robbery just occurred
+211A,F,P2,Armed robbery in progress
+211A,F,P4,Report of armed robbery
+211R,F,P4,Report of robbery
+211S,F,P2,Robbery alarm activation indicating possible active robbery
+211SA,F,P2,Strong-arm robbery just occurred
+211SA,F,P2,Strong-arm robbery in progress
+211SA,F,P4,Report of strong-arm robbery
+211SAR,F,P4,Report of strong-arm robbery
+211T,F,P2,Bank robbery tracker activation
+212.5,F,P2,Residential robbery just occurred
+212.5,F,P2,Residential robbery in progress
+212.5,F,P4,Report of residential robbery
+212.5R,F,P4,Report of residential robbery
+21200,M,P3,Driving under the influence while riding a bicycle
+215,F,P2,Carjacking just occurred
+215,F,P2,Carjacking in progress
+215,F,P4,Report of carjacking
+215R,F,P4,Report of carjacking
+22651,A,SERV,Vehicle tow authorized by law enforcement
+22655,A,SERV,Vehicle impound authorized by statute
+22658A,M,P3,Sale of alcohol to a minor
+22669,A,SERV,Tow authority for abandoned vehicle
+23103,M,P3,Reckless driving posing danger to others
+23103,M,P4,Report of reckless driving
+23103R,M,P4,Report of reckless driving
+23109,M,P3,Illegal speed contest or exhibition of speed
+23109,M,P4,Report of speed contest
+23110,W,P3,Throwing objects at a vehicle
+23110,W,P4,Report of throwing objects at a vehicle
+23110A,M,P3,Misdemeanor throwing objects at a vehicle
+23110B,F,P3,Felony throwing objects at a vehicle
+23136A,M,P3,Underage DUI
+23152,M,P3,Driving under the influence
+23152,M,P4,Report of DUI
+23152B,M,P3,DUI with blood alcohol over legal limit
+23152C,M,P3,DUI involving drugs
+23152D,M,P3,Commercial driver DUI at lower BAC threshold
+23152R,M,P4,Report of DUI
+23153,F,P2,Felony DUI causing injury
+23153,F,P4,Report of felony DUI
+23153R,F,P4,Report of felony DUI
+23156,M,P3,Manslaughter due to negligent driving
+23175A,M,P3,DUI with multiple prior convictions
+23222A,I,P4,Open container of alcohol in vehicle
+23222B,M,P3,Possession of marijuana in vehicle
+23550A,M,P3,DUI with three or more prior DUI-related offenses
+236,W,P3,False imprisonment
+236G,W,P3,False imprisonment with gang involvement
+24/7,N,ADM,Participation in 24/7 sobriety or monitoring program
+240,M,P3,Assault just occurred
+240,M,P3,Assault in progress
+240,M,P4,Report of assault
+240R,M,P4,Report of assault
+242,M,P3,Battery just occurred
+242,M,P3,Battery in progress
+242,M,P4,Report of battery
+242R,M,P4,Report of battery
+243,M,P3,Battery against a peace officer or protected person
+243,M,P4,Report of battery against officer
+243.4,W,P3,Sexual battery involving non-consensual touching
+call_type,crime_severity,priority_code,description
+243.4,M,P3,Sexual battery involving unlawful sexual touching
+243.4,M,P4,Report of sexual battery
+243.9,W,P3,Gassing or throwing bodily fluids on a person
+243B,M,P3,Battery committed against a peace officer
+243B,M,P4,Report of battery on a peace officer
+243D,M,P3,Battery resulting in visible or reported injuries
+243D,M,P4,Report of battery with injuries
+243E1G,M,P3,Domestic battery involving gang circumstances
+243R,M,P4,Report of battery on a peace officer
+244,F,P2,Assault using caustic chemicals or corrosive substances
+244,F,P4,Report of assault with chemicals
+244.5,W,P3,Assault involving a stun gun or Taser
+244.5,W,P4,Report of stun gun or Taser assault
+245,F,P2,Assault with a deadly weapon or by force likely to cause great bodily injury
+245,F,P4,Report of assault with a deadly weapon
+245C,F,P2,Assault with a knife or sharp instrument against an officer
+245C,F,P4,Report of knife assault on an officer
+246,F,P1,Shooting into an inhabited dwelling or occupied structure
+246,F,P4,Report of shooting into a dwelling
+246.3,W,P2,Negligent discharge of a firearm
+246R,F,P4,Report of shooting into a dwelling
+247.5,M,P3,Aiming or pointing a laser at an aircraft
+248,W,P3,Interfering with aircraft operations or safety
+25658A,M,P3,Selling or furnishing alcohol to a minor
+25660,M,P4,Minor using false identification to obtain alcohol
+25662,M,P3,Minor in possession of alcohol
+25662,M,P4,Report of minor in possession of alcohol
+25663,M,P4,Employment of a minor in violation of alcohol laws
+270.5,M,P3,Failure to provide child support
+270.5,M,P4,Report of failure to provide child support
+272,M,P3,Contributing to the delinquency of a minor
+272,M,P4,Report of contributing to a minor’s delinquency
+275,W,P4,Unlawful procurement of a miscarriage
+277,F,P2,Custodial kidnapping by a parent or guardian
+278,F,P2,Non-custodial parental kidnapping
+278.5,F,P2,Depriving another person of custody or visitation rights
+28.061,I,P4,Unauthorized possession of aerosol spray or tear gas
+2800.1,M,P3,Misdemeanor evading a peace officer
+2800.1R,M,P4,Report of misdemeanor evasion
+2800.2,F,P2,Felony evading with reckless driving
+2800.2R,F,P4,Report of felony evasion
+2800.3,F,P1,Evading law enforcement causing death
+2800.3R,F,P4,Report of evasion causing death
+2800R,W,P4,Report of evading law enforcement
+281,M,P4,Bigamy involving multiple simultaneous marriages
+290,W,P4,Sex offender registration requirement or compliance check or failure to register
+290FU,A,P4,Follow-up related to sex offender registration
+300,C,P4,Lack of parental control involving a minor
+3008.08,A,P4,Parole violation involving juvenile or ward
+300A,C,P4,Lack of parental control reported
+300B,C,P4,Unfit home conditions involving child welfare
+303,M,P3,Soliciting or purchasing alcohol for a minor
+3056,A,P3,Parole violation
+3056G,A,P3,Parole violation with gang involvement
+308B,I,P4,Juvenile possession or use of tobacco products
+31,M,P4,Providing false information to a deputy
+311.11,F,P3,Possession or control of child sexual abuse material
+314,M,P3,Indecent exposure in public
+314,M,P4, indecent exposure
+315,M,P4,Keeping or maintaining a house of prostitution
+32,W,P4,Accessory to a crime after the fact
+320,M,P4,Illegal lottery or gambling operation
+330,M,P3,Gambling offense
+330,M,P4, gambling
+337A,M,P4,Bookmaking or illegal wagering
+34500.3,A,P4,Commercial vehicle safety or inspection violation
+34506.3,A,P4,Commercial vehicle regulatory violation
+3455,A,P3,AB109 post-release supervision violation
+346,M,P4,Ticket scalping or resale violation
+3544,A,P3,Parole violation under supervision
+369I,M,P3,Railroad trespassing
+369I,M,P4, railroad trespassing
+369IR,M,P4,Report of railroad trespassing
+370,A,P4,Public nuisance designation under local or state law
+374.8,W,P3,Illegal dumping of hazardous materials
+374B,W,P3,Illegal dumping of waste or debris
+374B,W,P4, illegal dumping
+374B,W,P3,Illegal dumping just occurred
+374C,F,P2,Shooting a firearm from or into a roadway
+381,M,P3,Inhaling or abusing toxic substances
+381,M,P4, toxic substance inhalation
+384A,M,P4,Destruction of highway vegetation or landscaping
+4024.2,A,P4,Failure to return from work release
+402B,M,P3,Dumping of a refrigerator without removing doors
+402B,M,P4, illegal refrigerator dumping
+404.6,F,P2,Inciting or participating in a riot
+404.6,F,P4, riot activity
+404.6R,F,P4,Report of riot activity
+405A,F,P2,Lynching or violent group assault
+407,M,P3,Unlawful assembly or group disturbance
+4149,M,P3,Possession of non-licensed hypodermic needle
+415,M,P3,Disturbance involving loud behavior or disorderly conduct
+415,M,P4, disturbance
+415.5,N,SERV,Interference with school operations
+call_type,crime_severity,priority_code,description
+415A,M,P3,Disturbance involving vehicles such as noise, fighting, or disorderly conduct around cars
+415BG,M,P3,Domestic disturbance between boyfriend and girlfriend
+415CIV,C,P4,Civil disturbance without a criminal allegation
+415D,M,P3,Domestic disturbance involving household or family members
+415DOG,N,SERV,Complaint involving aggressive, barking, or nuisance dogs
+415F,M,P3,Physical fight in progress or recently occurred
+415G,M,P3,Disturbance involving suspected gang members
+415HW,M,P3,Domestic disturbance between spouses
+415J,M,P3,Disturbance involving juveniles
+415LT,C,P4,Landlord-tenant dispute without criminal conduct
+415M,N,SERV,Noise disturbance involving loud music
+415MC,N,SERV,Disturbance involving motorcycles
+415N,N,SERV,Neighbor dispute or ongoing neighborhood disturbance
+415NO,N,SERV,Noise complaint unrelated to violence
+415P,N,SERV,Disturbance related to a party or gathering
+415S,M,P3,Disturbance caused by a specific identified subject
+415UNK,M,P3,Unknown type of disturbance requiring investigation
+415V,M,P3,Verbal disturbance or heated argument
+415VEH,M,P3,Disturbance involving occupants of a vehicle
+417,W,P3,Brandishing or displaying a weapon in a threatening manner
+417,W,P2,Brandishing a weapon in progress posing immediate danger
+417,W,P4, brandishing a weapon
+417R,W,P4,Report of brandishing a weapon
+423.2,M,P3,Interference with reproductive health services or access
+423.2A,M,P3,Interference with reproductive health services
+423.2C,M,P3,Interference with reproductive health services
+423.2E,M,P3,Interference with reproductive health services
+4324,W,P3,Forging or altering a prescription for controlled substances
+4324,W,P4, forged or altered prescription
+4462B,I,P4,Improper display of license plate or registration tabs
+4463,M,P4,False or fraudulent vehicle registration information
+451,F,P1,Arson just occurred involving structure or property
+451,F,P1,Arson in progress posing risk to life or property
+451,F,P4, arson
+451R,F,P4,Report of arson
+452,W,P2,Unlawful setting of a fire without intent to burn structure
+452,W,P4, unlawful fire setting
+452R,W,P4,Report of unlawful fire setting
+453,F,P2,Unlawful possession of explosives
+4532,F,P2,Escape from custody or confinement
+4532,F,P4, escape from custody
+4532R,F,P4,Report of escape from custody
+457.1,A,P4,Arson registrant compliance or monitoring requirement
+4573,M,P3,Possession of narcotics or alcohol inside a jail facility
+4573.5,M,P3,Possession of drugs inside jail or detention facility
+4573.6,F,P3,Possession of heroin inside jail
+4574,F,P3,Possession of a weapon inside jail
+458,F,P3,Burglary of a freight container or cargo
+458,F,P4, freight container burglary
+458R,F,P4,Report of freight container burglary
+459,F,P2,Burglary in progress
+459,F,P4, burglary
+459,F,P3,Burglary just occurred
+459.5,M,P3,Shoplifting in progress
+459.5,M,P4, shoplifting
+459.5,M,P3,Shoplifting just occurred
+459A,N,P2,Audible alarm indicating possible burglary or robbery
+459C,F,P2,Commercial burglary just occurred
+459C,F,P2,Commercial burglary in progress
+459C,F,P4, commercial burglary
+459CR,F,P4,Report of commercial burglary
+459P,F,P3,Burglary involving an aircraft
+459P,F,P4, aircraft burglary
+459PR,F,P4,Report of aircraft burglary
+459R,F,P3,Residential burglary just occurred
+459R,F,P2,Residential burglary in progress
+459R,F,P4, residential burglary
+459RR,F,P4,Report of residential burglary
+459S,F,P2,Silent alarm indicating possible burglary
+459V,F,P3,Vehicle burglary just occurred
+459V,F,P2,Vehicle burglary in progress
+459V,F,P4, vehicle burglary
+459VR,F,P4,Report of vehicle burglary
+4600,A,P4,Damage to jail or detention facility property
+463,F,P2,Looting during emergency or disaster conditions
+466,M,P3,Possession of burglary tools
+466,M,P4, possession of burglary tools
+470,W,P3,Forgery just occurred involving documents or checks
+470,W,P2,Forgery in progress
+470,W,P4, forgery
+470A,W,P3,Forgery involving driver’s license or identification
+470R,W,P4,Report of forgery
+473,M,P3,Misdemeanor forgery just occurred
+473,M,P2,Misdemeanor forgery in progress
+473,M,P4, misdemeanor forgery
+call_type,crime_severity,priority_code,description
+484,W,P3,Theft by fraud, trick, or false representation
+484,W,P4, theft by fraud
+484E,W,P3,Fraud involving credit or financial applications
+484F,W,P3,Use or possession of counterfeit credit cards
+484G,W,P3,Fraudulent use of credit cards
+484R,W,P4,Report of theft by fraud
+485,M,P3,Theft of lost property when finder fails to return it
+487,F,P3,Grand theft involving property over statutory value
+487,F,P4, grand theft
+487.3,F,P3,Theft of a firearm
+487A,F,P3,Grand theft of livestock or animals
+487E,M,P3,Theft of dog valued over statutory amount
+487F,M,P3,Theft of dog valued under statutory amount
+487R,F,P4,Report of grand theft
+488,M,P3,Petty theft involving lower-value property
+488,M,P4, petty theft
+490.1,M,P4,Petty theft involving minimal property value
+490.1,M,P4, minor petty theft
+490.2,M,P3,Petty theft under felony threshold amount
+490.2,M,P4, petty theft under threshold
+490.5,M,P3,Retail theft or shoplifting just occurred
+490.5,M,P3,Retail theft in progress
+490.5,M,P4, retail theft
+496,W,P3,Possession of stolen property
+496,W,P4, possession of stolen property
+496R,W,P4,Report of possession of stolen property
+498,W,P3,Theft of utilities such as electricity or gas
+498,W,P4, utility theft
+499B,M,P3,Joyriding or unlawful taking of a vehicle
+499C,F,P3,Theft of trade secrets
+499D,F,P3,Theft of an aircraft
+502,W,P3,Computer crime involving unauthorized access or data theft
+502,W,P4, computer crime
+502.7,M,P3,Theft of telephone or communication services
+503,F,P3,Embezzlement of money or property
+518,F,P2,Extortion involving force or threats
+519,F,P2,Extortion using fear or intimidation
+520,F,P2,Felony extortion offense
+520119,I,P4,Violation of 72-hour parking ordinance
+529,W,P3,False personation or impersonation
+529.7,W,P3,False or fraudulent DMV documents
+530.5,W,P3,Identity theft involving personal identifying information
+530.5,W,P4, identity theft
+532,W,P3,Obtaining property by false pretenses
+532,W,P4, false pretenses
+537,M,P3,Defrauding an innkeeper just occurred
+537,M,P3,Defrauding an innkeeper in progress
+537,M,P4, defrauding an innkeeper
+537E,M,P3,Removal or alteration of vehicle serial numbers
+538D,M,P3,Impersonating a peace officer
+587,F,P3,Damage to railroad property or infrastructure
+587,F,P4, damage to railroad property
+587R,F,P4,Report of damage to railroad property
+591,M,P3,Damage to telephone or communication lines
+591,M,P4, damage to telephone lines
+592,M,P3,Theft of water or water services
+593D,W,P3,Theft of cable or subscription services
+593D,W,P4, cable theft
+594,W,P3,Vandalism involving damage to property
+594,W,P4, vandalism
+594B,F,P3,Graffiti causing damage over felony threshold
+594B,F,P4, felony graffiti vandalism
+597,W,P3,Cruelty to animals or neglect
+597,W,P4, animal cruelty
+6,N,ADM,Legacy or undefined administrative code
+601,C,P4,Juvenile beyond parental control status
+601,C,P4, juvenile beyond parental control
+602,M,P3,Trespassing on land or property
+602,M,P4, trespassing
+602.5,W,P3,Illegal entry into a dwelling
+602.5,W,P4, illegal entry into dwelling
+603,W,P3,Illegal entry combined with vandalism
+603,W,P4, illegal entry with vandalism
+625B,F,P3,Tampering with or damaging an aircraft
+625B,F,P4, aircraft tampering
+626,M,P3,Crime occurring on school grounds
+626,M,P4, school-related crime
+626.10,F,P3,Possession of a weapon on school grounds
+626.10,F,P4, weapon possession at school
+626.10R,F,P4,Report of weapon possession at school
+626.9,F,P2,Firearm possession on school grounds
+626.9,F,P4, firearm on school grounds
+626.9R,F,P4,Report of firearm on school grounds
+632A,W,P3,Illegal recording or eavesdropping on communications
+6389,A,P4,Voluntary surrender of a firearm
+640.6,M,P4,Graffiti or vandalism under misdemeanor threshold
+640.6,M,P4, graffiti
+647,M,P3,Disorderly conduct involving public behavior
+647,M,P4, disorderly conduct
+647A,M,P3,Lewd conduct in public
+647B,M,P3,Prostitution-related offense
+647B,M,P4, prostitution offense
+647C,M,P3,Panhandling or solicitation
+647C,M,P4, panhandling
+647E,M,P3,Loitering with intent
+647F,M,P3,Public intoxication
+647F,M,P4, public intoxication
+647G,M,P3,Prowling or suspicious loitering
+647G,M,P4, prowling
+call_type,crime_severity,priority_code,description
+647GR,M,P4,Report of prowling or suspicious loitering
+647H,M,P3,Peeping or spying into a residence or private area
+647H,M,P4, peeping or voyeurism
+647HR,M,P4,Report of peeping or voyeurism
+648,F,P3,Possession or passing of counterfeit currency
+653.22,M,P3,Loitering with intent to commit prostitution-related offense
+653F,M,P3,Soliciting or encouraging another to commit a crime
+653K,M,P3,Possession of a switchblade knife
+653K,M,P4, switchblade possession
+653M,M,P3,Obscene or threatening telephone calls
+653M,M,P4, obscene or harassing phone calls
+653X,M,P3,911 misuse or harassment
+653X,M,P4, 911 harassment
+655A,M,P3,Reckless or negligent operation of a vessel or vehicle
+655B,M,P3,Reckless operation involving alcohol or drugs
+664187,F,P2,Attempted murder
+664187,F,P4, attempted murder
+664207,F,P2,Attempted kidnapping just occurred
+664207,F,P4, attempted kidnapping
+664211,F,P2,Attempted robbery just occurred
+664211,F,P4, attempted robbery
+664215,F,P2,Attempted carjacking just occurred
+664215,F,P4, attempted carjacking
+664242,M,P3,Attempted assault just occurred
+664242,M,P4, attempted assault
+664245,F,P2,Attempted assault with a deadly weapon
+664245,F,P4, attempted assault with a deadly weapon
+664278,F,P2,Attempted child abduction
+664278,F,P4, attempted child abduction
+664451,F,P2,Attempted arson
+664451,F,P4, attempted arson
+664459,F,P3,Attempted burglary just occurred
+664459,F,P4, attempted burglary
+664459R,F,P4,Report of attempted burglary
+664459V,F,P3,Attempted vehicle burglary
+664484,W,P3,Attempted credit card or access card offense
+664487,F,P3,Attempted grand theft just occurred
+664487,F,P4, attempted grand theft
+664487R,F,P4,Report of attempted grand theft
+664488,M,P3,Attempted petty theft just occurred
+664488,M,P4, attempted petty theft
+664GTA,F,P3,Attempted grand theft auto just occurred
+664GTA,F,P4, attempted grand theft auto
+664GTAR,F,P4,Report of attempted grand theft auto
+666,W,P4,Prior theft-related conviction allegation
+69,M,P3,Resisting execution of a lawful duty by an officer
+71,W,P3,Threatening a public official
+71,W,P4, threat against public official
+800MHZ,N,ADM,800 MHz radio system emergency or issue
+87,N,ADM,Legacy or undefined administrative code
+905,N,SERV,Animal-related problem or complaint
+905A,M,P3,Abandonment or abuse of an animal
+905B,M,P3,Dog bite incident involving injury or risk
+905B,M,P4, dog bite
+905VI,M,P3,Vicious or injured animal posing a threat
+907,N,P3,Gang member-related contact or intelligence
+911FU,N,ADM,Follow-up related to prior 911 call
+999,N,P1,Officer requesting immediate emergency assistance
+AB109,A,P3,Post-release community supervision contact
+ABC,A,P4,Alcoholic Beverage Control–related incident
+ABNVEH,A,SERV,Abandoned vehicle service call
+ADMIN,N,ADM,Administrative or internal law enforcement task
+ADMN,N,ADM,Administrative duties or functions
+ALARM,N,P3,General alarm activation
+ALPR,A,P4,Automated license plate reader activity or hit
+AMBER,N,P1,AMBER Alert activation for missing child
+AMBERFU,N,P4,Follow-up related to AMBER Alert
+AOD,N,SERV,Assist another department or agency
+APB,N,P3,All-points bulletin issued or followed up
+APPFU,W,P3,Follow-up on armed and prohibited person
+APSFU,A,P4,Adult Protective Services follow-up
+APSIR,A,P3,Immediate response for Adult Protective Services
+AREACK,N,SERV,Area check requested by dispatch
+ATL,N,P3,Attempt to locate a person or vehicle
+AUDITS,A,P4,Jail or facility audit report
+AWOL,A,P3,Absent without leave from custody or supervision
+B,N,SERV,Boat stop or marine contact
+BACK,N,P1,Request for emergency backup by an officer
+BARCK,N,SERV,Bar or alcohol establishment compliance check
+BIKCHK,N,SERV,Bicycle check or community contact
+BIKECK,N,SERV,Bicycle safety or registration check
+BLY,A,P4,Bank levy enforcement action
+BOATCK,N,SERV,Boat safety or registration check
+BOATOD,N,SERV,Overdue or missing boat investigation
+BOLO,N,P3,Be-on-the-lookout alert issued or followed
+BOMB,F,P1,Bomb threat or suspected explosive device
+BRIBES,F,P3,Bribery or attempted bribery of a public official
+BRIEF,N,ADM,Station briefing or roll call
+BRIEFING,N,ADM,Station briefing or roll call
+BSTOP,N,SERV,Boat stop for safety or enforcement
+BURG,F,P3,Burglary just occurred
+BUSCK,N,SERV,Business security or compliance check
+C7,N,ADM,Meal break
+CALLBK,N,ADM,Technical callback or probation-related follow-up
+CARFIR,N,SERV,Vehicle fire incident
+CBW,A,P4,Civil bench warrant contact
+CCODES,A,P4,County code enforcement-related call
+CCOFF,A,P4,Court call-off or cancellation
+call_type,crime_severity,priority_code,description
+INSP,A,P4,Inspection of jail or law enforcement facility
+INV,N,P3,General investigation not tied to a specific offense code
+ISEERC,N,SERV,iSeeRC community reporting or outreach program
+JAIL,N,ADM,Deputy activity occurring at a jail facility
+K9TRAIN,N,ADM,K9 unit training or certification activity
+KIDCAR,N,SERV,Child locked inside a vehicle requiring assistance
+KNOCK,N,SERV,Knock-and-talk contact with residents or occupants
+KPEACE,N,SERV,Keep the peace during a civil or tense situation
+KTP,N,SERV,Keep the peace request
+LAW,N,ADM,Default or unspecified law code
+LFE,N,P1,Lethal force encounter involving law enforcement
+LNDUSE,A,P4,Land use or zoning code enforcement issue
+LOCATE,N,P3,Locate a stolen or wanted vehicle
+LOJACK,N,P3,LoJack vehicle recovery signal
+LOSTP,C,P4,Lost property report
+LSTBAD,A,P4,Lost or stolen law enforcement badge
+LSTPLT,M,P3,Lost or stolen license plate
+MAGINS,A,P4,Magazine or weapons inspection
+MAIT,F,P2,Major Accident Investigation Team response
+MANDOW,N,P1,Man down requiring emergency response
+MANGUN,F,P2, a person with a gun
+MANHUNT,F,P1,Manhunt for a wanted or dangerous suspect
+MEDAID,N,SERV,Medical aid or assistance request
+MEET,N,SERV,Meeting requested with deputy or unit
+MISPER,N,P3,Missing person report
+MISVEH,N,P3,Missing vehicle report
+NARC,W,P3,Narcotics activity or suspected drug violations
+NOTIF,N,ADM,Notification to involved parties
+OC,M,P3,Use of oleoresin capsicum (pepper spray) incident
+OC,M,P4, pepper spray use
+OD,W,P2,Drug overdose requiring law enforcement response
+OD,W,P4, drug overdose
+OHVPAT,N,SERV,Off-highway vehicle patrol or enforcement
+OIS,F,P1,Officer-involved shooting
+OPEN,N,SERV,Open door or gate check requested
+OPENR,N,P4, open door or gate
+OSC,A,P4,Order to show cause issued by court
+PANIC,N,P2,Panic alarm activation
+PAPER,A,P4,Subject out on legal paperwork or summons
+PARK,I,P4,Parking citation or enforcement issue
+PATINF,N,ADM,Patrol information or briefing
+PC1170,A,P4,Work release or alternative sentencing arrangement
+PCONT,A,P4,Placement or probation contact
+PEDCK,N,SERV,Pedestrian check or welfare contact
+PKGVIO,I,P4,Parking violation
+PLANED,F,P2,Aircraft down or crash incident
+POP,N,ADM,Problem-oriented policing project
+PRCS,N,ADM,Processing activity
+PRINTS,A,P4,Fingerprinting or identification processing
+PRITOW,A,SERV,Private tow coordination
+PROBFU,A,P4,Probation follow-up
+PROVIO,A,P3,Probation violation with gang involvement
+PT,N,ADM,Physical training
+PTH,A,P3,Prisoner transport to hospital
+PTRANS,A,ADM,Prisoner transport
+PUBNUI,A,P4,Public nuisance enforcement or investigation
+PUBSER,N,SERV,Public service request
+PURSE,F,P2,Purse-snatching robbery just occurred
+PURSE,F,P2,Purse-snatching robbery in progress
+PURSE,F,P4, purse-snatching robbery
+PURSUI,W,P2,Vehicle or foot pursuit of suspect
+RAJ,N,P4,Reportable accident involving jail facility
+RCCODE,A,P4,City or regional code enforcement matter
+RCCORD,A,P4,City ordinance enforcement issue
+RDRAGE,M,P3,Road rage incident involving aggressive driving
+RECPRO,N,P4,Recovered property report
+REPO,C,P4,Civil repossession standby
+REPORT,N,ADM,Deputy writing or completing a report
+REST,N,ADM,Restroom or brief personal stop
+RETPER,N,P4,Returned missing person
+RIOT,F,P1,Riot or large-scale violent disturbance
+S&R,N,P1,Search and rescue operation
+SAFKEE,A,P4,Safekeeping of property
+SBPD,N,ADM,San Bernardino Police Department-related call
+SEARCH,A,P3,Search warrant service
+SECCK,N,SERV,Security check of property or premises
+SERVE,A,P4,Service of legal documents
+SGLSER,C,P4,Small claims service or civil process
+SHAKE,A,P3,Jail shakedown or contraband search
+SHOTSF,F,P2,Shots fired incident
+SHOTSH,F,P2,Shots heard report
+SKS,A,P4,Firearm buy-back or surrender program
+SOAA,N,SERV,Assist outside agency search
+SOREQ,N,SERV,Fire or emergency service request
+SPLIT,N,ADM,Split patrol or shift assignment
+SPROP,N,SERV,Property search or check
+SR,N,ADM,Supplemental report
+SS,N,P3,Subject stop or detention
+STA,N,ADM,Station available or status update
+STAB,F,P1,Stabbing just occurred
+STRIKE,N,SERV,Strike or labor-related event
+STRIP,A,P3,Strip search conducted in custody
+STU,N,ADM,At station and unavailable
+SUBCK,N,P3,Subject check or field contact
+SUBSER,A,P4,Subpoena service
+SUPP,N,ADM,Supplemental report writing
+SUSCIR,M,P3,Suspicious circumstances requiring investigation
+SUSCON,M,P3,Suspicious contact with person
+call_type,crime_severity,priority_code,description
+SUSPER,M,P3,Suspicious person report
+SUSVEH,M,P3,Suspicious vehicle report
+SV,N,SERV,School visit or campus-related contact
+T,N,P3,Traffic stop
+T911,N,ADM,Text-to-911 follow-up
+TAG,M,P3,Graffiti tagging activity
+TEST,N,ADM,System or equipment test
+THEFT,W,P3,General theft complaint not otherwise specified
+THEFTR,W,P4,Report of general theft
+TILTAP,W,P3,Till tapping or theft from cash register
+TOW,A,SERV,Tow request or coordination
+TP,W,P2,Traffic pursuit
+TRAF,I,P4,Traffic citation issued
+TRAING,N,ADM,In-service or departmental training
+TRAN,N,SERV,Transient-related complaint or contact
+TRLRLOC,A,P4,ALPR trailer location hit
+TRO,C,P4,Temporary restraining order service or enforcement
+TSTOP,N,P3,Traffic stop
+UNKPRO,N,P3,Unknown problem requiring investigation
+UNWANT,N,SERV,Unwanted subject request
+UOF,F,P2,Use of force incident by law enforcement
+VACPAT,N,SERV,Vacation patrol or property watch
+VCAM1,N,ADM,Video camera monitoring point 1
+VCAM2,N,ADM,Video camera monitoring point 2
+VCONT,N,SERV,Victim contact or follow-up
+VEHCK,N,SERV,Vehicle check or inspection
+VEHREL,A,SERV,Vehicle release authorization
+VEHSER,N,SERV,Vehicle service or assistance
+VINVER,A,P4,Vehicle identification number verification
+W911,N,ADM,Wireless 911 follow-up
+WARARR,F,P2,Warrant arrest
+WARR,A,P3,Warrant service or confirmation
+WARREX,F,P2,Warrant extradition request
+WARSER,F,P2,Attempted warrant service
+WEAPON,W,P2,Person with weapon posing potential danger
+WEAPON,W,P4, weapon possession
+WEAPONG,W,P3,Weapon possession with gang involvement
+WEAPONR,W,P4,Report of weapon-related incident
+WELCK,N,SERV,Welfare check on person or residence
+WP,C,P4,Evidence posting or eviction-related notice
+XPAT,N,SERV,Extra patrol request
+1013,N,SERV,Road or Weather Conditions
+1125A,N,SERV,Animal Hazard
+23114,M,P4,Object Flying From Vehicle
+CFIRE,N,SERV,Car Fire
+MZP,N,SERV,Assist CT with Maintenance
+CZP,N,SERV,Assist with Construction

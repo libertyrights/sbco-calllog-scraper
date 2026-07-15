@@ -14,24 +14,9 @@ from typing import Iterable
 
 
 REMOTE_CANDIDATES: tuple[tuple[str, str | None], ...] = (
-    ("calllog_descriptions.csv", None),
-    ("calllog_desc.csv", None),
-    ("calllog_descriptions.local.csv", None),
-    ("descriptions.csv", None),
-    ("descriptions/calllog.csv", None),
-    ("call_type_descriptions.csv", "call_types"),
-    ("call_type_desc.csv", "call_types"),
-    ("call_types.csv", "call_types"),
-    ("disposition_descriptions.csv", "dispositions"),
-    ("disposition_desc.csv", "dispositions"),
-    ("dispo_descriptions.csv", "dispositions"),
-    ("dispo_desc.csv", "dispositions"),
-    ("dispositions.csv", "dispositions"),
-    ("prefix_descriptions.csv", "prefixes"),
-    ("prefix_desc.csv", "prefixes"),
-    ("call_prefix_descriptions.csv", "prefixes"),
-    ("call_prefix_desc.csv", "prefixes"),
-    ("prefixes.csv", "prefixes"),
+    ("calltypes.csv", "call_types"),
+    ("dispos.csv", "dispositions"),
+    ("callprefix.csv", "prefixes"),
 )
 
 REMOTE_LIVE_JSON = "calllog_descriptions.json"
@@ -124,6 +109,29 @@ def first_value(row: list[str], headers: dict[str, int], names: Iterable[str]) -
     return ""
 
 
+def combined_header_values(row: list[str], headers: dict[str, int], names: Iterable[str]) -> str:
+    values: list[str] = []
+    max_header_index = max(headers.values(), default=-1)
+    for name in names:
+        index = headers.get(normalize_header(name))
+        if index is None or index >= len(row):
+            continue
+        if index == max_header_index and len(row) > max_header_index + 1:
+            value = ", ".join(cell.strip() for cell in row[index:] if cell.strip())
+        else:
+            value = row[index].strip()
+        if value and is_useful_description(value):
+            values.append(value)
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        key = value.lower()
+        if key not in seen:
+            deduped.append(value)
+            seen.add(key)
+    return " - ".join(deduped)
+
+
 def is_useful_description(value: str) -> bool:
     return value.strip().lower() not in {"", "unknown", "unk", "n/a", "na", "none", "null", "?"}
 
@@ -181,7 +189,19 @@ def parse_description_csv(text: str, default_section: str | None) -> dict[str, d
             headers,
             ["code", "key", "call type", "call_type", "type", "dispo", "disposition", "prefix"],
         )
-        description = first_value(row, headers, ["description", "desc", "label", "meaning", "text"])
+        description = combined_header_values(
+            row,
+            headers,
+            [
+                "description",
+                "short_description",
+                "when_used_explanation",
+                "desc",
+                "label",
+                "meaning",
+                "text",
+            ],
+        )
         if not description and len(row) >= 2:
             description = row[-1].strip()
         if code and is_useful_description(description):

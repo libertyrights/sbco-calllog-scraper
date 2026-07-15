@@ -36,6 +36,9 @@ jobs:
           python deploy_ftp_file.py site/sbsd.html sbsd.html
           python deploy_ftp_file.py site/records.html records.html
           python deploy_ftp_file.py site/calllog_descriptions.php calllog_descriptions.php
+          python deploy_ftp_file.py site/calltypes.csv calltypes.csv
+          python deploy_ftp_file.py site/dispos.csv dispos.csv
+          python deploy_ftp_file.py site/callprefix.csv callprefix.csv
           python deploy_ftp_file.py site/calllog_descriptions.pdf.json calllog_descriptions.pdf.json
           python deploy_ftp_file.py site/calllog_descriptions.manual.json calllog_descriptions.manual.json
           python deploy_ftp_file.py site/record_lookup_request.php record_lookup_request.php
