@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SBCO Death and Arrest Stats</title>
+<style>
+:root {
+  --ink: #17201c;
+  --muted: #637268;
+  --paper: #f7f1e6;
+  --card: rgba(255, 251, 242, 0.88);
+  --line: rgba(35, 44, 39, 0.14);
+  --sage: #536d5a;
+  --moss: #263f31;
+  --copper: #a35b38;
+  --gold: #c69a42;
+  --blue: #376381;
+  --red: #9d3d35;
+  --shadow: 0 18px 46px rgba(35, 44, 39, 0.14);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 9% 12%, rgba(198, 154, 66, 0.22), transparent 34rem),
+    radial-gradient(circle at 89% 4%, rgba(55, 99, 129, 0.22), transparent 28rem),
+    linear-gradient(145deg, #f8f1e5 0%, #e9dcc6 55%, #d8c9ad 100%);
+  font-family: Georgia, "Times New Roman", serif;
+}
+a { color: inherit; }
+.shell { width: min(1440px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 42px; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(23,32,28,.96), rgba(51,65,54,.92)),
+    repeating-linear-gradient(120deg, rgba(255,255,255,.04) 0 1px, transparent 1px 20px);
+  color: var(--paper);
+  padding: clamp(24px, 5vw, 48px);
+  box-shadow: var(--shadow);
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 44rem;
+  height: 44rem;
+  right: -18rem;
+  bottom: -30rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(163,91,56,.34), transparent 66%);
+}
+.eyebrow {
+  margin: 0 0 14px;
+  color: #d9c49e;
+  font: 700 .78rem/1 Verdana, sans-serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+h1 { margin: 0; max-width: 940px; font-size: clamp(2.3rem, 6vw, 5.2rem); line-height: .94; letter-spacing: -.055em; }
+.hero p { max-width: 760px; margin: 18px 0 0; color: rgba(247,241,230,.82); font-size: 1.08rem; line-height: 1.55; }
+.nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.nav a, .nav button {
+  border: 1px solid rgba(247,241,230,.22);
+  border-radius: 999px;
+  background: rgba(247,241,230,.1);
+  color: var(--paper);
+  text-decoration: none;
+  padding: 11px 15px;
+  font: 700 .86rem/1 Verdana, sans-serif;
+}
+.nav .primary { background: var(--paper); color: var(--ink); border-color: transparent; }
+.controls {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) repeat(3, minmax(150px, 220px));
+  gap: 10px;
+  margin-top: 16px;
+}
+.controls label { display: grid; gap: 6px; color: rgba(247,241,230,.82); font: 700 .72rem/1 Verdana, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 12px;
+  background: rgba(255,255,255,.1);
+  color: var(--paper);
+  padding: 0 10px;
+}
+option { color: #17201c; background: #fffaf0; }
+.status { margin-top: 12px; color: rgba(247,241,230,.7); font: 700 .82rem/1.4 Verdana, sans-serif; }
+.section-title { display:flex; justify-content:space-between; align-items:end; gap:16px; margin: 28px 4px 12px; }
+.section-title h2 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.4rem); letter-spacing: -.035em; }
+.section-title p { margin: 0; color: var(--muted); max-width: 720px; line-height: 1.45; }
+.cards { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+.metric {
+  grid-column: span 3;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 14px 36px rgba(72, 62, 49, .09);
+}
+.metric b { display: block; color: var(--muted); font: 700 .72rem/1.2 Verdana, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.metric span { display: block; margin-top: 8px; font-size: clamp(1.65rem, 3vw, 2.45rem); font-weight: 800; letter-spacing: -.04em; }
+.metric small { display: block; margin-top: 8px; color: var(--muted); line-height: 1.35; }
+.panel {
+  margin-top: 12px;
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: 0 14px 36px rgba(72, 62, 49, .09);
+  overflow: hidden;
+}
+.panel h3 { margin: 0; padding: 16px 18px 8px; font-size: 1.22rem; letter-spacing: -.02em; }
+.panel .note { margin: 0; padding: 0 18px 12px; color: var(--muted); line-height: 1.45; }
+.grid-2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 10px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { color: #fff; background: var(--moss); font: 700 .72rem/1.2 Verdana, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+td.num, th.num { text-align: right; }
+.table-wrap { overflow: auto; max-height: 560px; }
+.bar-list { padding: 4px 16px 16px; display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(110px, 190px) 1fr minmax(46px, auto); gap: 10px; align-items: center; font-size: 13px; }
+.bar-track { height: 12px; border-radius: 999px; background: rgba(38,63,49,.12); overflow: hidden; }
+.bar { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--sage), var(--gold)); }
+.bar.death { background: linear-gradient(90deg, #35463b, #a35b38); }
+.bar.arrest { background: linear-gradient(90deg, #376381, #c69a42); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 16px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.45); padding: 7px 10px; color: var(--muted); font: 700 .76rem/1 Verdana, sans-serif; }
+.warn { color: #7b4a13; }
+.muted { color: var(--muted); }
+footer { margin-top: 22px; text-align: center; color: rgba(23,32,28,.62); font-size: .92rem; }
+@media (max-width: 980px) {
+  .controls { grid-template-columns: 1fr 1fr; }
+  .metric { grid-column: span 6; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .shell { width: min(100% - 18px, 1440px); padding-top: 12px; }
+  .controls { grid-template-columns: 1fr; }
+  .metric { grid-column: span 12; }
+  .section-title { display: block; }
+  .bar-row { grid-template-columns: 1fr; gap: 4px; }
+}
+</style>
+<!-- Analytics: Clicky + Statcounter -->
+<script async data-id="101508838" src="//static.getclicky.com/js"></script>
+<!-- Default Statcounter code for Upnexx Technologies
+https://upnexx.xyz -->
+<script type="text/javascript">
+var sc_project=12933708;
+var sc_invisible=1;
+var sc_security="4a4d7f40";
+</script>
+<script type="text/javascript"
+src="https://www.statcounter.com/counter/counter.js"
+async></script>
+<noscript><div class="statcounter"><a title="Web Analytics Made Easy - Statcounter" href="https://statcounter.com/" target="_blank"><img class="statcounter" src="https://c.statcounter.com/12933708/0/4a4d7f40/1/" alt="Web Analytics Made Easy - Statcounter" referrerpolicy="no-referrer-when-downgrade"></a></div></noscript>
+<!-- End of Statcounter Code -->
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <div class="eyebrow">SBCO records dashboard</div>
+    <h1>Death and arrest stats, minus spreadsheet hypnosis.</h1>
+    <p>
+      Pulls from the published death index and arrest records, then builds live summaries by year,
+      month, category, city, gender, age, charge family, and source agency.
+    </p>
+    <div class="nav">
+      <a class="primary" href="records.html">Search records</a>
+      <a href="death_index.csv">Death CSV</a>
+      <a href="all_records.json">Arrest JSON</a>
+      <a href="index.html">OSINT home</a>
+    </div>
+    <div class="controls">
+      <label>Year <select id="yearSelect"></select></label>
+      <label>Start month <select id="startMonth"></select></label>
+      <label>End month <select id="endMonth"></select></label>
+      <label>Death category <select id="modeFilter"><option value="">All categories</option></select></label>
+    </div>
+    <div class="status" id="status">Loading death_index.csv and all_records.json...</div>
+  </section>
+
+  <div class="section-title">
+    <div>
+      <h2>Death Index</h2>
+      <p>Categories come from <code>currentMode</code>. Pending and Unknown are intentionally separate.</p>
+    </div>
+  </div>
+  <section class="cards" id="deathCards"></section>
+  <section class="grid-2">
+    <div class="panel"><h3>Deaths By Month</h3><p class="note">Filtered by the controls above.</p><div class="bar-list" id="deathMonthBars"></div></div>
+    <div class="panel"><h3>Category Mix</h3><div class="bar-list" id="deathModeBars"></div></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel"><h3>Category, Gender, and Common Ages</h3><div class="table-wrap"><table id="deathCategoryTable"></table></div></div>
+    <div class="panel"><h3>Interesting Death Stats</h3><div class="chips" id="deathInsights"></div><div class="table-wrap"><table id="deathPerCapitaTable"></table></div></div>
+  </section>
+  <section class="panel">
+    <h3>Top Death Cities: Common Age By Gender</h3>
+    <p class="note">City uses injury city when available, then place-of-death city, then decedent city.</p>
+    <div class="table-wrap"><table id="deathCityGenderTable"></table></div>
+  </section>
+
+  <div class="section-title">
+    <div>
+      <h2>Arrests</h2>
+      <p>Arrest history is shorter, so monthly trends are the main view. Charge families are inferred from charge text and penal/statute keywords.</p>
+    </div>
+  </div>
+  <section class="cards" id="arrestCards"></section>
+  <section class="grid-2">
+    <div class="panel"><h3>Arrests By Month</h3><div class="bar-list" id="arrestMonthBars"></div></div>
+    <div class="panel"><h3>Charge Families</h3><div class="bar-list" id="arrestChargeBars"></div></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel"><h3>Arrest Cities</h3><div class="table-wrap"><table id="arrestCityTable"></table></div></div>
+    <div class="panel"><h3>Gender, Race, and Age</h3><div class="table-wrap"><table id="arrestProfileTable"></table></div></div>
+  </section>
+  <section class="panel">
+    <h3>Top Arrest Charges</h3>
+    <div class="table-wrap"><table id="arrestChargeTable"></table></div>
+  </section>
+
+  <footer>Sources: San Bernardino County death index, published arrest records, ACS 2024 5-year place populations where matched.</footer>
+</main>
+
+<script>
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const POPULATION = {
+  "Adelanto":37964,"Alhambra":81022,"Amboy":2384,"Apple Valley":75473,"Baker":339,"Bakersfield":411986,
+  "Banning":31093,"Barstow":25100,"Big Bear City":11431,"Big Bear Lake":5041,"Big River":1140,"Bloomington":25698,
+  "Boron":2698,"Chino":92652,"Chino Hills":77927,"Colton":53772,"Corona":159670,"Crestline":9835,
+  "El Mirage":36088,"Fontana":214169,"Fort Irwin":8419,"Glendale":190748,"Grand Terrace":13078,"Hemet":91326,
+  "Hesperia":100775,"Highland":56675,"Joshua Tree":6234,"Jurupa Valley":107011,"Lake Arrowhead":10639,
+  "Lake Elsinore":72461,"Lawndale":30781,"Loma Linda":25122,"Los Angeles":3857263,"Lucerne Valley":5957,
+  "Ludlow":4378,"Lytle Creek":672,"Mentone":9514,"Montclair":37810,"Moreno Valley":211666,"Morongo Valley":4209,
+  "Murrieta":112064,"Muscoy":12025,"Needles":4872,"Oak Glen":510,"Oak Hills":9013,"Ontario":180547,
+  "Palm Desert":51990,"Patton":473,"Phelan":18496,"Pomona":147943,"Rancho Cucamonga":175411,"Redlands":73375,
+  "Rialto":104143,"Riverside":319069,"Running Springs":4917,"San Bernardino":222724,"Santa Barbara":87779,
+  "Spring Valley Lake":9483,"Stockton":322326,"Twentynine Palms":27355,"Upland":79257,"Victorville":137627,
+  "Wrightwood":5067,"Yermo":958,"Yucaipa":54421,"Yucca Valley":21770
+};
+let deathRows = [];
+let arrestRows = [];
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+}
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (quoted) {
+      if (ch === '"' && next === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (ch !== "\r") cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const header = rows.shift() || [];
+  return rows.filter((r) => r.some((c) => c.trim())).map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] || ""])));
+}
+function parseDate(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (us) return new Date(Number(us[3]), Number(us[1]) - 1, Number(us[2]));
+  const d = new Date(text);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function parseAge(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  if (text.startsWith("<")) return 0.5;
+  const m = text.match(/\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+function ageLabel(age) {
+  if (age == null) return "Unknown";
+  if (age === 0.5) return "<1";
+  return Number.isInteger(age) ? String(age) : String(age);
+}
+function norm(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+function cleanCity(value) {
+  const city = norm(value);
+  return /^(unknown|unk|pending)$/i.test(city) ? "" : city;
+}
+function canonicalCity(city) {
+  const aliases = { "29 PALMS":"Twentynine Palms", "29 Palms":"Twentynine Palms", "Twenty Nine Palms":"Twentynine Palms", "Ft. Irwin":"Fort Irwin" };
+  return aliases[city] || city;
+}
+function sex(value) {
+  const text = norm(value).toUpperCase();
+  if (text.startsWith("M")) return "M";
+  if (text.startsWith("F")) return "F";
+  return "Unknown";
+}
+function mean(values) {
+  const nums = values.filter((v) => Number.isFinite(v));
+  return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+}
+function meanText(values, digits = 1) {
+  const value = mean(values);
+  return value == null ? "n/a" : value.toFixed(digits);
+}
+function pct(n, d) { return d ? `${(n / d * 100).toFixed(1)}%` : "0.0%"; }
+function countBy(rows, fn) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const key = fn(row) || "Unknown";
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+}
+function topModes(counter) {
+  if (!counter.length) return "n/a";
+  const max = counter[0][1];
+  return counter.filter(([, v]) => v === max).map(([k, v]) => `${k} (${v})`).join(", ");
+}
+function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
+function monthLabel(key) {
+  const [y, m] = key.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${y}`;
+}
+function inRange(row, dateField) {
+  const d = row[dateField];
+  if (!d) return false;
+  const year = Number(document.getElementById("yearSelect").value);
+  const start = Number(document.getElementById("startMonth").value);
+  const end = Number(document.getElementById("endMonth").value);
+  return d.getFullYear() === year && d.getMonth() + 1 >= start && d.getMonth() + 1 <= end;
+}
+function renderCards(id, cards) {
+  document.getElementById(id).innerHTML = cards.map((card) => `
+    <article class="metric"><b>${esc(card.label)}</b><span>${esc(card.value)}</span><small>${esc(card.note || "")}</small></article>
+  `).join("");
+}
+function renderBars(id, rows, className = "") {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  document.getElementById(id).innerHTML = rows.length ? rows.map((r) => `
+    <div class="bar-row">
+      <div>${esc(r.label)}</div>
+      <div class="bar-track"><div class="bar ${className}" style="width:${Math.max(2, r.value / max * 100)}%"></div></div>
+      <strong>${esc(r.value)}</strong>
+    </div>
+  `).join("") : `<p class="note">No rows for this filter.</p>`;
+}
+function renderTable(id, headers, rows) {
+  document.getElementById(id).innerHTML = `
+    <thead><tr>${headers.map((h) => `<th class="${h.num ? "num" : ""}">${esc(h.label)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((row) => `<tr>${headers.map((h) => `<td class="${h.num ? "num" : ""}">${esc(row[h.key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody>
+  `;
+}
+function arrestDate(row) {
+  return parseDate(row.arrest_date) || parseDate(row.event_time) || parseDate(row.first_seen_at);
+}
+function arrestGender(row) {
+  const text = norm(row.details?.age_gender || "");
+  if (/female/i.test(text)) return "F";
+  if (/male/i.test(text)) return "M";
+  return "Unknown";
+}
+function arrestCity(row) {
+  const raw = norm(row.details?.city_state || "");
+  const city = raw.split(",")[0].replace(/\s+/g, " ").trim();
+  return canonicalCity(city || "Unknown");
+}
+function isAllowedArrestAgency(row) {
+  const agency = norm(row.details?.source_agency || row.agency || "");
+  return !/sheriff/i.test(agency) || /san bernardino/i.test(agency);
+}
+function chargeFamily(charge) {
+  const c = norm(charge).toUpperCase();
+  if (/DUI|23152|23153|UNDER THE INFLUENCE|11550/.test(c)) return "DUI / Intoxication / Drugs";
+  if (/1135|1136|1137|1138|NARC|DRUG|CONTROLLED|PARAPHERNALIA|MARIJUANA|FENTANYL|METH/.test(c)) return "Drug";
+  if (/WARRANT|PAROLE|PROBATION|HOLD|3056|1203/.test(c)) return "Warrant / Supervision";
+  if (/THEFT|BURGL|ROBB|STOLEN|SHOPLIFT|484|487|488|459|496|10851/.test(c)) return "Theft / Property";
+  if (/WEAPON|FIREARM|DIRK|DAGGER|GUN|KNIFE|21310|25400|25850|29800/.test(c)) return "Weapons";
+  if (/BATTERY|ASSAULT|DOMESTIC|SPOUSE|CORPORAL|THREAT|VIOLENCE|243|245|273\.5|422/.test(c)) return "Violence / Domestic";
+  if (/TRESPASS|647|602|DISORDERLY|PUBLIC|VANDAL|594/.test(c)) return "Trespass / Public Order";
+  if (/EVASION|TRAFFIC|RECKLESS|2800|14601/.test(c)) return "Traffic / Evasion";
+  if (/SEX|290|RAPE|LEWD|261|288/.test(c)) return "Sex Offense";
+  return "Other";
+}
+function loadControls() {
+  const years = new Set([
+    ...deathRows.map((r) => r._date?.getFullYear()).filter(Boolean),
+    ...arrestRows.map((r) => r._date?.getFullYear()).filter(Boolean)
+  ]);
+  const current = Math.max(...years);
+  document.getElementById("yearSelect").innerHTML = [...years].sort((a,b) => b-a).map((y) => `<option value="${y}">${y}</option>`).join("");
+  document.getElementById("yearSelect").value = current;
+  const monthOptions = MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join("");
+  document.getElementById("startMonth").innerHTML = monthOptions;
+  document.getElementById("endMonth").innerHTML = monthOptions;
+  document.getElementById("startMonth").value = 1;
+  document.getElementById("endMonth").value = 12;
+  const modes = countBy(deathRows, (r) => r.mode).map(([m]) => m);
+  document.getElementById("modeFilter").innerHTML = `<option value="">All categories</option>` + modes.map((m) => `<option>${esc(m)}</option>`).join("");
+}
+function renderDeaths() {
+  const selectedMode = document.getElementById("modeFilter").value;
+  let rows = deathRows.filter((r) => inRange(r, "_date"));
+  if (selectedMode) rows = rows.filter((r) => r.mode === selectedMode);
+  const ages = rows.map((r) => r.age).filter((v) => Number.isFinite(v));
+  const minors = rows.filter((r) => Number.isFinite(r.age) && r.age < 18);
+  const modes = countBy(rows, (r) => r.mode);
+  const cities = countBy(rows, (r) => r.city);
+  const topCity = cities[0] || ["n/a", 0];
+  const dateValues = rows.map((r) => r._date).filter(Boolean).sort((a,b) => a-b);
+  renderCards("deathCards", [
+    { label:"Deaths", value: rows.length.toLocaleString(), note: dateValues.length ? `${dateValues[0].toLocaleDateString()} to ${dateValues.at(-1).toLocaleDateString()}` : "No records" },
+    { label:"Average Age", value: meanText(ages), note: `${ages.length.toLocaleString()} records with age` },
+    { label:"Minors", value: minors.length.toLocaleString(), note: "Age under 18" },
+    { label:"Top City", value: topCity[0], note: `${topCity[1]} records` }
+  ]);
+  const monthRows = countBy(rows, (r) => monthKey(r._date)).sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => ({ label: monthLabel(k), value: v }));
+  renderBars("deathMonthBars", monthRows, "death");
+  renderBars("deathModeBars", modes.map(([label, value]) => ({ label, value })), "death");
+  const categoryRows = modes.map(([mode, total]) => {
+    const subset = rows.filter((r) => r.mode === mode);
+    const male = subset.filter((r) => r.sex === "M");
+    const female = subset.filter((r) => r.sex === "F");
+    return {
+      mode, total,
+      male: `${male.length} (${pct(male.length,total)})`,
+      female: `${female.length} (${pct(female.length,total)})`,
+      maleAge: topModes(countBy(male.filter((r) => r.ageLabel !== "Unknown"), (r) => r.ageLabel)),
+      femaleAge: topModes(countBy(female.filter((r) => r.ageLabel !== "Unknown"), (r) => r.ageLabel))
+    };
+  });
+  renderTable("deathCategoryTable", [
+    { key:"mode", label:"Category" }, { key:"total", label:"Total", num:true }, { key:"male", label:"Male", num:true },
+    { key:"female", label:"Female", num:true }, { key:"maleAge", label:"Most Common Male Age" }, { key:"femaleAge", label:"Most Common Female Age" }
+  ], categoryRows);
+  const traffic = deathRows.filter((r) => inRange(r, "_date") && r.mode === "Traffic");
+  const suicide = deathRows.filter((r) => inRange(r, "_date") && r.mode === "Suicide");
+  const natural = deathRows.filter((r) => inRange(r, "_date") && r.mode === "Natural");
+  const minorSuicide = suicide.filter((r) => Number.isFinite(r.age) && r.age < 18);
+  const weekday = countBy(minorSuicide, (r) => r._date.toLocaleDateString(undefined, { weekday: "long" }))[0] || ["n/a", 0];
+  document.getElementById("deathInsights").innerHTML = [
+    `Traffic avg age: ${meanText(traffic.map((r) => r.age))}`,
+    `Suicide avg age: ${meanText(suicide.map((r) => r.age))}`,
+    `Natural avg age: ${meanText(natural.map((r) => r.age))}`,
+    `Minor suicides: ${minorSuicide.length}`,
+    `Minor traffic deaths: ${traffic.filter((r) => Number.isFinite(r.age) && r.age < 18).length}`,
+    `Minor natural deaths: ${natural.filter((r) => Number.isFinite(r.age) && r.age < 18).length}`,
+    `Minor suicide weekday: ${weekday[0]} (${weekday[1]})`
+  ].map((text) => `<span class="chip">${esc(text)}</span>`).join("");
+  const perCapita = ["Traffic", "Suicide"].flatMap((mode) => {
+    return countBy(deathRows.filter((r) => inRange(r, "_date") && r.mode === mode), (r) => r.city)
+      .map(([city, deaths]) => ({ mode, city, deaths, population: POPULATION[city] }))
+      .filter((r) => r.population > 0)
+      .map((r) => ({ ...r, rate: r.deaths / r.population * 100000 }))
+      .sort((a,b) => b.rate - a.rate).slice(0, 5);
+  });
+  renderTable("deathPerCapitaTable", [
+    { key:"mode", label:"Per Capita Category" }, { key:"city", label:"City" }, { key:"deaths", label:"Deaths", num:true },
+    { key:"population", label:"Pop.", num:true }, { key:"rateText", label:"Per 100k", num:true }
+  ], perCapita.map((r) => ({ ...r, population: r.population.toLocaleString(), rateText: r.rate.toFixed(1) })));
+  const topCityRows = cities.slice(0, 10).map(([city, total]) => {
+    const subset = rows.filter((r) => r.city === city);
+    const male = subset.filter((r) => r.sex === "M");
+    const female = subset.filter((r) => r.sex === "F");
+    return {
+      city, total,
+      male: male.length,
+      maleAge: topModes(countBy(male.filter((r) => r.ageLabel !== "Unknown"), (r) => r.ageLabel)),
+      female: female.length,
+      femaleAge: topModes(countBy(female.filter((r) => r.ageLabel !== "Unknown"), (r) => r.ageLabel))
+    };
+  });
+  renderTable("deathCityGenderTable", [
+    { key:"city", label:"City" }, { key:"total", label:"Total", num:true }, { key:"male", label:"Male", num:true },
+    { key:"maleAge", label:"Common Male Age" }, { key:"female", label:"Female", num:true }, { key:"femaleAge", label:"Common Female Age" }
+  ], topCityRows);
+}
+function renderArrests() {
+  const rows = arrestRows.filter((r) => inRange(r, "_date"));
+  const ages = rows.map((r) => r.age).filter((v) => Number.isFinite(v));
+  const monthCounts = countBy(rows, (r) => monthKey(r._date)).sort((a,b) => a[0].localeCompare(b[0]));
+  const peakMonth = [...monthCounts].sort((a,b) => b[1] - a[1])[0] || ["n/a", 0];
+  const cities = countBy(rows, (r) => r.city);
+  const families = countBy(rows, (r) => r.family);
+  renderCards("arrestCards", [
+    { label:"Arrests", value: rows.length.toLocaleString(), note: "Published arrest records in selected range" },
+    { label:"Average Age", value: meanText(ages), note: `${ages.length} records with age` },
+    { label:"Peak Month", value: peakMonth[0] === "n/a" ? "n/a" : monthLabel(peakMonth[0]), note: `${peakMonth[1]} arrests` },
+    { label:"Top Charge Family", value: families[0]?.[0] || "n/a", note: `${families[0]?.[1] || 0} arrests` }
+  ]);
+  renderBars("arrestMonthBars", monthCounts.map(([k,v]) => ({ label: monthLabel(k), value: v })), "arrest");
+  renderBars("arrestChargeBars", families.slice(0, 12).map(([label, value]) => ({ label, value })), "arrest");
+  renderTable("arrestCityTable", [
+    { key:"city", label:"City" }, { key:"count", label:"Arrests", num:true }, { key:"pct", label:"Share", num:true }
+  ], cities.slice(0, 15).map(([city, count]) => ({ city, count, pct: pct(count, rows.length) })));
+  const gender = countBy(rows, (r) => r.gender);
+  const race = countBy(rows, (r) => r.race || "Unknown");
+  const profileRows = [
+    ...gender.map(([label, count]) => ({ type:"Gender", label, count, pct:pct(count, rows.length) })),
+    ...race.slice(0, 8).map(([label, count]) => ({ type:"Race", label, count, pct:pct(count, rows.length) })),
+    { type:"Age", label:"Most common", count: topModes(countBy(rows.filter((r) => r.ageLabel !== "Unknown"), (r) => r.ageLabel)), pct:"" }
+  ];
+  renderTable("arrestProfileTable", [
+    { key:"type", label:"Type" }, { key:"label", label:"Value" }, { key:"count", label:"Count", num:true }, { key:"pct", label:"Share", num:true }
+  ], profileRows);
+  const charges = countBy(rows, (r) => r.charge || "Unknown").slice(0, 25).map(([charge, count]) => ({ charge, count, family: chargeFamily(charge) }));
+  renderTable("arrestChargeTable", [
+    { key:"charge", label:"Charge" }, { key:"family", label:"Family" }, { key:"count", label:"Count", num:true }
+  ], charges);
+}
+function renderAll() {
+  const start = Number(document.getElementById("startMonth").value);
+  const end = Number(document.getElementById("endMonth").value);
+  if (start > end) document.getElementById("endMonth").value = start;
+  renderDeaths();
+  renderArrests();
+}
+async function init() {
+  const [deathText, arrestPayload] = await Promise.all([
+    fetch("death_index.csv", { cache: "no-store" }).then((r) => r.text()),
+    fetch("all_records.json", { cache: "no-store" }).then((r) => r.json())
+  ]);
+  deathRows = parseCsv(deathText).map((r) => {
+    const date = parseDate(r.dateOfDeath);
+    const mode = norm(r.currentMode) || "Unknown";
+    const age = parseAge(r.ageDisplay);
+    const city = canonicalCity(cleanCity(r.injuryCity) || cleanCity(r.podCity) || cleanCity(r.decedentCity) || "Unknown");
+    return { ...r, _date: date, mode, age, ageLabel: ageLabel(age), sex: sex(r.sex), city };
+  }).filter((r) => r._date);
+  const rawArrests = Array.isArray(arrestPayload) ? arrestPayload : (arrestPayload.records || arrestPayload.data || []);
+  arrestRows = rawArrests.filter(isAllowedArrestAgency).map((r) => {
+    const date = arrestDate(r);
+    const age = Number.isFinite(Number(r.age)) ? Number(r.age) : parseAge(r.details?.age_gender);
+    const charge = norm(r.charge || r.details?.arrested_for);
+    return {
+      ...r,
+      _date: date,
+      age,
+      ageLabel: ageLabel(age),
+      gender: arrestGender(r),
+      race: norm(r.details?.race) || "Unknown",
+      city: arrestCity(r),
+      charge,
+      family: chargeFamily(charge),
+      agency: norm(r.details?.source_agency) || "Unknown"
+    };
+  }).filter((r) => r._date);
+  loadControls();
+  ["yearSelect","startMonth","endMonth","modeFilter"].forEach((id) => document.getElementById(id).addEventListener("change", renderAll));
+  document.getElementById("status").textContent = `Loaded ${deathRows.length.toLocaleString()} death records and ${arrestRows.length.toLocaleString()} arrest records.`;
+  renderAll();
+}
+init().catch((error) => {
+  console.error(error);
+  document.getElementById("status").innerHTML = `<span class="warn">Could not load stats data:</span> ${esc(error.message || error)}`;
+});
+</script>
+</body>
+</html>

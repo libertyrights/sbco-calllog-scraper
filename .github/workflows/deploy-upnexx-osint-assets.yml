@@ -24,6 +24,8 @@ jobs:
           python sync_calllog_descriptions.py
           python deploy_ftp_file.py site/index.html index.html
           python deploy_ftp_file.py site/status.html status.html
+          python deploy_ftp_file.py site/record-stats.html record-stats.html
+          python deploy_ftp_file.py site/call-stats.html call-stats.html
           python deploy_ftp_file.py site/downloads.html downloads.html
           python deploy_ftp_file.py site/arrests.html arrests.html
           python deploy_ftp_file.py site/crimes.html crimes.html
