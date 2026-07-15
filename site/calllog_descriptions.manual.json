@@ -1,0 +1,16 @@
+{
+  "source": "user-provided call type corrections",
+  "call_types": {
+    "10851": "Vehicle taken/driven without owner's consent (joyriding/GTA)",
+    "459A": "Burglary alarm",
+    "602": "Trespassing",
+    "COUNTR": "Counter visit",
+    "CPSFU": "Child Protective Services follow-up",
+    "HOMER": "Home visit",
+    "INC": "Incident report requested",
+    "PEDCK": "Pedestrian check",
+    "UNKPRO": "Unknown problem",
+    "UNWANT": "Unwanted person",
+    "WARARR": "Warrant arrest"
+  }
+}
