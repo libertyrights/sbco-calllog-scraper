@@ -1,0 +1,52 @@
+name: osint-server-maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Maintenance mode"
+        required: true
+        default: "list"
+        type: choice
+        options:
+          - list
+          - backup
+          - delete
+      label:
+        description: "Backup label"
+        required: false
+        default: "manual"
+      manifest:
+        description: "Manifest path for backup/delete modes"
+        required: false
+        default: "ops/osint_cleanup_manifest.json"
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Run OSINT FTP maintenance
+        env:
+          SBCO_BASE_DIR: ${{ github.workspace }}/runtime
+          SBCO_FTP_HOST: ${{ secrets.SERV00_FTP_HOST }}
+          SBCO_FTP_USER: ${{ secrets.SERV00_FTP_USER }}
+          SBCO_FTP_PASS: ${{ secrets.SERV00_FTP_PASS }}
+        run: |
+          mkdir -p "$SBCO_BASE_DIR"
+          python ops/osint_ftp_maintenance.py \
+            --mode "${{ inputs.mode }}" \
+            --label "${{ inputs.label }}" \
+            --manifest "${{ inputs.manifest }}"
+
+      - name: Upload maintenance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osint-server-maintenance-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            ${{ github.workspace }}/runtime/osint_ftp_inventory.*
+            ${{ github.workspace }}/runtime/osint_server_backups/**
