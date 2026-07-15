@@ -34,6 +34,12 @@ REMOTE_CANDIDATES: tuple[tuple[str, str | None], ...] = (
     ("prefixes.csv", "prefixes"),
 )
 
+CSV_NAME_SKIP_RE = re.compile(
+    r"^(?:calllog|calllog_formatted|server_calllog|releases?|daily_release_list|death_index|all_records)\.csv$",
+    re.I,
+)
+CSV_NAME_HINT_RE = re.compile(r"(desc|description|dispo|disposition|prefix|call[_-]?type|types?|codes?)", re.I)
+
 
 def ftp_connect() -> tuple[FTP, str]:
     host = (
@@ -169,6 +175,39 @@ def retr_text(ftp: FTP, remote_name: str) -> str | None:
     return b"".join(chunks).decode("utf-8-sig", errors="replace")
 
 
+def section_from_filename(remote_name: str) -> str | None:
+    name = posixpath.basename(remote_name).lower()
+    if "prefix" in name:
+        return "prefixes"
+    if "dispo" in name or "disposition" in name:
+        return "dispositions"
+    if "call_type" in name or "call-type" in name or "calltype" in name or "type" in name:
+        return "call_types"
+    return None
+
+
+def discover_remote_csv_specs(ftp: FTP) -> list[tuple[str, str | None]]:
+    discovered: list[tuple[str, str | None]] = []
+    for directory in ("", "descriptions"):
+        try:
+            names = ftp.nlst(directory or ".")
+        except Exception:
+            continue
+        for name in names:
+            remote_name = name.replace("\\", "/")
+            base = posixpath.basename(remote_name)
+            if not base.lower().endswith(".csv"):
+                continue
+            if CSV_NAME_SKIP_RE.search(base):
+                continue
+            if not CSV_NAME_HINT_RE.search(base):
+                continue
+            if directory and "/" not in remote_name:
+                remote_name = posixpath.join(directory, remote_name)
+            discovered.append((remote_name, section_from_filename(base)))
+    return discovered
+
+
 def atomic_upload(ftp: FTP, local_path: Path, remote_name: str) -> None:
     temp_name = f"{remote_name}.deploy.{int(time.time())}.tmp"
     backup_name = f"{remote_name}.bak"
@@ -190,7 +229,12 @@ def sync_from_ftp(output_path: Path, upload: bool) -> int:
     merged: dict[str, dict[str, str]] = {"prefixes": {}, "dispositions": {}, "call_types": {}}
     sources: list[str] = []
     try:
-        for remote_name, default_section in REMOTE_CANDIDATES:
+        candidates = list(REMOTE_CANDIDATES)
+        for spec in discover_remote_csv_specs(ftp):
+            if spec not in candidates:
+                candidates.append(spec)
+
+        for remote_name, default_section in candidates:
             text = retr_text(ftp, remote_name)
             if text is None:
                 continue
