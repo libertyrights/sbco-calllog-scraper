@@ -1289,7 +1289,7 @@ def is_san_bernardino_county_arrest(record):
         return "san bernardino" in county
     if "san bernardino" in agency:
         return True
-    if "sheriff" in agency and "county" in agency:
+    if "sheriff" in agency or re.search(r"\b[a-z]+(?:\s+county)?\s+sd\b", agency):
         return False
     return any(
         place in agency or place in location or place in city_state

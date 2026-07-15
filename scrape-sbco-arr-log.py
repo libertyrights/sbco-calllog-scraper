@@ -26,6 +26,47 @@ HEADERS = {
     )
 }
 DEFAULT_OUTPUT_JSON = "/var/log/scrapers/sbco-arr-log/latest.json"
+SAN_BERNARDINO_ARREST_PLACES = {
+    "adelanto",
+    "apple valley",
+    "barstow",
+    "big bear",
+    "chino",
+    "chino hills",
+    "colton",
+    "crestline",
+    "daggett",
+    "fontana",
+    "grand terrace",
+    "helendale",
+    "hesperia",
+    "highland",
+    "joshua tree",
+    "lake arrowhead",
+    "lenwood",
+    "loma linda",
+    "lucerne valley",
+    "mentone",
+    "montclair",
+    "morongo basin",
+    "morongo valley",
+    "needles",
+    "newberry springs",
+    "ontario",
+    "rancho cucamonga",
+    "redlands",
+    "rialto",
+    "san bernardino",
+    "trona",
+    "twentynine palms",
+    "twin peaks",
+    "upland",
+    "victorville",
+    "wrightwood",
+    "yermo",
+    "yucaipa",
+    "yucca valley",
+}
 
 
 def build_session() -> requests.Session:
@@ -187,6 +228,35 @@ def record_sort_key(record: Dict):
 
 def sort_records(records: List[Dict]) -> List[Dict]:
     return sorted(records, key=record_sort_key)
+
+
+def is_san_bernardino_county_arrest(record: Dict) -> bool:
+    details = record.get("details") if isinstance(record.get("details"), dict) else {}
+    county = clean_text(details.get("county_of_arrest") or record.get("county_of_arrest")).lower()
+    agency = clean_text(details.get("source_agency") or record.get("source_agency")).lower()
+    location = clean_text(details.get("arrest_location") or record.get("arrest_location")).lower()
+    city_state = clean_text(details.get("city_state") or record.get("city_state")).lower()
+    if county:
+        return "san bernardino" in county
+    if "san bernardino" in agency:
+        return True
+    if "sheriff" in agency or re.search(r"\b[a-z]+(?:\s+county)?\s+sd\b", agency):
+        return False
+    return any(
+        place in agency or place in location or place in city_state
+        for place in SAN_BERNARDINO_ARREST_PLACES
+    )
+
+
+def filter_san_bernardino_county_arrests(records: List[Dict]) -> tuple[List[Dict], int]:
+    kept = []
+    dropped = 0
+    for record in records:
+        if is_san_bernardino_county_arrest(record):
+            kept.append(record)
+        else:
+            dropped += 1
+    return kept, dropped
 
 
 def parse_record_triplets(feed_html: str, source_url: str) -> List[Dict]:
@@ -423,7 +493,7 @@ def fetch_records(
     request_delay: float = 0.25,
     max_pages: int = 12,
     max_empty_pages: int = 3,
-) -> List[Dict]:
+) -> tuple[List[Dict], Dict[str, int]]:
     try:
         page_html = fetch_html(
             session,
@@ -445,6 +515,11 @@ def fetch_records(
         embedded_urls = list(EMBEDDED_FEED_URLS)
 
     all_records = []
+    stats = {
+        "raw_records": 0,
+        "kept_records": 0,
+        "dropped_non_san_bernardino_county": 0,
+    }
     seen_detail_urls = set()
     empty_pages = 0
     for url in expand_paginated_feed_urls(embedded_urls, max_pages=max_pages):
@@ -463,6 +538,7 @@ def fetch_records(
                 "Session/referer handling may have changed."
             )
         records = parse_record_triplets(feed_html, url)
+        stats["raw_records"] += len(records)
         unique_records = []
         for rec in records:
             detail_key = rec.get("detail_url") or f"{rec.get('name')}|{rec.get('arrest_date')}|{rec.get('charge')}"
@@ -493,8 +569,11 @@ def fetch_records(
                         )
                     except Exception as exc:
                         rec["details_error"] = str(exc)
-        all_records.extend(unique_records)
-    return sort_records(all_records)
+        county_records, dropped = filter_san_bernardino_county_arrests(unique_records)
+        stats["dropped_non_san_bernardino_county"] += dropped
+        stats["kept_records"] += len(county_records)
+        all_records.extend(county_records)
+    return sort_records(all_records), stats
 
 
 def print_records(records: List[Dict], as_json: bool):
@@ -542,7 +621,7 @@ def print_records(records: List[Dict], as_json: bool):
                     print("     ... %d more" % (len(priors) - 5))
 
 
-def write_json_output(path: str, records: List[Dict], source_url: str):
+def write_json_output(path: str, records: List[Dict], source_url: str, scrape_stats: Optional[Dict[str, int]] = None):
     directory = os.path.dirname(path)
     if directory:
         os.makedirs(directory, exist_ok=True)
@@ -550,6 +629,7 @@ def write_json_output(path: str, records: List[Dict], source_url: str):
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "source_url": source_url,
         "count": len(records),
+        "scrape_stats": scrape_stats or {},
         "records": records,
     }
     tmp_path = path + ".tmp"
@@ -575,7 +655,7 @@ def main():
 
     session = build_session()
     proxy_candidates = load_proxy_list(args.proxy_list_file)
-    records = fetch_records(
+    records, scrape_stats = fetch_records(
         session,
         args.url,
         enrich=not args.list_only,
@@ -587,7 +667,7 @@ def main():
         max_empty_pages=args.max_empty_pages,
     )
     if args.output_json:
-        write_json_output(args.output_json, records, args.url)
+        write_json_output(args.output_json, records, args.url, scrape_stats)
     print_records(records, args.json)
 
 
