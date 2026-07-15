@@ -548,8 +548,34 @@ def row_is_in_scope(record):
     return station_is_barstow(normalized.get("agency", ""), normalized.get("station", ""))
 
 
+def call_number_has_valid_shape(agency, call_number):
+    agency_upper = (agency or "").strip().upper()
+    call_text = (call_number or "").strip().upper()
+    if not call_text:
+        return False
+    if agency_upper == "CHP":
+        return re.fullmatch(r"CHP-[A-Z0-9]+(?:\.\d+)?", call_text) is not None
+    if agency_upper == PULSEPOINT_AGENCY_CODE.upper():
+        return re.fullmatch(r"{}-[A-Z0-9]+(?:\.\d+)?".format(re.escape(PULSEPOINT_AGENCY_CODE.upper())), call_text) is not None
+    if agency_upper == PRIMARY_AGENCY_CODE.upper():
+        return re.fullmatch(r"[A-Z]{2}\d{6,12}(?:\.\d+)?", call_text) is not None
+    return re.fullmatch(r"[A-Z0-9_-]{6,}(?:\.\d+)?", call_text) is not None
+
+
+def row_has_valid_shape(record):
+    normalized = normalize_record(record)
+    if not any(normalized.values()):
+        return False
+    agency = (normalized.get("agency", "") or "").strip().upper()
+    if not looks_like_agency_code(agency):
+        return False
+    if parse_datetime(normalized.get("date/time", "")) is None:
+        return False
+    return call_number_has_valid_shape(agency, normalized.get("call number", ""))
+
+
 def filter_scoped_rows(rows):
-    return [normalize_record(row) for row in rows if row_is_in_scope(row)]
+    return [normalize_record(row) for row in rows if row_has_valid_shape(row) and row_is_in_scope(row)]
 
 
 def load_csv(path):
@@ -560,7 +586,7 @@ def load_csv(path):
     rows = []
     for row in csv.DictReader(io.StringIO(content)):
         normalized = normalize_record(row)
-        if any(normalized.values()):
+        if row_has_valid_shape(normalized):
             rows.append(normalized)
     return rows
 
@@ -571,7 +597,9 @@ def write_csv(path, rows):
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
         writer.writeheader()
         for row in rows:
-            writer.writerow(normalize_record(row))
+            normalized = normalize_record(row)
+            if row_has_valid_shape(normalized):
+                writer.writerow(normalized)
     os.replace(tmp_path, path)
 
 
@@ -579,6 +607,8 @@ def union_merge(rows_a, rows_b):
     out = {}
     for row in rows_a + rows_b:
         normalized = normalize_record(row)
+        if not row_has_valid_shape(normalized):
+            continue
         call_number = normalized.get("call number", "")
         if call_number:
             out[call_number] = normalized
