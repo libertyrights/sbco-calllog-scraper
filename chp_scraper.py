@@ -3,9 +3,10 @@
 
 import json
 import re
+import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Pattern, Tuple
-from urllib.parse import parse_qs, quote, urlparse
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,9 +25,41 @@ AREA_SUFFIX_MAP = {
     "Morongo Basin": "MOR",
     "Needles": "NED",
     "BS": "BAR",
+    "BI": "BAR",
 }
 
+NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
+NOMINATIM_USER_AGENT = "chp-scraper/1.0 (calllog)"
+NOMINATIM_DELAY = 1.1
+
+HWY_EXIT_RE = re.compile(
+    r"(I-?\d+|Hwy\s*\d+|SR\s*\d+|US\s*\d+).*?"
+    r"(?:Exit|EXIT|Ex|Ofr|Offramp|Off)\s*(\d+)",
+    re.I,
+)
+HWY_ONLY_RE = re.compile(r"(I-?\d+|Hwy\s*\d+|SR\s*\d+|US\s*\d+)", re.I)
+POSTMILE_RE = re.compile(r"(?:R|MM|Post\s*Mile|Mm)\s*(\d+\.?\d*)", re.I)
+
 LOG_BLOCK_RE = re.compile(r'<Log ID = "([^"]+)">(.*?)</Log>', re.S)
+
+
+def parse_highway_info(location: str) -> Dict[str, str]:
+    cleaned = clean_chp_text(location)
+    if not cleaned:
+        return {}
+    m = HWY_EXIT_RE.search(cleaned)
+    if m:
+        return {"highway": clean_chp_text(m.group(1)), "exit": clean_chp_text(m.group(2))}
+    m = HWY_ONLY_RE.search(cleaned)
+    if m:
+        pm = POSTMILE_RE.search(cleaned)
+        if pm:
+            return {"highway": clean_chp_text(m.group(1)), "postmile": clean_chp_text(pm.group(1))}
+        return {"highway": clean_chp_text(m.group(1))}
+    pm = POSTMILE_RE.search(cleaned)
+    if pm:
+        return {"postmile": clean_chp_text(pm.group(1))}
+    return {}
 DETAIL_BLOCK_RE = re.compile(
     r"<details>\s*<DetailTime>\"?(.*?)\"?</DetailTime>\s*<IncidentDetail>\"?(.*?)\"?</IncidentDetail>\s*</details>",
     re.S,
@@ -79,13 +112,6 @@ def build_call_number(log_id: str) -> str:
     return "CHP-{}".format(clean_chp_text(log_id))
 
 
-def build_chp_mobile_incident_url(log_id: str) -> str:
-    cleaned = clean_chp_text(log_id)
-    if not cleaned:
-        return "{}?DispatchId={}".format(CHP_MOBILE_BASE_URL, CHP_DISPATCH_BARSTOW)
-    return "{}?id={}".format(CHP_MOBILE_BASE_URL, quote(cleaned))
-
-
 def location_mentions_ignored_area(*values: str) -> bool:
     for value in values:
         cleaned = clean_chp_text(value).upper()
@@ -122,7 +148,7 @@ def extract_log_tag(body: str, tag_name: str) -> str:
     return clean_chp_text(match.group(1)) if match else ""
 
 
-def parse_log_lines(body: str, block_re: Pattern[str], time_tag: str, text_tag: str) -> List[Dict[str, str]]:
+def parse_log_lines(body: str, block_re: re.Pattern, time_tag: str, text_tag: str) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     for time_text, detail_text in block_re.findall(body):
         cleaned_text = clean_chp_text(detail_text)
@@ -151,6 +177,67 @@ def parse_chp_latlon(latlon_raw: str) -> Dict[str, Any]:
     return payload
 
 
+def reverse_geocode(
+    lat: float,
+    lon: float,
+    session: Optional[requests.Session] = None,
+) -> Dict[str, str]:
+    sess = session or requests.Session()
+    try:
+        resp = sess.get(
+            NOMINATIM_REVERSE_URL,
+            params={"format": "json", "lat": lat, "lon": lon, "zoom": 18},
+            headers={"User-Agent": NOMINATIM_USER_AGENT},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        result: Dict[str, str] = {}
+        display = clean_chp_text(data.get("display_name", ""))
+        if display:
+            result["address"] = display
+        road = clean_chp_text(data.get("road", ""))
+        if road:
+            result["road"] = road
+        return result
+    except Exception:
+        return {}
+
+
+def batch_reverse_geocode(
+    incidents: List[Dict[str, str]],
+    delay: float = NOMINATIM_DELAY,
+) -> List[Dict[str, str]]:
+    session = requests.Session()
+    geocoded = 0
+    for incident in incidents:
+        extra_raw = incident.get("extra_json", "")
+        if not extra_raw:
+            continue
+        try:
+            extra = json.loads(extra_raw)
+        except Exception:
+            continue
+        if not isinstance(extra, dict):
+            continue
+        map_info = extra.get("map", {})
+        lat = map_info.get("lat")
+        lon = map_info.get("lon")
+        if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+            continue
+        if extra.get("address_resolved"):
+            continue
+        geo = reverse_geocode(lat, lon, session)
+        if geo:
+            extra["address_resolved"] = geo.get("address", "")
+            if geo.get("road"):
+                extra["road_name"] = geo["road"]
+            incident["extra_json"] = json.dumps(extra, separators=(",", ":"), ensure_ascii=True)
+            geocoded += 1
+            time.sleep(delay)
+    return incidents
+
+
 def build_extra_payload(
     *,
     log_id: str,
@@ -158,6 +245,7 @@ def build_extra_payload(
     call_type_description: str,
     area: str,
     location_desc: str,
+    location: str,
     latlon_raw: str,
     thomas_brothers: str,
     detail_lines: List[Dict[str, str]],
@@ -168,8 +256,6 @@ def build_extra_payload(
         "provider": "chp",
         "dispatch_id": CHP_DISPATCH_BARSTOW,
         "log_id": clean_chp_text(log_id),
-        "source_url": build_chp_mobile_incident_url(log_id),
-        "source_feed_url": "{}?DispatchId={}".format(CHP_MOBILE_BASE_URL, CHP_DISPATCH_BARSTOW),
         "call_type_code": clean_chp_text(call_type_code),
         "call_type_description": clean_chp_text(call_type_description),
         "area": clean_chp_text(area),
@@ -185,6 +271,9 @@ def build_extra_payload(
     thomas = clean_chp_text(thomas_brothers)
     if thomas:
         payload["thomas_brothers"] = thomas
+    hw = parse_highway_info(location)
+    if hw:
+        payload["highway_info"] = hw
     return payload
 
 
@@ -217,6 +306,7 @@ def normalize_incident(
         call_type_description=call_type_description,
         area=area,
         location_desc=location_desc,
+        location=location,
         latlon_raw=latlon_raw,
         thomas_brothers=thomas_brothers,
         detail_lines=detail_lines or [],
@@ -348,6 +438,7 @@ def scrape_chp_incidents() -> List[Dict[str, str]]:
     if not fetch_succeeded:
         raise RuntimeError("CHP feed fetch failed ({})".format("; ".join(errors) or "unknown error"))
     deduped = dedupe_incidents(incidents)
+    deduped = batch_reverse_geocode(deduped)
     deduped.sort(key=lambda row: row.get("date/time", ""), reverse=True)
     return deduped
 
