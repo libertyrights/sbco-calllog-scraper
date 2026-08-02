@@ -487,6 +487,26 @@ function releaseKey(row) {
   ].join("|");
 }
 
+function dateToMs(value) {
+  const text = normalize(value);
+  if (!text) return 0;
+  const named = text.match(/^([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})/);
+  if (named) {
+    const months = {
+      january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+      july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+    };
+    const month = months[named[1].toLowerCase()];
+    if (month) return new Date(Number(named[3]), month - 1, Number(named[2])).getTime();
+  }
+  const slash = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slash) return new Date(Number(slash[3]), Number(slash[1]) - 1, Number(slash[2])).getTime();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])).getTime();
+  const ts = Date.parse(text);
+  return Number.isFinite(ts) ? ts : 0;
+}
+
 function recordBase(type, title, date, summary, location, raw, extra = {}) {
   const id = `${type}:${extra.id || title}:${date}:${summary}`.replace(/\s+/g, " ").slice(0, 240);
   return {
@@ -497,6 +517,7 @@ function recordBase(type, title, date, summary, location, raw, extra = {}) {
     summary: summary || "",
     location: location || "",
     raw,
+    sortMs: dateToMs(date),
     search: textBlob({ type, title, date, summary, location, raw, extra }).toLowerCase(),
     ...extra,
   };
@@ -695,7 +716,9 @@ function render() {
   const query = document.getElementById("searchBox").value.trim().toLowerCase();
   const type = document.getElementById("typeFilter").value;
   const pageSize = Number(document.getElementById("pageSize").value || 250);
-  const filtered = allRecords.filter((record) => matches(record, query, type));
+  const filtered = allRecords
+    .filter((record) => matches(record, query, type))
+    .sort((a, b) => (b.sortMs || 0) - (a.sortMs || 0));
   const visible = filtered.slice(0, pageSize);
   const rows = document.getElementById("rows");
   rows.innerHTML = visible.map((record) => `
