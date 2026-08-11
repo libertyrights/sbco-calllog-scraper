@@ -433,6 +433,184 @@ tbody tr.main-row.tone-low {
   text-align: center;
   color: var(--muted);
 }
+.grid-card {
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.grid-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.grid-title strong {
+  display: block;
+}
+.grid-title .muted {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.grid-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.toggle-pill {
+  min-height: 34px;
+  border: 1px solid #bfd0e2;
+  border-radius: 999px;
+  background: #f5f9fd;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.toggle-pill:hover {
+  background: #ecf3fb;
+}
+.toggle-pill.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.grid-map {
+  height: 440px;
+  width: 100%;
+}
+.grid-foot {
+  padding: 10px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-top: 1px solid var(--line);
+}
+.outage-popup h4 {
+  margin: 0 0 6px;
+}
+.outage-popup .pop-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+}
+.outage-popup .pop-key {
+  color: #546474;
+  font-weight: 700;
+}
+.outage-popup a {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+.flood-level {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.flood-level.good {
+  background: #e3f2e9;
+  color: var(--good);
+  border: 1px solid #bfe0cd;
+}
+.flood-level.warn {
+  background: #fdf3e0;
+  color: var(--warn);
+  border: 1px solid #f0d9a8;
+}
+.flood-level.danger {
+  background: #fde8e8;
+  color: var(--danger);
+  border: 1px solid #f0b8b8;
+}
+.flood-level.muted {
+  background: #eef2f6;
+  color: var(--muted);
+  border: 1px solid #d8e0e8;
+}
+.flood-banner {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #f0c98a;
+  background: #fdf6e7;
+  color: #7a4a00;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.flood-banner.warn {
+  border-color: #f0d9a8;
+  background: #fdf6e7;
+  color: #7a4a00;
+}
+.flood-banner.danger {
+  border-color: #f0b8b8;
+  background: #fdf0f0;
+  color: #8a1c1c;
+}
+.flood-body {
+  padding: 4px 16px 12px;
+}
+.flood-note {
+  padding: 12px 16px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.gage-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) repeat(4, minmax(86px, auto)) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.gage-row:first-of-type {
+  border-top: 0;
+}
+.gage-name {
+  font-weight: 700;
+}
+.gage-name a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+.gage-name a:hover {
+  text-decoration: underline;
+}
+.gage-sub {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.gage-metric .metric-key {
+  color: #546474;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.gage-metric .metric-val {
+  font-weight: 700;
+  font-size: 14px;
+}
+.gage-metric .metric-val .sub {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+.gage-metric .rise-up { color: var(--danger); }
+.gage-metric .rise-down { color: var(--good); }
+@media (max-width: 720px) {
+  .grid-map {
+    height: 340px;
+  }
+  .gage-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 @media (max-width: 980px) {
   .controls {
     grid-template-columns: 1fr 1fr;
@@ -462,6 +640,8 @@ tbody tr.main-row.tone-low {
   }
 }
 </style>
+<link rel="stylesheet" href="leaflet.css">
+<script src="leaflet.js"></script>
 <!-- Analytics: Clicky + Statcounter -->
 <script async data-id="101508838" src="//static.getclicky.com/js"></script>
 <!-- Default Statcounter code for Upnexx Technologies
@@ -608,6 +788,46 @@ async></script>
       </div>
       <div id="emptyState" class="empty" hidden>No calls match the current filter.</div>
     </div>
+
+    <div class="card grid-card">
+      <div class="grid-head">
+        <div class="grid-title">
+          <strong>Power &amp; Weather Map</strong>
+          <div class="muted" id="gridStatusText">Loading lightning &amp; outage data&hellip;</div>
+        </div>
+        <div class="grid-toggles">
+          <button id="lightningToggleBtn" type="button" class="toggle-pill" aria-pressed="false">Lightning strikes: off</button>
+          <button id="outageToggleBtn" type="button" class="toggle-pill on" aria-pressed="true">SCE outages: on</button>
+        </div>
+      </div>
+      <div id="gridMap" class="grid-map"></div>
+      <div class="grid-foot muted">
+        Outage details are mirrored locally from SCE&rsquo;s public outage service; clicking a marker opens the same outage on Edison&rsquo;s outage map.
+        Map tiles &copy; OpenStreetMap contributors &middot; lightning data &copy; Blitzortung.org contributors.
+      </div>
+    </div>
+
+    <div class="card grid-card">
+      <div class="grid-head">
+        <div class="grid-title">
+          <strong>Mojave River Flood Watch</strong>
+          <div class="muted" id="floodStatusText">Loading USGS gage data&hellip;</div>
+        </div>
+        <div class="grid-toggles">
+          <span id="floodLevelPill" class="flood-level muted">NORMAL</span>
+        </div>
+      </div>
+      <div class="flood-note muted">
+        Real-time gage height vs. official NWS flood stages &mdash; Barstow (minor 5.0 ft), Victorville (minor 16 ft).
+      </div>
+      <div id="floodBanner"></div>
+      <div id="floodBody" class="flood-body">
+        <div class="empty">Loading&hellip;</div>
+      </div>
+      <div class="grid-foot muted">
+        Gage height: USGS NWIS &middot; flood stages: NWS (water.noaa.gov) &middot; alerts fire on level transitions or when the river is rising fast.
+      </div>
+    </div>
   </div>
 
 <script>
@@ -618,6 +838,9 @@ const HISTORY_CSV_URL = new URL("calllog.csv", DATA_ROOT).toString();
 const ANNOTATIONS_URL = new URL("calllog_arrest_index.json", DATA_ROOT).toString();
 const API_PREVIEW_URL = new URL("sbsd_api.php", DATA_ROOT).toString();
 const DESCRIPTIONS_URL = new URL("calllog_descriptions.php", DATA_ROOT).toString();
+const LIGHTNING_URL = new URL("lightning_strikes.json", DATA_ROOT).toString();
+const OUTAGES_URL = new URL("sce_outages.json", DATA_ROOT).toString();
+const FLOOD_URL = new URL("mojave_river.json", DATA_ROOT).toString();
 const API_PREVIEW_LIMIT = 1000;
 const REFRESH_MS = 60000;
 const CSV_PARSE_YIELD_ROWS = 1500;
@@ -2324,7 +2547,268 @@ document.getElementById("exportCsvBtn").addEventListener("click", () => exportFi
 document.getElementById("exportJsonBtn").addEventListener("click", () => exportFilteredData("json"));
 
 refreshPage({ forceHistory: false });
-setInterval(() => refreshPage({ forceHistory: false }), REFRESH_MS);
+// ---------- Power & Weather map (lightning strikes + SCE outages) ----------
+const GRID_CENTER = [34.9, -116.9];
+const GRID_ZOOM = 9;
+
+let gridMap = null;
+let lightningLayer = null;
+let outageLayer = null;
+let lightningOn = false;
+let outagesOn = true;
+let gridMapReady = false;
+try {
+  lightningOn = localStorage.getItem("gridLightning") === "1";
+  outagesOn = localStorage.getItem("gridOutages") !== "0";
+} catch (_) {
+  // Storage can be blocked (private mode / sandboxed iframe); fall back to defaults.
+}
+
+function gridMapInit() {
+  const container = document.getElementById("gridMap");
+  if (!container || typeof L === "undefined") return;
+  gridMap = L.map(container, {
+    attributionControl: true,
+    zoomControl: true,
+  }).setView(GRID_CENTER, GRID_ZOOM);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(gridMap);
+  lightningLayer = L.layerGroup().addTo(gridMap);
+  outageLayer = L.layerGroup().addTo(gridMap);
+  gridMapReady = true;
+  gridMap.invalidateSize();
+  updateGridToggles();
+}
+
+function updateGridToggles() {
+  const lightningBtn = document.getElementById("lightningToggleBtn");
+  const outageBtn = document.getElementById("outageToggleBtn");
+  if (lightningBtn) {
+    lightningBtn.textContent = lightningOn ? "Lightning strikes: on" : "Lightning strikes: off";
+    lightningBtn.classList.toggle("on", lightningOn);
+    lightningBtn.setAttribute("aria-pressed", String(lightningOn));
+  }
+  if (outageBtn) {
+    outageBtn.textContent = outagesOn ? "SCE outages: on" : "SCE outages: off";
+    outageBtn.classList.toggle("on", outagesOn);
+    outageBtn.setAttribute("aria-pressed", String(outagesOn));
+  }
+  if (lightningLayer) {
+    if (lightningOn && gridMap) gridMap.addLayer(lightningLayer);
+    else if (gridMap) gridMap.removeLayer(lightningLayer);
+  }
+  if (outageLayer) {
+    if (outagesOn && gridMap) gridMap.addLayer(outageLayer);
+    else if (gridMap) gridMap.removeLayer(outageLayer);
+  }
+}
+
+function formatStrikeAge(epoch) {
+  const minutes = Math.max(0, Math.round((Date.now() / 1000 - epoch) / 60));
+  if (minutes < 1) return "just now";
+  if (minutes === 1) return "1 min ago";
+  return `${minutes} mins ago`;
+}
+
+function renderLightning(payload) {
+  if (!lightningLayer) return;
+  lightningLayer.clearLayers();
+  const strikes = Array.isArray(payload && payload.strikes) ? payload.strikes : [];
+  const windowSeconds = payload && payload.window_seconds ? payload.window_seconds : 3600;
+  for (const strike of strikes) {
+    const ageSec = Math.max(0, Date.now() / 1000 - strike.t);
+    const age = Math.max(0, Math.min(1, ageSec / windowSeconds));
+    L.circleMarker([strike.lat, strike.lon], {
+      radius: 2.6,
+      color: "#f4b400",
+      weight: 0.6,
+      fillColor: "#ffd400",
+      fillOpacity: 0.95 - 0.55 * age,
+    })
+      .bindPopup(
+        `<strong>Lightning strike</strong><br>${formatStrikeAge(strike.t)}<br>(${Number(strike.lat).toFixed(4)}, ${Number(strike.lon).toFixed(4)})`
+      )
+      .addTo(lightningLayer);
+  }
+}
+
+function renderOutages(payload) {
+  if (!outageLayer) return;
+  outageLayer.clearLayers();
+  const outages = Array.isArray(payload && payload.outages) ? payload.outages : [];
+  for (const outage of outages) {
+    const customers = Math.max(0, Number(outage.customers || 0));
+    const radius = Math.max(5, Math.min(14, 4 + Math.log10(customers + 1) * 4));
+    const popup = `
+      <div class="outage-popup">
+        <h4>${escapeHtml(outage.city || "Unknown area")} outage</h4>
+        <div class="pop-grid">
+          ${outage.customers != null ? `<div class="pop-key">Customers</div><div>${escapeHtml(String(outage.customers))} affected</div>` : ""}
+          ${outage.start_iso ? `<div class="pop-key">Started</div><div>${escapeHtml(formatLocal(outage.start_iso))}</div>` : ""}
+          ${outage.ert ? `<div class="pop-key">Restore</div><div>${escapeHtml(outage.ert)}</div>` : ""}
+          ${outage.cause ? `<div class="pop-key">Cause</div><div>${escapeHtml(outage.cause)}</div>` : ""}
+          ${outage.crew_status ? `<div class="pop-key">Crew status</div><div>${escapeHtml(outage.crew_status)}</div>` : ""}
+          ${outage.zip ? `<div class="pop-key">Zip</div><div>${escapeHtml(outage.zip)}</div>` : ""}
+          ${outage.district ? `<div class="pop-key">District</div><div>${escapeHtml(outage.district)}</div>` : ""}
+          ${outage.incident_id ? `<div class="pop-key">Incident</div><div>${escapeHtml(String(outage.incident_id))}</div>` : ""}
+          ${outage.oan ? `<div class="pop-key">OAN</div><div>${escapeHtml(String(outage.oan))}</div>` : ""}
+        </div>
+        ${outage.sce_url ? `<p style="margin:8px 0 0"><a href="${escapeHtml(outage.sce_url)}" target="_blank" rel="noreferrer">Open on Edison&rsquo;s outage map</a></p>` : ""}
+      </div>`;
+    L.circleMarker([outage.lat, outage.lon], {
+      radius,
+      color: "#7f1717",
+      weight: 1.2,
+      fillColor: "#c0392b",
+      fillOpacity: 0.75,
+    })
+      .bindPopup(popup, { maxWidth: 320 })
+      .addTo(outageLayer);
+  }
+}
+
+async function loadGridData() {
+  if (!gridMapReady) gridMapInit();
+  if (!gridMapReady) return;
+  const statusNode = document.getElementById("gridStatusText");
+  try {
+    const [lightningRes, outagesRes] = await Promise.all([
+      fetch(`${LIGHTNING_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
+      fetch(`${OUTAGES_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
+    ]);
+    renderLightning(lightningRes);
+    renderOutages(outagesRes);
+    const parts = [];
+    parts.push(`${lightningRes && lightningRes.count != null ? lightningRes.count : "\u2013"} strikes in window`);
+    parts.push(`${outagesRes && outagesRes.count != null ? outagesRes.count : "\u2013"} outages`);
+    const updated = (lightningRes && lightningRes.generated_at) || (outagesRes && outagesRes.generated_at);
+    if (updated) parts.push(`updated ${formatLocal(updated)}`);
+    if (statusNode) statusNode.textContent = parts.join(" \u00b7 ");
+  } catch (error) {
+    if (statusNode) statusNode.textContent = `Grid data unavailable: ${error && error.message ? error.message : "load failed"}`;
+  }
+}
+
+function floodLevelClass(level) {
+  if (level === "MODERATE" || level === "MAJOR") return "danger";
+  if (level === "WATCH" || level === "MINOR" || level === "ACTION") return "warn";
+  if (level === "NORMAL") return "good";
+  return "muted";
+}
+
+function renderFlood(payload) {
+  const body = document.getElementById("floodBody");
+  const pill = document.getElementById("floodLevelPill");
+  const banner = document.getElementById("floodBanner");
+  const statusNode = document.getElementById("floodStatusText");
+  if (!payload || !Array.isArray(payload.gages)) {
+    if (body) body.innerHTML = `<div class="empty">Mojave River data unavailable.</div>`;
+    if (pill) {
+      pill.textContent = "UNAVAILABLE";
+      pill.className = "flood-level muted";
+    }
+    if (banner) banner.innerHTML = "";
+    if (statusNode) statusNode.textContent = "Flood data unavailable";
+    return;
+  }
+
+  const level = payload.alert_level || "NORMAL";
+  const colorClass = floodLevelClass(level);
+  if (pill) {
+    pill.textContent = level;
+    pill.className = `flood-level ${colorClass}`;
+  }
+
+  const warnings = Array.isArray(payload.nws_warnings) ? payload.nws_warnings : [];
+  if (banner) {
+    if (payload.alerting || level === "WATCH" || level === "ACTION") {
+      banner.innerHTML = `<div class="flood-banner ${colorClass}">
+        <strong>${escapeHtml(level)}:</strong> Mojave River gages are elevated or rising fast. ${warnings.length ? `NWS flood warning active (${escapeHtml(warnings[0].event)}${warnings[0].headline ? ": " + escapeHtml(warnings[0].headline) : ""}).` : ""}
+      </div>`;
+    } else if (warnings.length) {
+      banner.innerHTML = `<div class="flood-banner warn">
+        <strong>NWS ${escapeHtml(warnings[0].event)}:</strong> ${escapeHtml(warnings[0].headline || "Active flood watch/warning for the Mojave River basin.")}
+      </div>`;
+    } else {
+      banner.innerHTML = "";
+    }
+  }
+
+  const rows = payload.gages.map((gage) => {
+    const stageText = gage.stage != null ? `${Number(gage.stage).toFixed(2)} ft` : `<span class="muted">offline</span>`;
+    const flowText = gage.flow != null ? `${Number(gage.flow).toLocaleString()} cfs` : `<span class="muted">&ndash;</span>`;
+    const rise = Number(gage.rise_rate_ft_per_hr || 0);
+    const riseText = Math.abs(rise) < 0.005
+      ? `<span class="muted">0 ft/hr</span>`
+      : `<span class="${rise > 0 ? "rise-up" : "rise-down"}">${rise > 0 ? "\u25b2" : "\u25bc"} ${Math.abs(rise).toFixed(2)} ft/hr</span>`;
+    const stages = gage.stages || {};
+    const stageSub = stages.minor != null
+      ? `minor ${Number(stages.minor).toFixed(1)} ft${stages.moderate != null ? ` / mod ${Number(stages.moderate).toFixed(1)} ft` : ""}`
+      : "no NWS flood stage";
+    const nameLink = gage.nws_id
+      ? `<a href="https://water.noaa.gov/gauges/${escapeHtml(gage.nws_id)}" target="_blank" rel="noreferrer">${escapeHtml(gage.name)}</a>`
+      : escapeHtml(gage.name);
+    const observed = gage.reading_time ? `observed ${formatLocal(gage.reading_time)}` : "no recent reading";
+    const levelBadge = `<span class="flood-level ${floodLevelClass(gage.level)}">${escapeHtml(gage.level || "OFFLINE")}</span>`;
+    return `
+      <div class="gage-row">
+        <div>
+          <div class="gage-name">${nameLink}</div>
+          <div class="gage-sub">${escapeHtml(observed)}</div>
+        </div>
+        <div class="gage-metric"><div class="metric-key">Stage</div><div class="metric-val">${stageText} <span class="sub">(${escapeHtml(stageSub)})</span></div></div>
+        <div class="gage-metric"><div class="metric-key">Flow</div><div class="metric-val">${flowText}</div></div>
+        <div class="gage-metric"><div class="metric-key">Rise rate</div><div class="metric-val">${riseText}</div></div>
+        <div class="gage-metric"><div class="metric-key">Level</div><div class="metric-val">${levelBadge}</div></div>
+      </div>`;
+  }).join("");
+
+  if (body) body.innerHTML = rows;
+  if (statusNode) {
+    const parts = [`${payload.gages.length} gages`, `alert level ${level}`];
+    if (payload.generated_at) parts.push(`updated ${formatLocal(payload.generated_at)}`);
+    statusNode.textContent = parts.join(" \u00b7 ");
+  }
+}
+
+async function loadFloodData() {
+  const statusNode = document.getElementById("floodStatusText");
+  try {
+    const response = await fetch(`${FLOOD_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const payload = response.ok ? await response.json() : null;
+    renderFlood(payload);
+  } catch (error) {
+    renderFlood(null);
+    if (statusNode) statusNode.textContent = `Flood data unavailable: ${error && error.message ? error.message : "load failed"}`;
+  }
+}
+
+const lightningToggleBtn = document.getElementById("lightningToggleBtn");
+const outageToggleBtn = document.getElementById("outageToggleBtn");
+if (lightningToggleBtn) {
+  lightningToggleBtn.addEventListener("click", () => {
+    lightningOn = !lightningOn;
+    try { localStorage.setItem("gridLightning", lightningOn ? "1" : "0"); } catch (_) {}
+    updateGridToggles();
+  });
+}
+if (outageToggleBtn) {
+  outageToggleBtn.addEventListener("click", () => {
+    outagesOn = !outagesOn;
+    try { localStorage.setItem("gridOutages", outagesOn ? "1" : "0"); } catch (_) {}
+    updateGridToggles();
+  });
+}
+
+loadGridData();
+loadFloodData();
+setInterval(() => {
+  refreshPage({ forceHistory: false });
+  loadGridData();
+  loadFloodData();
+}, REFRESH_MS);
 </script>
 </body>
 </html>
