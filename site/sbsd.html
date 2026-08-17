@@ -1878,7 +1878,7 @@ async function fetchOsmGeocode(address) {
     // Replace Harvard with Newberry Springs for better geocoding
     const geocodeAddress = address.replace(/harvard/gi, "Newberry Springs");
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geocodeAddress)}&limit=1`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, 8000, {
       headers: {
         'User-Agent': 'SBCO-OSINT-Scanner/1.0'
       }
@@ -2653,7 +2653,7 @@ function buildCallAnnotationMap(payload) {
 
 async function loadCallDescriptions() {
   try {
-    const response = await fetch(`${DESCRIPTIONS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`${DESCRIPTIONS_URL}?t=${Date.now()}`, 30000);
     if (!response.ok) {
       throw new Error(`calllog_descriptions.php returned HTTP ${response.status}`);
     }
@@ -3395,6 +3395,40 @@ function formatError(error) {
   return firstLine !== null ? `${message} (line ${firstLine})` : message;
 }
 
+// Wrap fetches with a timeout so a hung request surfaces as a debuggable error
+// (with line numbers via formatError) instead of leaving the page -- or a test
+// harness -- waiting forever. Timeouts are generous, not aggressive.
+function fetchWithTimeout(url, ms, init) {
+  return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`request timed out after ${Math.round(ms / 1000)}s`));
+    }, ms);
+    fetch(url, Object.assign({ cache: "no-store", signal: controller.signal }, init || {}))
+      .then((res) => { clearTimeout(timer); resolve(res); })
+      .catch((err) => {
+        clearTimeout(timer);
+        if (err && err.name === "AbortError") {
+          reject(new Error(`request timed out after ${Math.round(ms / 1000)}s`));
+        } else {
+          reject(err);
+        }
+      });
+  });
+}
+
+// Generic timeout for non-fetch promises (e.g. IndexedDB reads).
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 function formatLocal(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -3871,20 +3905,122 @@ function exportFilteredData(format) {
   setStatus(`Exported ${rows.length.toLocaleString()} matched rows to JSON.`, "good");
 }
 
+// ---- Live feed client cache ----
+// calllog.json is ~6 MB, so caching it in IndexedDB (localStorage can't hold it)
+// lets repeat visits paint the table instantly and refresh in the background.
+const LIVE_FEED_CACHE_TTL_MS = 10 * 60 * 1000;
+const LIVE_FEED_CACHE_DB = "sbco-live-feed-cache";
+const LIVE_FEED_CACHE_STORE = "feed";
+
+function openLiveFeedCache() {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === "undefined") return resolve(null);
+    try {
+      const req = indexedDB.open(LIVE_FEED_CACHE_DB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(LIVE_FEED_CACHE_STORE)) {
+          db.createObjectStore(LIVE_FEED_CACHE_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+async function liveFeedCacheGet() {
+  const db = await openLiveFeedCache();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(LIVE_FEED_CACHE_STORE, "readonly");
+      const req = tx.objectStore(LIVE_FEED_CACHE_STORE).get("feed");
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+async function liveFeedCachePut(rows, meta) {
+  const db = await openLiveFeedCache();
+  if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(LIVE_FEED_CACHE_STORE, "readwrite");
+      tx.objectStore(LIVE_FEED_CACHE_STORE).put({ savedAt: Date.now(), rows, meta }, "feed");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+function liveFeedSignature(rows) {
+  if (!Array.isArray(rows) || !rows.length) return "";
+  const first = rows[0] || {};
+  const last = rows[rows.length - 1] || {};
+  return `${rows.length}|${first["call number"] || first.callno || ""}|${last["date/time"] || last.dt || ""}`;
+}
+
 async function loadLiveFeed() {
   const stamp = Date.now();
-  const [liveResponse, metaResponse] = await Promise.all([
-    fetch(`${LIVE_URL}?t=${stamp}`, { cache: "no-store" }),
-    fetch(`${META_URL}?t=${stamp}`, { cache: "no-store" }).catch(() => null),
-  ]);
+  let cached = null;
+  try {
+    cached = await withTimeout(liveFeedCacheGet(), 5000, "feed cache read");
+  } catch (cacheErr) {
+    console.warn("feed cache read failed:", formatError(cacheErr));
+  }
+  const cacheUsable = Boolean(cached && cached.rows && cached.rows.length);
 
+  // The tiny meta file (run_id / generated_at / byte count) tells us whether
+  // the ~6 MB feed changed at all. When it hasn't, serve entirely from
+  // IndexedDB and skip the big download -- only new calls ever cross the wire.
+  const metaResponse = await fetchWithTimeout(`${META_URL}?t=${stamp}`, 10000).catch(() => null);
+  const meta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
+  const metaChanged = !cached || !cached.meta || !meta
+    || meta.run_id !== cached.meta.run_id
+    || meta.generated_at !== cached.meta.generated_at
+    || (meta.calllog_bytes && cached.meta.calllog_bytes && meta.calllog_bytes !== cached.meta.calllog_bytes);
+
+  const serveFromCache = cacheUsable
+    && (meta ? !metaChanged : stamp - cached.savedAt < LIVE_FEED_CACHE_TTL_MS);
+
+  if (serveFromCache) {
+    liveGroups = buildGroupsFromRows(cached.rows);
+    uploadMeta = cached.meta || null;
+    rebuildCombinedGroups();
+    applyFilters();
+    if (meta && !metaChanged) return; // nothing new -- no big fetch needed
+    // feed changed: paint the old copy above, then refresh in the background
+  } else if (cacheUsable) {
+    // Feed changed (or meta unavailable): paint the cached copy now, refresh below.
+    liveGroups = buildGroupsFromRows(cached.rows);
+    uploadMeta = cached.meta || null;
+    rebuildCombinedGroups();
+    applyFilters();
+  }
+
+  const liveResponse = await fetchWithTimeout(`${LIVE_URL}?t=${stamp}`, 30000);
   if (!liveResponse.ok) {
+    // Keep serving the cached copy instead of failing the whole page.
+    if (cacheUsable) return;
     throw new Error(`calllog.json returned HTTP ${liveResponse.status}`);
   }
 
   const rows = await liveResponse.json();
   liveGroups = buildGroupsFromRows(rows);
-  uploadMeta = metaResponse && metaResponse.ok ? await metaResponse.json() : null;
+  uploadMeta = meta || uploadMeta;
+
+  // Only rewrite the cache when the feed actually changed.
+  if (!cached || liveFeedSignature(rows) !== liveFeedSignature(cached.rows)) {
+    await liveFeedCachePut(rows, uploadMeta);
+  }
 }
 
 async function loadApiPreview(options = {}) {
@@ -3925,7 +4061,7 @@ async function loadApiPreview(options = {}) {
     if (query.prefix) url.searchParams.set("prefix", query.prefix);
     if (query.q) url.searchParams.set("q", query.q);
     url.searchParams.set("t", String(Date.now()));
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithTimeout(url.toString(), 30000);
     if (!response.ok) {
       throw new Error(`sbsd_api.php returned HTTP ${response.status}`);
     }
@@ -4050,7 +4186,7 @@ async function loadFullHistory(options = {}) {
 
   historyError = "";
   historyLoadPromise = (async () => {
-    const response = await fetch(`${HISTORY_CSV_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`${HISTORY_CSV_URL}?t=${Date.now()}`, 30000);
     if (!response.ok) {
       throw new Error(`calllog.csv returned HTTP ${response.status}`);
     }
@@ -4091,7 +4227,7 @@ async function loadCallAnnotations(options = {}) {
 
   callAnnotationsError = "";
   callAnnotationsPromise = (async () => {
-    const response = await fetch(`${ANNOTATIONS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`${ANNOTATIONS_URL}?t=${Date.now()}`, 15000);
     if (!response.ok) {
       throw new Error(`calllog_arrest_index.json returned HTTP ${response.status}`);
     }
@@ -4689,8 +4825,8 @@ async function loadGridData() {
   const statusNode = document.getElementById("gridStatusText");
   try {
     const [lightningRes, outagesRes] = await Promise.all([
-      fetch(`${LIGHTNING_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`${OUTAGES_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
+      fetchWithTimeout(`${LIGHTNING_URL}?t=${Date.now()}`, 15000).then((r) => (r.ok ? r.json() : null)),
+      fetchWithTimeout(`${OUTAGES_URL}?t=${Date.now()}`, 15000).then((r) => (r.ok ? r.json() : null)),
     ]);
     
     // Store globally for call log integration
@@ -4805,7 +4941,7 @@ function renderFlood(payload) {
 async function loadFloodData() {
   const statusNode = document.getElementById("floodStatusText");
   try {
-    const response = await fetch(`${FLOOD_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`${FLOOD_URL}?t=${Date.now()}`, 15000);
     const payload = response.ok ? await response.json() : null;
     renderFlood(payload);
   } catch (error) {

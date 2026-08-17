@@ -75,7 +75,7 @@ Lightning data is provided by the Blitzortung community network; the page credit
 
 ## Mojave River flood monitor
 
-The same `sbsd.html` page also hosts a **Mojave River Flood Watch** card that tracks real-time USGS gage height on the Mojave River (Barstow station first, then Victorville lower narrows, Hodge, and the West Fork above Forks Reservoir), compares each gage against the official NWS flood stages, watches the rate of rise for early warning, and publishes `mojave_river.json` plus `mojave_flood_status.json`.
+The same `sbsd.html` page also hosts a **Mojave River Flood Watch** card that tracks real-time USGS gage height on the Mojave River across all seven active gages (listed in physical order, upstream first: the West Fork above Forks Reservoir and Deep Creek, then Victorville lower narrows, Hodge, Barstow, Daggett, and Afton at the downstream end), compares each gage against the official NWS flood stages, watches the rate of rise for early warning, and publishes `mojave_river.json` plus `mojave_flood_status.json`.
 
 - **Barstow (10262500 / MBRC1):** minor 5.0 ft / moderate 5.5 ft / major 6.0 ft
 - **Victorville (10261500 / MVVC1):** minor 16 ft / moderate 18 ft / major 19 ft
@@ -90,7 +90,7 @@ NWS flood watch/warning alerts for the basin (`CAZ06*` zones, configurable via `
 Pipeline pieces:
 
 - `usgs_flood_monitor.py`
-  Fetches `00065` (gage height) and `00060` (flow) for the four gages from the USGS NWIS Instantaneous Values API, fetches official flood stages from `water.noaa.gov`, computes a 3-hour linear rise rate, classifies each gage NORMAL/WATCH/MINOR/MODERATE/MAJOR, and fires the configured notifiers on transitions.
+  Fetches `00065` (gage height) and `00060` (flow) for all seven gages from the USGS NWIS Instantaneous Values API, fetches official flood stages from `water.noaa.gov`, computes a 3-hour linear rise rate, classifies each gage NORMAL/WATCH/MINOR/MODERATE/MAJOR, and fires the configured notifiers on transitions.
 - `.github/workflows/usgs-flood-monitor.yml`
   Runs every 15 minutes (and on `workflow_dispatch`), executes the monitor, and FTP-deploys `mojave_river.json` + `mojave_flood_status.json` to `/domains/upnexx.xyz/public_html/osint/`. Requires only the existing `SERV00_FTP_*` secrets; the notifier secrets (`USGS_NTFY_TOPIC`, `USGS_SMTP_*`) are optional.
 

@@ -14,9 +14,10 @@ elevated level persists) through three channels:
 - ntfy.sh push (optional): set ``USGS_NTFY_TOPIC``
 - SMTP email (optional): set ``USGS_SMTP_*`` variables
 
-The gage focus mirrors the call-log pipeline: Barstow station first (10262500),
-then the rest of the Mojave main stem (Victorville lower narrows 10261500,
-Hodge 10262000, and the West Fork above Forks Reservoir 10260950).
+Gages are listed in physical order, upstream first: the two Forks Reservoir
+feeders (West Fork 10260950 + Deep Creek 10260500), then the main stem
+Victorville lower narrows (10261500), Hodge (10262000), Barstow (10262500),
+Daggett (10262700), and Afton (10263000) at the downstream end.
 
 Official stages (water.noaa.gov, NRLDB):
 - MBRC1 Mojave River at Barstow:      minor 5.0 ft / moderate 5.5 ft / major 6.0 ft
@@ -60,14 +61,27 @@ STATUS_FILE = BASE_DIR / "mojave_flood_status.json"
 STATE_FILE = STATE_DIR / "usgs_flood_state.json"
 
 # site_no -> (label, nws gage id or None, lat, lon, default stages dict or None)
+# Listed in physical order, upstream first: the two Forks Reservoir feeders (West
+# Fork + Deep Creek), then the main stem Victorville -> Hodge -> Barstow ->
+# Daggett -> Afton (the river flows north out of the mountains, then east past
+# Barstow toward its terminus at the Mojave Sink). Only Barstow and Victorville
+# have official NWS flood stages; the rest report as MONITOR.
 SITES = [
     {
-        "site_no": "10262500",
-        "name": "Mojave River at Barstow",
-        "nws_id": "MBRC1",
-        "lat": 34.90693947,
-        "lon": -117.0228129,
-        "stages": {"minor": 5.0, "moderate": 5.5, "major": 6.0},
+        "site_no": "10260950",
+        "name": "W.F. Mojave River above Mojave River Forks Reservoir near Hesperia",
+        "nws_id": None,
+        "lat": 34.33889196,
+        "lon": -117.2578213,
+        "stages": None,
+    },
+    {
+        "site_no": "10260500",
+        "name": "Deep Creek near Hesperia",
+        "nws_id": None,
+        "lat": 34.34305858,
+        "lon": -117.2264316,
+        "stages": None,
     },
     {
         "site_no": "10261500",
@@ -86,11 +100,27 @@ SITES = [
         "stages": None,
     },
     {
-        "site_no": "10260950",
-        "name": "W.F. Mojave River above Mojave River Forks Reservoir near Hesperia",
+        "site_no": "10262500",
+        "name": "Mojave River at Barstow",
+        "nws_id": "MBRC1",
+        "lat": 34.90693947,
+        "lon": -117.0228129,
+        "stages": {"minor": 5.0, "moderate": 5.5, "major": 6.0},
+    },
+    {
+        "site_no": "10262700",
+        "name": "Mojave River at Daggett",
         "nws_id": None,
-        "lat": 34.33889196,
-        "lon": -117.2578213,
+        "lat": 34.8696611,
+        "lon": -116.8876583,
+        "stages": None,
+    },
+    {
+        "site_no": "10263000",
+        "name": "Mojave River at Afton",
+        "nws_id": None,
+        "lat": 35.03720565,
+        "lon": -116.3841887,
         "stages": None,
     },
 ]
