@@ -267,6 +267,14 @@ tbody tr.main-row.row-sbcfire {
   background: linear-gradient(90deg, rgba(217, 119, 6, 0.18) 0, var(--fire-bg) 36px, var(--fire-bg) 100%);
   border-left: 5px solid #d97706;
 }
+tbody tr.main-row.row-lightning {
+  background: linear-gradient(90deg, rgba(250, 204, 21, 0.18) 0, #fef9c3 36px, #fef9c3 100%);
+  border-left: 5px solid #eab308;
+}
+tbody tr.main-row.row-outage {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.18) 0, #fee2e2 36px, #fee2e2 100%);
+  border-left: 5px solid #ef4444;
+}
 tbody tr.main-row.tone-high {
   box-shadow: inset 0 0 0 9999px var(--tone-high);
 }
@@ -307,6 +315,8 @@ tbody tr.main-row.tone-low {
 .agency-chp { background: #1d5fbf; }
 .agency-sbcfire { background: #d97706; }
 .agency-other { background: #596b80; }
+.agency-weather { background: #eab308; color: #000; }
+.agency-utility { background: #ef4444; }
 .dispo-box {
   display: inline-block;
   min-width: 42px;
@@ -639,6 +649,208 @@ tbody tr.main-row.tone-low {
     margin-left: 12px;
   }
 }
+
+/* Mobile Navigation */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #173a66 0%, #0d2745 100%);
+  z-index: 1000;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-nav-title {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.hamburger-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.mobile-nav-menu {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: #fff;
+  box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 999;
+  overflow-y: auto;
+}
+
+.mobile-nav-menu.open {
+  transform: translateX(0);
+}
+
+.mobile-nav-overlay {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  z-index: 998;
+}
+
+.mobile-nav-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-nav-section {
+  padding: 16px;
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.mobile-nav-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #627181;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+.mobile-nav-item {
+  display: block;
+  padding: 12px 16px;
+  color: #18212c;
+  text-decoration: none;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: background 0.2s;
+  font-weight: 500;
+}
+
+.mobile-nav-item:hover {
+  background: #f5f9fd;
+  color: #163c69;
+}
+
+.mobile-nav-item.active {
+  background: #eef4fb;
+  color: #163c69;
+  font-weight: 700;
+}
+
+.mobile-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: #f8fbff;
+}
+
+.mobile-filter-toggle {
+  background: none;
+  border: none;
+  color: #163c69;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.mobile-filter-toggle:hover {
+  background: #eef4fb;
+}
+
+@media (max-width: 980px) {
+  .mobile-nav {
+    display: block;
+  }
+  .topbar {
+    display: none;
+  }
+  .shell {
+    padding-top: 70px;
+  }
+}
+
+.privacy-notice {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #173a66 0%, #0d2745 100%);
+  color: #fff;
+  box-shadow: 0 -6px 24px rgba(12, 27, 46, 0.25);
+  font-size: 13.5px;
+}
+.privacy-notice[hidden] {
+  display: none;
+}
+.privacy-text {
+  flex: 1 1 420px;
+  line-height: 1.45;
+}
+.privacy-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.privacy-actions button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#privacyAcceptBtn {
+  background: #fff;
+  color: #163c69;
+}
+#privacyAcceptBtn:hover {
+  background: #e8eef6;
+}
+#privacyClearBtn {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+#privacyClearBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
 </style>
 <link rel="stylesheet" href="leaflet.css">
 <script src="leaflet.js"></script>
@@ -658,9 +870,75 @@ async></script>
 <!-- End of Statcounter Code -->
 </head>
 <body>
+  <div id="privacyNotice" class="privacy-notice" hidden>
+    <div class="privacy-text">
+      <strong>Privacy notice:</strong> this page uses cookies &amp; local browser storage to remember your filters, map toggles, and alerts, and it uses third-party visitor analytics. Nothing is stored on our servers &mdash; it all stays on your device and you can clear it at any time. If you&rsquo;d rather not, feel free to leave.
+    </div>
+    <div class="privacy-actions">
+      <button id="privacyClearBtn" type="button">Clear stored data</button>
+      <button id="privacyAcceptBtn" type="button">Got it</button>
+    </div>
+  </div>
+
   <div class="topbar">
     <h1>San Bernardino County Sheriff - Live Call Log</h1>
     <p>Fast local viewer with live JSON data, revision expansion, and on-demand history loading.</p>
+  </div>
+
+  <nav class="mobile-nav">
+    <div class="mobile-nav-header">
+      <h2 class="mobile-nav-title">SBCO Call Log</h2>
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+    </div>
+  </nav>
+
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-menu" id="mobileNavMenu">
+    <div class="mobile-nav-section">
+      <h3 class="mobile-nav-section-title">Views</h3>
+      <a href="#" class="mobile-nav-item active" data-view="calllog">📞 Call Log</a>
+      <a href="records.html" class="mobile-nav-item" data-view="records">👤 Arrest / Death / Release Records</a>
+      <a href="#" class="mobile-nav-item" data-view="map">🗺️ Power & Weather Map</a>
+    </div>
+    <div class="mobile-nav-section">
+      <h3 class="mobile-nav-section-title">Area Filters</h3>
+      <div class="mobile-filter-item">
+        <span>Daggett</span>
+        <button class="mobile-filter-toggle" data-area="DAG">Toggle</button>
+      </div>
+      <div class="mobile-filter-item">
+        <span>Yermo</span>
+        <button class="mobile-filter-toggle" data-area="YER">Toggle</button>
+      </div>
+      <div class="mobile-filter-item">
+        <span>Newberry</span>
+        <button class="mobile-filter-toggle" data-area="NEW">Toggle</button>
+      </div>
+      <div class="mobile-filter-item">
+        <span>Baker</span>
+        <button class="mobile-filter-toggle" data-area="BAK">Toggle</button>
+      </div>
+      <div class="mobile-filter-item">
+        <span>Harvard</span>
+        <button class="mobile-filter-toggle" data-area="HAR">Toggle</button>
+      </div>
+    </div>
+    <div class="mobile-nav-section">
+      <h3 class="mobile-nav-section-title">Quick Filters</h3>
+      <a href="#" class="mobile-nav-item" data-filter="arrests">🚔 Arrests Only</a>
+      <a href="#" class="mobile-nav-item" data-filter="deaths">💀 Death Calls</a>
+      <a href="#" class="mobile-nav-item" data-filter="chp">🚗 CHP Calls</a>
+      <a href="#" class="mobile-nav-item" data-filter="fire">🔥 Fire/EMS Calls</a>
+    </div>
+    <div class="mobile-nav-section">
+      <h3 class="mobile-nav-section-title">Custom Filters</h3>
+      <div id="mobileCustomFilters"></div>
+      <button class="mobile-nav-item" id="mobileAddFilterBtn" style="margin-top: 8px;">➕ Add Custom Filter</button>
+    </div>
+    <div class="mobile-nav-section">
+      <h3 class="mobile-nav-section-title">Alert Settings</h3>
+      <button class="mobile-nav-item" id="mobileAlertSettings">🔔 Configure Alerts</button>
+    </div>
   </div>
 
   <div class="shell">
@@ -676,12 +954,37 @@ async></script>
         <div class="notice-actions">
           <a id="helpToggle" class="help-link" href="#howToReadPanel" aria-expanded="false">How to read this page</a>
           <a class="help-link" href="records.html">Arrest / death / release records</a>
+          <a id="alertSettingsBtn" class="help-link" href="#alertSettingsPanel" aria-expanded="false">🔔 Set Up Call Alerts</a>
         </div>
         <div id="howToReadPanel" class="help-panel" hidden>
           <p>Blue rows are SBSO, darker SBSO rows are still open, deeper blue rows are CHP, and orange rows are fire/medical responses.</p>
           <p>The `+` button opens revision history, current details, and any extra structured data attached to that call.</p>
           <p>Call number colors follow prefix, arrest dispositions are boxed red, and the area tag is split from the street address.</p>
           <p>Use the prefix filter, date range, or typeable column filters to narrow the feed, then export the matched rows to CSV or JSON.</p>
+        </div>
+        <div id="alertSettingsPanel" class="help-panel" hidden>
+          <p><strong>Custom Call Alerts:</strong> Get browser notifications when new calls match your criteria.</p>
+          <div style="margin: 12px 0;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 700;">Alert Name</label>
+            <input id="alertName" type="text" placeholder="e.g., Daggett Calls" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #bcc9d8; border-radius: 8px;">
+          </div>
+          <div style="margin: 12px 0;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 700;">Filter Criteria (same as search box)</label>
+            <input id="alertCriteria" type="text" placeholder="e.g., DAG, or arrest, or fire" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #bcc9d8; border-radius: 8px;">
+          </div>
+          <div style="margin: 12px 0;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 700;">Area Filter (optional)</label>
+            <select id="alertArea" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #bcc9d8; border-radius: 8px;">
+              <option value="">All Areas</option>
+              <option value="DAG">Daggett</option>
+              <option value="YER">Yermo</option>
+              <option value="NEW">Newberry</option>
+              <option value="BAK">Baker</option>
+              <option value="HAR">Newberry Springs (Harvard)</option>
+            </select>
+          </div>
+          <button id="addAlertBtn" type="button" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Add Alert</button>
+          <div id="alertList" style="margin-top: 16px;"></div>
         </div>
       </div>
     </div>
@@ -700,8 +1003,17 @@ async></script>
       </select>
       <div class="control-actions">
         <button id="refreshBtn" type="button">Refresh</button>
+        <button id="toggleMapBtn" type="button" class="secondary-btn">Show Map</button>
+        <button id="openMapWindowBtn" type="button" class="secondary-btn">Open Map in New Window</button>
         <button id="exportCsvBtn" class="secondary-btn" type="button">Export CSV</button>
         <button id="exportJsonBtn" class="secondary-btn" type="button">Export JSON</button>
+      </div>
+    </div>
+
+    <div class="card controls">
+      <div class="control-actions">
+        <button id="toggleLightningInLogBtn" type="button" class="secondary-btn">Show Lightning in Log</button>
+        <button id="toggleOutagesInLogBtn" type="button" class="secondary-btn">Show Outages in Log</button>
       </div>
     </div>
 
@@ -796,8 +1108,10 @@ async></script>
           <div class="muted" id="gridStatusText">Loading lightning &amp; outage data&hellip;</div>
         </div>
         <div class="grid-toggles">
-          <button id="lightningToggleBtn" type="button" class="toggle-pill" aria-pressed="false">Lightning strikes: off</button>
-          <button id="outageToggleBtn" type="button" class="toggle-pill on" aria-pressed="true">SCE outages: on</button>
+          <button id="lightningToggleBtn" type="button" class="toggle-pill" aria-pressed="false">Show lightning strikes</button>
+          <button id="outageToggleBtn" type="button" class="toggle-pill on" aria-pressed="true">Hide SCE outages</button>
+          <button id="chpToggleBtn" type="button" class="toggle-pill on" aria-pressed="true">Hide CHP Calls</button>
+          <button id="sbsoToggleBtn" type="button" class="toggle-pill on" aria-pressed="true">Hide Sheriff Calls</button>
         </div>
       </div>
       <div id="gridMap" class="grid-map"></div>
@@ -850,6 +1164,11 @@ let apiPreviewGroups = [];
 let historyGroups = [];
 let combinedGroups = [];
 let uploadMeta = null;
+let lightningStrikes = [];
+let powerOutages = [];
+let showLightningInLog = false;
+let showOutagesInLog = false;
+let lastShownGroups = []; // the groups currently displayed in the call log table
 let apiPreviewLoadedAt = "";
 let apiPreviewGeneratedAt = "";
 let apiPreviewTotal = 0;
@@ -875,9 +1194,916 @@ let callDescriptions = { prefixes: {}, dispositions: {}, call_types: {} };
 let callDescriptionsError = "";
 let initialQueryFiltersApplied = false;
 
+// Notification system
+let userAlerts = [];
+let lastCheckedCallNos = new Set();
+let notificationPermission = "default";
+
+// Power & Weather map state (declared first so all later code can reference it)
+const GRID_CENTER = [34.9, -116.9];
+const GRID_ZOOM = 9;
+const MAX_MAP_MARKERS = 400; // cap so the map stays responsive (thousands of markers freeze the page)
+
+let gridMap = null;
+let lightningLayer = null;
+let outageLayer = null;
+let chpLayer = null;
+let lightningOn = false;
+let outagesOn = true;
+let chpOn = true;
+let sbsoOn = true;
+let gridMapReady = false;
+try {
+  lightningOn = localStorage.getItem("gridLightning") === "1";
+  outagesOn = localStorage.getItem("gridOutages") !== "0";
+  chpOn = localStorage.getItem("gridChp") !== "0";
+  sbsoOn = localStorage.getItem("gridSbso") !== "0";
+} catch (_) {
+  // Storage can be blocked (private mode / sandboxed iframe); fall back to defaults.
+}
+
+// Custom filter system  
+let customFilters = [];
+
+function loadCustomFilters() {
+  try {
+    const stored = localStorage.getItem("sbco_custom_filters");
+    if (stored) {
+      customFilters = JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Failed to load custom filters:", e);
+  }
+}
+
+function saveCustomFilters() {
+  try {
+    localStorage.setItem("sbco_custom_filters", JSON.stringify(customFilters));
+  } catch (e) {
+    console.error("Failed to save custom filters:", e);
+  }
+}
+
+function renderCustomFilters() {
+  const container = document.getElementById("mobileCustomFilters");
+  if (!container) return;
+  
+  if (customFilters.length === 0) {
+    container.innerHTML = '<div class="muted" style="padding: 12px 16px;">No custom filters saved yet.</div>';
+    return;
+  }
+  
+  container.innerHTML = customFilters.map((filter, index) => `
+    <div class="mobile-filter-item">
+      <span>${escapeHtml(filter.name)}</span>
+      <div>
+        <button class="mobile-filter-toggle" data-filter-index="${index}" data-action="apply">Apply</button>
+        <button class="mobile-filter-toggle" data-filter-index="${index}" data-action="delete" style="color: #8b0000;">Delete</button>
+      </div>
+    </div>
+  `).join("");
+  
+  // Add button handlers
+  container.querySelectorAll(".mobile-filter-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const index = parseInt(btn.getAttribute("data-filter-index"));
+      const action = btn.getAttribute("data-action");
+      
+      if (action === "apply") {
+        applyCustomFilter(customFilters[index]);
+        closeMobileNav();
+      } else if (action === "delete") {
+        customFilters.splice(index, 1);
+        saveCustomFilters();
+        renderCustomFilters();
+      }
+    });
+  });
+}
+
+function applyCustomFilter(filter) {
+  // Apply filter criteria to search box
+  const searchBox = document.getElementById("searchBox");
+  if (searchBox && filter.search) {
+    searchBox.value = filter.search;
+  }
+  
+  // Apply agency filter
+  const agencyFilter = document.getElementById("agencyFilter");
+  if (agencyFilter && filter.agency) {
+    agencyFilter.value = filter.agency;
+  }
+  
+  // Apply area filter
+  const filterArea = document.getElementById("filterArea");
+  if (filterArea && filter.area) {
+    filterArea.value = filter.area;
+  }
+  
+  // Apply type filter
+  const filterType = document.getElementById("filterType");
+  if (filterType && filter.type) {
+    filterType.value = filter.type;
+  }
+  
+  applyFilters();
+}
+
+function addCustomFilter() {
+  const currentFilters = getFilterSnapshot();
+  const name = prompt("Enter a name for this custom filter:");
+  
+  if (!name || !name.trim()) {
+    return;
+  }
+  
+  const filter = {
+    name: name.trim(),
+    search: currentFilters.search,
+    agency: currentFilters.agency,
+    station: currentFilters.station,
+    prefix: currentFilters.prefix,
+    area: currentFilters.areaText,
+    type: currentFilters.typeText,
+    dispo: currentFilters.dispoText,
+    createdAt: new Date().toISOString()
+  };
+  
+  // Only save if there are actual filter values
+  if (!filter.search && !filter.agency && !filter.station && !filter.prefix && !filter.area && !filter.type && !filter.dispo) {
+    alert("Please set some filter criteria before saving.");
+    return;
+  }
+  
+  customFilters.push(filter);
+  saveCustomFilters();
+  renderCustomFilters();
+}
+
+function loadUserAlerts() {
+  try {
+    const stored = localStorage.getItem("sbco_call_alerts");
+    if (stored) {
+      userAlerts = JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Failed to load alerts:", e);
+  }
+}
+
+function saveUserAlerts() {
+  try {
+    localStorage.setItem("sbco_call_alerts", JSON.stringify(userAlerts));
+  } catch (e) {
+    console.error("Failed to save alerts:", e);
+  }
+}
+
+function requestNotificationPermission() {
+  if ("Notification" in window) {
+    Notification.requestPermission().then(permission => {
+      notificationPermission = permission;
+      if (permission === "granted") {
+        new Notification("SBCO Call Alerts", {
+          body: "Alerts enabled! You'll be notified when calls match your criteria.",
+          icon: "🚔"
+        });
+      }
+    });
+  }
+}
+
+function sendAlert(alert, call) {
+  if (notificationPermission !== "granted") return;
+  
+  const current = call.latest || {};
+  const locationParts = splitLocation(current.loc || "");
+  const convertedLocation = convertChpLocation(locationParts.location || current.loc || "", call.agency);
+  
+  const notification = new Notification(`SBCO Alert: ${alert.name}`, {
+    body: `${current.type || "Unknown call"} at ${convertedLocation} (${call.agency || "Unknown agency"})`,
+    icon: "🚔",
+    tag: `call-${call.baseCallNo}`,
+    requireInteraction: false
+  });
+  
+  notification.onclick = () => {
+    window.focus();
+    notification.close();
+    // Expand the call row
+    expanded.add(call.baseCallNo);
+    applyFilters();
+  };
+}
+
+function checkCallAgainstAlert(call, alert) {
+  const current = call.latest || {};
+  const locationParts = splitLocation(current.loc || "");
+  
+  // Check search criteria
+  if (alert.criteria) {
+    const searchLower = alert.criteria.toLowerCase();
+    const searchText = [
+      call.baseCallNo || "",
+      call.prefix || "",
+      call.agency || "",
+      call.station || "",
+      current.callno || "",
+      current.report || "",
+      current.type || "",
+      current.dispo || "",
+      locationParts.location || current.loc || "",
+      locationParts.area || ""
+    ].join(" ").toLowerCase();
+    
+    if (!searchText.includes(searchLower)) {
+      return false;
+    }
+  }
+  
+  // Check area filter
+  if (alert.area && locationParts.area !== alert.area) {
+    return false;
+  }
+  
+  return true;
+}
+
+function checkNewCallsAgainstAlerts() {
+  if (notificationPermission !== "granted" || userAlerts.length === 0) return;
+  
+  const currentCallNos = new Set(liveGroups.map(g => g.baseCallNo));
+  const newCalls = liveGroups.filter(g => !lastCheckedCallNos.has(g.baseCallNo));
+  
+  for (const call of newCalls) {
+    for (const alert of userAlerts) {
+      if (checkCallAgainstAlert(call, alert)) {
+        sendAlert(alert, call);
+        break; // Only send one notification per call
+      }
+    }
+  }
+  
+  lastCheckedCallNos = currentCallNos;
+}
+
+function renderAlertList() {
+  const container = document.getElementById("alertList");
+  if (!container) return;
+  
+  if (userAlerts.length === 0) {
+    container.innerHTML = '<div class="muted">No alerts configured yet.</div>';
+    return;
+  }
+  
+  container.innerHTML = userAlerts.map((alert, index) => `
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fff; border: 1px solid #dce6f1; border-radius: 8px; margin-bottom: 6px;">
+      <div>
+        <strong>${escapeHtml(alert.name)}</strong>
+        <div style="font-size: 12px; color: var(--muted);">
+          Criteria: ${escapeHtml(alert.criteria || "any")} 
+          ${alert.area ? `| Area: ${escapeHtml(alert.area)}` : ""}
+        </div>
+      </div>
+      <button data-alert-index="${index}" class="delete-alert-btn" style="background: #8b0000; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+    </div>
+  `).join("");
+  
+  // Add delete handlers
+  container.querySelectorAll(".delete-alert-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const index = parseInt(btn.getAttribute("data-alert-index"));
+      userAlerts.splice(index, 1);
+      saveUserAlerts();
+      renderAlertList();
+    });
+  });
+}
+
+function addAlert() {
+  const nameInput = document.getElementById("alertName");
+  const criteriaInput = document.getElementById("alertCriteria");
+  const areaSelect = document.getElementById("alertArea");
+  
+  const name = nameInput.value.trim();
+  const criteria = criteriaInput.value.trim();
+  const area = areaSelect.value;
+  
+  if (!name) {
+    alert("Please enter an alert name.");
+    return;
+  }
+  
+  if (!criteria && !area) {
+    alert("Please enter either filter criteria or select an area.");
+    return;
+  }
+  
+  userAlerts.push({
+    name,
+    criteria,
+    area,
+    createdAt: new Date().toISOString()
+  });
+  
+  saveUserAlerts();
+  renderAlertList();
+  
+  // Clear inputs
+  nameInput.value = "";
+  criteriaInput.value = "";
+  areaSelect.value = "";
+  
+  // Request permission if not already granted
+  if (notificationPermission !== "granted") {
+    requestNotificationPermission();
+  }
+}
+
 const AREA_CODE_PATTERN = /^[A-Z*]{1,5}$/;
 const ARREST_DISPOSITIONS = new Set(["ARR", "WAR", "ABA", "CIA"]);
 const DEATH_SOURCE_CALL_TYPES = new Set(["DB"]);
+
+// CHP location code mapping to sheriff's zoning system
+const CHP_LOCATION_MAPPING = {
+  "BAR": "Barstow Area",
+  "BARSTOW": "Barstow Area",
+  "DAG": "Daggett",
+  "YER": "Yermo", 
+  "NEW": "Newberry Springs",
+  "BAK": "Baker",
+  "HAR": "Newberry Springs", // Harvard - same area as Newberry Springs
+  "VTV": "Victorville",
+  "HES": "Hesperia",
+  "APP": "Apple Valley",
+  "LUC": "Lucerne Valley",
+  "YUC": "Yucca Valley",
+  "TWS": "Twentynine Palms",
+  "JOS": "Joshua Tree",
+  "PPT": "Palm Springs",
+  "CAT": "Cathedral City",
+  "RAN": "Rancho Cucamonga",
+  "ONT": "Ontario",
+  "RED": "Redlands",
+  "SBD": "San Bernardino",
+  "RIV": "Riverside",
+  "IND": "Indio",
+  "PAL": "Palm Desert",
+  "DES": "Desert Hot Springs",
+  "CHE": "Coachella",
+  "LQP": "La Quinta",
+  "INDH": "Indian Wells",
+  "SAL": "Salton City",
+  "SLC": "Slab City",
+  "NIL": "Niland",
+  "BLY": "Blythe",
+  "NEED": "Needles",
+  "TOP": "Topock",
+  "KING": "Kingman",
+  "LAS": "Las Vegas"
+};
+
+// Sheriff area code to GPS coordinates database
+const SHERIFF_AREA_GPS = {
+  "DAG": { lat: 34.85, lon: -116.8, name: "Daggett" },
+  "DAGGETT": { lat: 34.85, lon: -116.8, name: "Daggett" },
+  "YER": { lat: 34.9, lon: -116.8, name: "Yermo" },
+  "YERMO": { lat: 34.9, lon: -116.8, name: "Yermo" },
+  "NEW": { lat: 34.8, lon: -116.7, name: "Newberry Springs" },
+  "NEWBERRY": { lat: 34.8, lon: -116.7, name: "Newberry Springs" },
+  "NEWBERRY SPRINGS": { lat: 34.8, lon: -116.7, name: "Newberry Springs" },
+  "BAK": { lat: 35.25, lon: -116.0, name: "Baker" },
+  "BAKER": { lat: 35.25, lon: -116.0, name: "Baker" },
+  "HAR": { lat: 34.8, lon: -116.7, name: "Newberry Springs (Harvard)" }, // Harvard - same area as Newberry Springs
+  "HARVARD": { lat: 34.8, lon: -116.7, name: "Newberry Springs (Harvard)" }, // Harvard - same area as Newberry Springs
+  "BAR": { lat: 34.9, lon: -117.0, name: "Barstow" },
+  "BARSTOW": { lat: 34.9, lon: -117.0, name: "Barstow" },
+  "VTV": { lat: 34.55, lon: -117.3, name: "Victorville" },
+  "VICTORVILLE": { lat: 34.55, lon: -117.3, name: "Victorville" },
+  "HES": { lat: 34.45, lon: -117.2, name: "Hesperia" },
+  "HESPERIA": { lat: 34.45, lon: -117.2, name: "Hesperia" },
+  "APP": { lat: 34.55, lon: -117.1, name: "Apple Valley" },
+  "APPLE VALLEY": { lat: 34.55, lon: -117.1, name: "Apple Valley" },
+  "LUC": { lat: 34.5, lon: -116.8, name: "Lucerne Valley" },
+  "LUCERNE": { lat: 34.5, lon: -116.8, name: "Lucerne Valley" },
+  "LUCERNE VALLEY": { lat: 34.5, lon: -116.8, name: "Lucerne Valley" },
+  "YUC": { lat: 34.15, lon: -116.3, name: "Yucca Valley" },
+  "YUCCA VALLEY": { lat: 34.15, lon: -116.3, name: "Yucca Valley" },
+  "TWS": { lat: 34.1, lon: -116.0, name: "Twentynine Palms" },
+  "TWENTYNINE PALMS": { lat: 34.1, lon: -116.0, name: "Twentynine Palms" },
+  "JOS": { lat: 34.15, lon: -116.2, name: "Joshua Tree" },
+  "JOSHUA TREE": { lat: 34.15, lon: -116.2, name: "Joshua Tree" },
+  "NEED": { lat: 34.9, lon: -114.5, name: "Needles" },
+  "NEEDLES": { lat: 34.9, lon: -114.5, name: "Needles" },
+  "CH": { lat: 34.1, lon: -117.3, name: "Chino" },
+  "CHINO": { lat: 34.1, lon: -117.3, name: "Chino" },
+  "ONT": { lat: 34.1, lon: -117.6, name: "Ontario" },
+  "ONTARIO": { lat: 34.1, lon: -117.6, name: "Ontario" },
+  "RAN": { lat: 34.1, lon: -117.6, name: "Rancho Cucamonga" },
+  "RANCHO": { lat: 34.1, lon: -117.6, name: "Rancho Cucamonga" },
+  "RANCHO CUCAMONGA": { lat: 34.1, lon: -117.6, name: "Rancho Cucamonga" },
+  "RED": { lat: 34.05, lon: -117.2, name: "Redlands" },
+  "REDLANDS": { lat: 34.05, lon: -117.2, name: "Redlands" },
+  "SBD": { lat: 34.1, lon: -117.3, name: "San Bernardino" },
+  "SAN BERNARDINO": { lat: 34.1, lon: -117.3, name: "San Bernardino" },
+  "COL": { lat: 34.4, lon: -117.3, name: "Colton" },
+  "COLTON": { lat: 34.4, lon: -117.3, name: "Colton" },
+  "GR": { lat: 34.1, lon: -117.5, name: "Grand Terrace" },
+  "GRAND TERRACE": { lat: 34.1, lon: -117.5, name: "Grand Terrace" },
+  "LYL": { lat: 34.0, lon: -117.7, name: "Lyle" },
+  "LYLE": { lat: 34.0, lon: -117.7, name: "Lyle" },
+  "FONT": { lat: 34.1, lon: -117.5, name: "Fontana" },
+  "FONTANA": { lat: 34.1, lon: -117.5, name: "Fontana" },
+  "RIM": { lat: 34.2, lon: -117.2, name: "Rialto" },
+  "RIALTO": { lat: 34.2, lon: -117.2, name: "Rialto" }
+};
+
+// Block number GPS conversion database (Sheriff block system: 12300 = block 123)
+const BLOCK_GPS_OFFSETS = {
+  // Each block (00-99) is approximately 0.0001 degrees in urban areas
+  "block_size": 0.0001,
+  // Street direction multipliers for block progression
+  "NS_STREETS": { latMultiplier: 0.0001, lonMultiplier: 0 },
+  "EW_STREETS": { latMultiplier: 0, lonMultiplier: 0.0001 }
+};
+
+// Intersection GPS database for major intersections
+const INTERSECTION_GPS = {
+  "BARSTOW RD & MAIN ST": { lat: 34.895, lon: -117.025, name: "Barstow Rd & Main St" },
+  "BARSTOW RD & INDIAN AVE": { lat: 34.898, lon: -117.030, name: "Barstow Rd & Indian Ave" },
+  "MAIN ST & GRAND AVE": { lat: 34.896, lon: -117.028, name: "Main St & Grand Ave" },
+  "MAIN ST & AVENUE OF THE FLAGS": { lat: 34.894, lon: -117.026, name: "Main St & Ave of the Flags" },
+  "LENWOOD RD & I-15": { lat: 34.885, lon: -117.015, name: "Lenwood Rd & I-15" },
+  "GHOST TOWN RD & I-15": { lat: 34.870, lon: -116.980, name: "Ghost Town Rd & I-15" },
+  "MINNEOLA RD & I-15": { lat: 34.860, lon: -116.970, name: "Minneola Rd & I-15" },
+  "BAKER RD & I-15": { lat: 35.270, lon: -116.050, name: "Baker Rd & I-15" },
+  "VICTORVILLE AVE & BEAR VALLEY RD": { lat: 34.540, lon: -117.320, name: "Victorville Ave & Bear Valley Rd" },
+  "VICTORVILLE AVE & PALMDALE RD": { lat: 34.520, lon: -117.300, name: "Victorville Ave & Palmdale Rd" },
+  "HESPERIA RD & MAIN ST": { lat: 34.440, lon: -117.180, name: "Hesperia Rd & Main St" },
+  "HESPERIA RD & I-15": { lat: 34.450, lon: -117.220, name: "Hesperia Rd & I-15" },
+  "APPLE VALLEY RD & BEAR VALLEY RD": { lat: 34.530, lon: -117.200, name: "Apple Valley Rd & Bear Valley Rd" },
+  "APPLE VALLEY RD & STATE ROUTE 18": { lat: 34.510, lon: -117.190, name: "Apple Valley Rd & SR-18" },
+  "GRAND AVE & BARSTOW RD": { lat: 34.900, lon: -117.035, name: "Grand Ave & Barstow Rd" },
+  "INDIAN AVE & BARSTOW RD": { lat: 34.898, lon: -117.030, name: "Indian Ave & Barstow Rd" },
+  "AVENUE OF THE FLAGS & BARSTOW RD": { lat: 34.894, lon: -117.026, name: "Ave of the Flags & Barstow Rd" },
+  "YERMO LN & I-15": { lat: 34.920, lon: -116.880, name: "Yermo Ln & I-15" },
+  "NEWBERRY RD & I-15": { lat: 34.780, lon: -116.750, name: "Newberry Rd & I-15" },
+  "CALIFORNIA ST & I-15": { lat: 34.760, lon: -116.730, name: "California St & I-15" },
+  "VICTORVILLE AVE & I-15": { lat: 34.560, lon: -117.250, name: "Victorville Ave & I-15" },
+  "MOJAVE RD & I-15": { lat: 34.570, lon: -117.230, name: "Mojave Rd & I-15" },
+  "PALMDALE RD & I-15": { lat: 34.520, lon: -117.300, name: "Palmdale Rd & I-15" },
+  "SUMMIT VALLEY RD & I-15": { lat: 34.490, lon: -117.270, name: "Summit Valley Rd & I-15" },
+  "CAJON BLVD & I-15": { lat: 34.260, lon: -117.320, name: "Cajon Blvd & I-15" },
+  "MOUNTAIN AVE & I-15": { lat: 34.240, lon: -117.350, name: "Mountain Ave & I-15" },
+  "HIGHLAND AVE & I-15": { lat: 34.220, lon: -117.380, name: "Highland Ave & I-15" },
+  "BASELINE ST & I-15": { lat: 34.200, lon: -117.400, name: "Baseline St & I-15" },
+  "MAIN ST & I-15": { lat: 34.110, lon: -117.420, name: "Main St & I-15" },
+  "PALM AVE & I-15": { lat: 34.100, lon: -117.430, name: "Palm Ave & I-15" },
+  "VALLEY AVE & I-15": { lat: 34.090, lon: -117.440, name: "Valley Ave & I-15" },
+  "ORANGE GROVE AVE & I-15": { lat: 34.080, lon: -117.450, name: "Orange Grove Ave & I-15" },
+  "MASSACHUSETTS AVE & I-15": { lat: 34.070, lon: -117.460, name: "Massachusetts Ave & I-15" },
+  "SLAUSON AVE & I-15": { lat: 34.060, lon: -117.470, name: "Slauson Ave & I-15" },
+  "BEVERLY BLVD & I-15": { lat: 34.050, lon: -117.480, name: "Beverly Blvd & I-15" },
+  "SANTA MONICA BLVD & I-15": {  lat: 34.040, lon: -117.490, name: "Santa Monica Blvd & I-15" }
+};
+
+// Street direction classification for block progression
+const STREET_DIRECTIONS = {
+  "NORTH": "NS_STREETS",
+  "SOUTH": "NS_STREETS", 
+  "N": "NS_STREETS",
+  "S": "NS_STREETS",
+  "EAST": "EW_STREETS",
+  "WEST": "EW_STREETS",
+  "E": "EW_STREETS",
+  "W": "EW_STREETS"
+};
+
+// Common street name patterns and their general locations
+const STREET_PATTERNS = {
+  "MAIN ST": { latOffset: 0, lonOffset: 0, direction: "EW_STREETS" },
+  "MAIN STREET": { latOffset: 0, lonOffset: 0, direction: "EW_STREETS" },
+  "FIRST ST": { latOffset: 0.001, lonOffset: 0, direction: "EW_STREETS" },
+  "SECOND ST": { latOffset: 0.002, lonOffset: 0, direction: "EW_STREETS" },
+  "THIRD ST": { latOffset: 0.003, lonOffset: 0, direction: "EW_STREETS" },
+  "INDIAN AVE": { latOffset: 0, lonOffset: 0.001, direction: "EW_STREETS" },
+  "INDIAN AVENUE": { latOffset: 0, lonOffset: 0.001, direction: "EW_STREETS" },
+  "AVENUE OF THE FLAGS": { latOffset: 0, lonOffset: 0.002, direction: "EW_STREETS" },
+  "MOUNTAIN VIEW": { latOffset: 0.001, lonOffset: 0.001, direction: "NS_STREETS" },
+  "GRAND AVENUE": { latOffset: 0, lonOffset: 0.002, direction: "EW_STREETS" },
+  "BARSTOW RD": { latOffset: 0, lonOffset: 0.003, direction: "NS_STREETS" },
+  "LENWOOD RD": { latOffset: 0, lonOffset: 0.004, direction: "NS_STREETS" },
+  "GHOST TOWN RD": { latOffset: 0, lonOffset: 0.005, direction: "NS_STREETS" },
+  "MINNEOLA RD": { latOffset: 0, lonOffset: 0.006, direction: "NS_STREETS" },
+  "BAKER RD": { latOffset: 0, lonOffset: 0.01, direction: "NS_STREETS" },
+  "FORT IRWIN RD": { latOffset: 0, lonOffset: 0.015, direction: "NS_STREETS" },
+  "VICTORVILLE AVE": { latOffset: 0, lonOffset: 0.003, direction: "EW_STREETS" },
+  "BEAR VALLEY RD": { latOffset: 0, lonOffset: 0.004, direction: "EW_STREETS" },
+  "PALMDALE RD": { latOffset: 0, lonOffset: 0.005, direction: "EW_STREETS" },
+  "HESPERIA RD": { latOffset: 0, lonOffset: 0.003, direction: "EW_STREETS" },
+  "APPLE VALLEY RD": { latOffset: 0, lonOffset: 0.004, direction: "EW_STREETS" },
+  "MOJAVE RD": { latOffset: 0, lonOffset: 0.004, direction: "EW_STREETS" },
+  "SUMMIT VALLEY RD": { latOffset: 0, lonOffset: 0.005, direction: "EW_STREETS" },
+  "YERMO LN": { latOffset: 0, lonOffset: 0.002, direction: "EW_STREETS" },
+  "NEWBERRY RD": { latOffset: 0, lonOffset: 0.003, direction: "EW_STREETS" },
+  "CALIFORNIA ST": { latOffset: 0, lonOffset: 0.002, direction: "EW_STREETS" },
+  "CAJON BLVD": { latOffset: 0, lonOffset: 0.003, direction: "NS_STREETS" },
+  "MOUNTAIN AVE": { latOffset: 0, lonOffset: 0.004, direction: "NS_STREETS" },
+  "HIGHLAND AVE": { latOffset: 0, lonOffset: 0.005, direction: "NS_STREETS" },
+  "BASELINE ST": { latOffset: 0, lonOffset: 0.006, direction: "EW_STREETS" },
+  "PALM AVE": { latOffset: 0, lonOffset: 0.007, direction: "EW_STREETS" },
+  "VALLEY AVE": { latOffset: 0, lonOffset: 0.008, direction: "EW_STREETS" },
+  "ORANGE GROVE AVE": { latOffset: 0, lonOffset: 0.009, direction: "EW_STREETS" },
+  "MASSACHUSETTS AVE": { latOffset: 0, lonOffset: 0.010, direction: "EW_STREETS" },
+  "SLAUSON AVE": { latOffset: 0, lonOffset: 0.011, direction: "EW_STREETS" },
+  "BEVERLY BLVD": { latOffset: 0, lonOffset: 0.012, direction: "EW_STREETS" },
+  "SANTA MONICA BLVD": { latOffset: 0, lonOffset: 0.013, direction: "EW_STREETS" }
+};
+
+// Convert sheriff address to GPS coordinates
+function sheriffAddressToGps(location, areaCode) {
+  if (!location) return null;
+  
+  const locationUpper = String(location).toUpperCase();
+  
+  // First try to match known intersections
+  for (const [intersection, coords] of Object.entries(INTERSECTION_GPS)) {
+    if (locationUpper.includes(intersection)) {
+      return { lat: coords.lat, lon: coords.lon, area: coords.name, type: "intersection" };
+    }
+  }
+  
+  // First try to match area code directly
+  for (const [code, coords] of Object.entries(SHERIFF_AREA_GPS)) {
+    if (locationUpper.includes(code) || areaCode === code) {
+      let baseLat = coords.lat;
+      let baseLon = coords.lon;
+      
+      // Extract block number (Sheriff format: 12300 = block 123)
+      const blockMatch = location.match(/(\d{3})00\b/);
+      if (blockMatch) {
+        const blockNumber = parseInt(blockMatch[1]);
+        const blockOffset = blockNumber * BLOCK_GPS_OFFSETS.block_size;
+        
+        // Try to determine street direction from address
+        let streetDirection = "EW_STREETS"; // default
+        for (const [direction, streetType] of Object.entries(STREET_DIRECTIONS)) {
+          if (locationUpper.includes(direction)) {
+            streetDirection = streetType;
+            break;
+          }
+        }
+        
+        // Apply block offset based on street direction
+        if (streetDirection === "NS_STREETS") {
+          baseLat += blockOffset;
+        } else {
+          baseLon += blockOffset;
+        }
+      }
+      
+      // Apply street name offset if found
+      for (const [street, offset] of Object.entries(STREET_PATTERNS)) {
+        if (locationUpper.includes(street)) {
+          if (offset.direction === "NS_STREETS") {
+            baseLat += offset.latOffset;
+          } else {
+            baseLon += offset.lonOffset;
+          }
+          break;
+        }
+      }
+      
+      // Extract regular street numbers for fine-tuning
+      const streetNumberMatch = location.match(/^\d+/);
+      if (streetNumberMatch && !blockMatch) {
+        const streetNumber = parseInt(streetNumberMatch[0]);
+        const numberOffset = (streetNumber / 1000) * 0.0001; // Fine-grained adjustment
+        
+        baseLat += numberOffset;
+        baseLon += numberOffset;
+      }
+      
+      // For Harvard area, use Newberry Springs for geocoding
+      let areaName = coords.name;
+      if (code === "HAR" || code === "HARVARD") {
+        areaName = "Newberry Springs (Harvard)";
+      }
+      
+      return { lat: baseLat, lon: baseLon, area: areaName, type: "address" };
+    }
+  }
+  
+  // Try to extract block numbers without area code
+  const blockMatch = location.match(/(\d{3})00\b/);
+  if (blockMatch) {
+    const blockNumber = parseInt(blockMatch[1]);
+    const blockOffset = blockNumber * BLOCK_GPS_OFFSETS.block_size;
+    
+    // Default to Barstow if no area found (refine via OSM in background)
+    queueOsmGeocode(location);
+    return { 
+      lat: 34.9 + blockOffset, 
+      lon: -117.0 + blockOffset, 
+      area: "Barstow Area (block estimation)",
+      type: "block_only"
+    };
+  }
+  
+  // Try to extract street numbers for approximate offset
+  const streetNumberMatch = location.match(/^\d+/);
+  if (streetNumberMatch) {
+    const streetNumber = parseInt(streetNumberMatch[0]);
+    // Rough approximation: each 100 street numbers ≈ 0.001 degrees
+    const numberOffset = (streetNumber / 100) * 0.001;
+    
+    // Default to Barstow if no area found (refine via OSM in background)
+    queueOsmGeocode(location);
+    return { 
+      lat: 34.9 + numberOffset, 
+      lon: -117.0 + numberOffset, 
+      area: "Barstow Area (estimated)",
+      type: "street_number"
+    };
+  }
+  
+  // Fallback to Barstow area (refine via OSM in background)
+  queueOsmGeocode(location);
+  return { lat: 34.9, lon: -117.0, area: "Barstow Area (default)", type: "fallback" };
+}
+
+// ---- OSM (Nominatim) geocoding: throttled (1 req/sec) + cached ----
+// Nominatim's usage policy caps requests at 1/sec; we serialize, space them out,
+// and cache results (memory + localStorage) so repeat addresses never re-hit the API.
+const OSM_MIN_INTERVAL_MS = 1100;
+const OSM_CACHE_MAX = 200;
+const OSM_MAX_QUEUE = 25; // don't let background lookups run forever / hammer OSM
+const osmGeocodeCache = new Map();
+const osmGeocodeResults = new Map();
+const osmGeocodeQueue = new Set();
+let osmQueueTail = Promise.resolve();
+let osmLastRequestAt = 0;
+
+function osmCacheKey(address) {
+  return String(address || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function loadOsmCache() {
+  try {
+    const raw = localStorage.getItem("osmGeocodeCache");
+    if (raw) {
+      for (const [k, v] of Object.entries(JSON.parse(raw))) {
+        osmGeocodeCache.set(k, v);
+      }
+    }
+  } catch (_) {}
+}
+
+function saveOsmCache() {
+  try {
+    const obj = {};
+    let count = 0;
+    for (const [k, v] of osmGeocodeCache) {
+      obj[k] = v;
+      if (++count >= OSM_CACHE_MAX) break;
+    }
+    localStorage.setItem("osmGeocodeCache", JSON.stringify(obj));
+  } catch (_) {}
+}
+
+// Raw OpenStreetMap Nominatim lookup (free, no API key needed)
+async function fetchOsmGeocode(address) {
+  if (!address) return null;
+  try {
+    // Replace Harvard with Newberry Springs for better geocoding
+    const geocodeAddress = address.replace(/harvard/gi, "Newberry Springs");
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geocodeAddress)}&limit=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'SBCO-OSINT-Scanner/1.0'
+      }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data && data.length > 0) {
+      const result = data[0];
+      return {
+        lat: parseFloat(result.lat),
+        lon: parseFloat(result.lon),
+        formatted: result.display_name
+      };
+    }
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+  }
+  return null;
+}
+
+// Serialized, rate-limited geocode; returns cached value instantly if present.
+async function geocodeAddressThrottled(address) {
+  const key = osmCacheKey(address);
+  if (!key) return null;
+  if (osmGeocodeCache.has(key)) return osmGeocodeCache.get(key);
+  
+  const run = osmQueueTail.then(async () => {
+    const wait = Math.max(0, OSM_MIN_INTERVAL_MS - (Date.now() - osmLastRequestAt));
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    osmLastRequestAt = Date.now();
+    const result = await fetchOsmGeocode(address);
+    osmGeocodeCache.set(key, result);
+    saveOsmCache();
+    return result;
+  });
+  osmQueueTail = run.catch(() => {});
+  return run;
+}
+
+// Queue a background OSM lookup for an address that only got an estimate.
+// Markers update in place as results arrive (at most ~1 per second).
+function queueOsmGeocode(address) {
+  const key = osmCacheKey(address);
+  if (!key || osmGeocodeQueue.has(key) || osmGeocodeResults.has(key)) return;
+  if (osmGeocodeQueue.size >= OSM_MAX_QUEUE) return;
+  osmGeocodeQueue.add(key);
+  geocodeAddressThrottled(address)
+    .then((result) => {
+      osmGeocodeQueue.delete(key);
+      if (result && Number.isFinite(Number(result.lat)) && Number.isFinite(Number(result.lon))) {
+        osmGeocodeResults.set(key, result);
+        if (gridMapReady) renderChpCalls();
+      }
+    })
+    .catch(() => osmGeocodeQueue.delete(key));
+}
+
+loadOsmCache();
+
+// Get GPS coordinates for any call (CHP or Sheriff)
+function getCallGps(location, agency, areaCode) {
+  const agencyUpper = String(agency || "").toUpperCase();
+  
+  // CHP calls use freeway system
+  if (agencyUpper === "CHP") {
+    return getChpCallGps(location);
+  }
+  
+  // Sheriff calls use area code + street system
+  if (agencyUpper === "SBSO") {
+    return sheriffAddressToGps(location, areaCode);
+  }
+  
+  // External events already have GPS
+  return null;
+}
+
+// I-15 freeway exit database
+const I15_EXITS = [
+  { mile: 0, exit: "1", name: "San Diego", direction: "SB" },
+  { mile: 10, exit: "10", name: "Oceanside", direction: "NB" },
+  { mile: 20, exit: "20", name: "Escondido", direction: "NB" },
+  { mile: 30, exit: "30", name: "Rancho Bernardo", direction: "NB" },
+  { mile: 40, exit: "40", name: "Rancho Penasquitos", direction: "NB" },
+  { mile: 50, exit: "50", name: "Miramar", direction: "NB" },
+  { mile: 60, exit: "60", name: " Kearny Villa", direction: "NB" },
+  { mile: 70, exit: "70", name: "Miramar Way", direction: "NB" },
+  { mile: 80, exit: "80", name: " Aero Drive", direction: "NB" },
+  { mile: 90, exit: "90", name: "Orange Ave", direction: "NB" },
+  { mile: 100, exit: "100", name: "H Street", direction: "NB" },
+  { mile: 110, exit: "110", name: "Sweetwater Springs", direction: "NB" },
+  { mile: 120, exit: "120", name: "Otay Lakes", direction: "NB" },
+  { mile: 130, exit: "130", name: " San Ysidro", direction: "NB" },
+  { mile: 140, exit: "140", name: "Barstow Rd", direction: "NB" },
+  { mile: 150, exit: "150", name: "Main St", direction: "NB" },
+  { mile: 160, exit: "160", name: "Lenwood Rd", direction: "NB" },
+  { mile: 170, exit: "170", name: "Ghost Town Rd", direction: "NB" },
+  { mile: 180, exit: "180", name: "Minneola Rd", direction: "NB" },
+  { mile: 190, exit: "190", name: "Baker Rd", direction: "NB" },
+  { mile: 200, exit: "200", name: "Halloran Springs Rd", direction: "NB" },
+  { mile: 210, exit: "210", name: "Yucca Valley", direction: "NB" },
+  { mile: 220, exit: "220", name: "Twentynine Palms", direction: "NB" },
+  { mile: 230, exit: "230", name: "Amboy Rd", direction: "NB" },
+  { mile: 240, exit: "240", name: "Chambless", direction: "NB" },
+  { mile: 250, exit: "250", name: "Essex", direction: "NB" },
+  { mile: 260, exit: "260", name: "Goffs", direction: "NB" },
+  { mile: 270, exit: "270", name: "Needles", direction: "NB" },
+  { mile: 280, exit: "280", name: "Topock", direction: "NB" },
+  { mile: 290, exit: "290", name: "Oatman", direction: "NB" },
+  { mile: 300, exit: "300", name: "Kingman", direction: "NB" }
+];
+
+// I-40 freeway exit database
+const I40_EXITS = [
+  { mile: 0, exit: "1", name: "Barstow", direction: "EB" },
+  { mile: 10, exit: "10", name: "Yermo", direction: "EB" },
+  { mile: 20, exit: "20", name: "Newberry Springs", direction: "EB" },
+  { mile: 30, exit: "30", name: "Daggett", direction: "EB" },
+  { mile: 40, exit: "40", name: "Ghost Town", direction: "EB" },
+  { mile: 50, exit: "50", name: "Minneola", direction: "EB" },
+  { mile: 60, exit: "60", name: "Baker", direction: "EB" },
+  { mile: 70, exit: "70", name: "Halloran Springs", direction: "EB" },
+  { mile: 80, exit: "80", name: "Essex", direction: "EB" },
+  { mile: 90, exit: "90", name: "Goffs", direction: "EB" },
+  { mile: 100, exit: "100", name: "Needles", direction: "EB" },
+  { mile: 110, exit: "110", name: "Topock", direction: "EB" },
+  { mile: 120, exit: "120", name: "Kingman", direction: "EB" }
+];
+
+// I-10 freeway exit database
+const I10_EXITS = [
+  { mile: 0, exit: "1", name: "Santa Monica", direction: "EB" },
+  { mile: 10, exit: "10", name: "Los Angeles", direction: "EB" },
+  { mile: 20, exit: "20", name: "San Bernardino", direction: "EB" },
+  { mile: 30, exit: "30", name: "Redlands", direction: "EB" },
+  { mile: 40, exit: "40", name: "Calimesa", direction: "EB" },
+  { mile: 50, exit: "50", name: "Banning", direction: "EB" },
+  { mile: 60, exit: "60", name: "Palm Springs", direction: "EB" },
+  { mile: 70, exit: "70", name: "Indio", direction: "EB" },
+  { mile: 80, exit: "80", name: "Coachella", direction: "EB" },
+  { mile: 90, exit: "90", name: "Blythe", direction: "EB" },
+  { mile: 100, exit: "100", name: "Phoenix", direction: "EB" }
+];
+
+// SR-58 freeway exit database
+const SR58_EXITS = [
+  { mile: 0, exit: "1", name: "Barstow", direction: "EB" },
+  { mile: 10, exit: "10", name: "Hinkley", direction: "EB" },
+  { mile: 20, exit: "20", name: "Boron", direction: "EB" },
+  { mile: 30, exit: "30", name: "Mojave", direction: "EB" },
+  { mile: 40, exit: "40", name: "California City", direction: "EB" },
+  { mile: 50, exit: "50", name: "Tehachapi", direction: "EB" },
+  { mile: 60, exit: "60", name: "Bakersfield", direction: "EB" }
+];
+
+function findNearestExit(mileMarker, freewayExits) {
+  if (!mileMarker || !freewayExits || !freewayExits.length) return null;
+  
+  const mile = parseFloat(mileMarker);
+  if (isNaN(mile)) return null;
+  
+  let nearest = null;
+  let minDistance = Infinity;
+  
+  for (const exit of freewayExits) {
+    const distance = Math.abs(exit.mile - mile);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = exit;
+    }
+  }
+  
+  return nearest;
+}
+
+function formatFreewayLocation(mileMarker, freeway) {
+  const mile = parseFloat(mileMarker);
+  if (isNaN(mile)) return mileMarker;
+  
+  let exits = [];
+  let freewayName = "";
+  
+  switch (freeway?.toUpperCase()) {
+    case "I-15":
+    case "I15":
+      exits = I15_EXITS;
+      freewayName = "I-15";
+      break;
+    case "I-40":
+    case "I40":
+      exits = I40_EXITS;
+      freewayName = "I-40";
+      break;
+    case "I-10":
+    case "I10":
+      exits = I10_EXITS;
+      freewayName = "I-10";
+      break;
+    case "SR-58":
+    case "SR58":
+    case "CA-58":
+      exits = SR58_EXITS;
+      freewayName = "SR-58";
+      break;
+    default:
+      return mileMarker;
+  }
+  
+  const nearestExit = findNearestExit(mile, exits);
+  if (!nearestExit) return `${freewayName} MM ${mile}`;
+  
+  let direction = mile > nearestExit.mile ? "north" : "south";
+  if (freewayName === "I-40" || freewayName === "I-10") {
+    direction = mile > nearestExit.mile ? "east" : "west";
+  }
+  
+  const distance = Math.abs(mile - nearestExit.mile).toFixed(1);
+  
+  if (distance < 0.1) {
+    return `${freewayName} at ${nearestExit.name} (Exit ${nearestExit.exit})`;
+  }
+  
+  return `${distance} miles ${direction} of ${nearestExit.name} (Exit ${nearestExit.exit}), ${freewayName}`;
+}
+
 const FILTER_SUGGESTION_LIMITS = {
   agency: 50,
   station: 100,
@@ -946,10 +2172,17 @@ function rowClass(group) {
   const agency = String(group.agency || "").toUpperCase();
   const sev = severityFor(group.latest);
   const parts = ["main-row"];
-  if (agency === "CHP") parts.push("row-chp");
-  else if (agency === "SBCFIRE") parts.push("row-sbcfire");
-  else parts.push("row-sbso");
-  if (isOpenSbsoCall(group)) parts.push("row-open");
+  
+  if (group.isExternalEvent) {
+    if (group.eventType === "lightning") parts.push("row-lightning");
+    else if (group.eventType === "outage") parts.push("row-outage");
+  } else {
+    if (agency === "CHP") parts.push("row-chp");
+    else if (agency === "SBCFIRE") parts.push("row-sbcfire");
+    else parts.push("row-sbso");
+    if (isOpenSbsoCall(group)) parts.push("row-open");
+  }
+  
   parts.push(`tone-${sev}`);
   return parts.join(" ");
 }
@@ -959,6 +2192,8 @@ function agencyClass(agency) {
   if (normalized === "CHP") return "agency-chp";
   if (normalized === "SBCFIRE") return "agency-sbcfire";
   if (normalized === "SBSO") return "agency-sbso";
+  if (normalized === "WEATHER") return "agency-weather";
+  if (normalized === "UTILITY") return "agency-utility";
   return "agency-other";
 }
 
@@ -1025,6 +2260,8 @@ function extractAreaToken(location) {
   const base = raw.slice(0, commaIndex).trim();
   const area = raw.slice(commaIndex + 1).trim().toUpperCase();
   if (!base || !AREA_CODE_PATTERN.test(area)) return "";
+  // Map Harvard to Newberry Springs
+  if (area === "HAR") return "HAR"; // Already handled in area database
   return area;
 }
 
@@ -1051,6 +2288,316 @@ function splitLocation(location) {
     return { location: raw, area: "" };
   }
   return { location: base, area };
+}
+
+function convertChpLocation(location, agency) {
+  if (String(agency || "").toUpperCase() !== "CHP") {
+    return location;
+  }
+  
+  const raw = String(location || "").trim();
+  if (!raw) return location;
+  
+  const upperLocation = raw.toUpperCase();
+  
+  // First check for mile markers and freeway locations
+  const mileMarkerMatch = raw.match(/(?:MM|MM\s*|MILE\s*MARKER\s*)?(\d+(?:\.\d+)?)/i);
+  if (mileMarkerMatch) {
+    const mileMarker = mileMarkerMatch[1];
+    
+    // Try to determine freeway from context
+    let freeway = null;
+    if (upperLocation.includes("I-15") || upperLocation.includes("I15")) {
+      freeway = "I-15";
+    } else if (upperLocation.includes("I-40") || upperLocation.includes("I40")) {
+      freeway = "I-40";
+    } else if (upperLocation.includes("I-10") || upperLocation.includes("I10")) {
+      freeway = "I-10";
+    } else if (upperLocation.includes("SR-58") || upperLocation.includes("SR58") || upperLocation.includes("CA-58")) {
+      freeway = "SR-58";
+    }
+    
+    if (freeway) {
+      const formattedLocation = formatFreewayLocation(mileMarker, freeway);
+      // Replace the mile marker with the formatted location
+      return raw.replace(mileMarkerMatch[0], formattedLocation);
+    }
+  }
+  
+  // Try to match CHP location codes at the end of the location string
+  for (const [code, name] of Object.entries(CHP_LOCATION_MAPPING)) {
+    // Check if the location ends with the code or has it as a separate area code
+    if (upperLocation.endsWith(code) || upperLocation === code || upperLocation.includes(` ${code}`)) {
+      // For CHP, replace the code with the full area name
+      return raw.replace(new RegExp(`${code}$`, 'i'), name).replace(new RegExp(`${code}`, 'gi'), name);
+    }
+  }
+  
+  // If no specific match found but contains "BAR", default to Barstow Area
+  if (upperLocation.includes("BAR")) {
+    return raw.replace(/BAR/gi, "Barstow Area");
+  }
+  
+  return location;
+}
+
+// Convert GPS coordinates to general area description
+function gpsToAreaLocation(lat, lon) {
+  if (!lat || !lon) return "Unknown location";
+  
+  const latNum = parseFloat(lat);
+  const lonNum = parseFloat(lon);
+  
+  if (isNaN(latNum) || isNaN(lonNum)) return "Unknown location";
+  
+  // Rough bounding boxes for San Bernardino County areas
+  const areas = [
+    { name: "Barstow Area", latMin: 34.8, latMax: 35.0, lonMin: -117.0, lonMax: -116.8 },
+    { name: "Daggett", latMin: 34.8, latMax: 34.9, lonMin: -116.9, lonMax: -116.7 },
+    { name: "Yermo", latMin: 34.9, latMax: 35.0, lonMin: -116.9, lonMax: -116.7 },
+    { name: "Newberry Springs", latMin: 34.7, latMax: 34.9, lonMin: -116.8, lonMax: -116.5 },
+    { name: "Baker", latMin: 35.2, latMax: 35.3, lonMin: -116.1, lonMax: -115.9 },
+    { name: "Victorville", latMin: 34.5, latMax: 34.6, lonMin: -117.4, lonMax: -117.2 },
+    { name: "Hesperia", latMin: 34.4, latMax: 34.5, lonMin: -117.3, lonMax: -117.1 },
+    { name: "Apple Valley", latMin: 34.5, latMax: 34.6, lonMin: -117.2, lonMax: -117.0 },
+    { name: "Lucerne Valley", latMin: 34.4, latMax: 34.6, lonMin: -116.9, lonMax: -116.6 },
+    { name: "Yucca Valley", latMin: 34.1, latMax: 34.2, lonMin: -116.4, lonMax: -116.2 },
+    { name: "Twentynine Palms", latMin: 34.0, latMax: 34.2, lonMin: -116.1, lonMax: -115.9 },
+    { name: "Joshua Tree", latMin: 34.1, latMax: 34.2, lonMin: -116.3, lonMax: -116.1 },
+    { name: "Needles", latMin: 34.8, latMax: 35.0, lonMin: -114.6, lonMax: -114.4 }
+  ];
+  
+  for (const area of areas) {
+    if (latNum >= area.latMin && latNum <= area.latMax && lonNum >= area.lonMin && lonNum <= area.lonMax) {
+      return area.name;
+    }
+  }
+  
+  // If no specific area found, return general GPS coordinates
+  return `GPS: ${latNum.toFixed(4)}, ${lonNum.toFixed(4)}`;
+}
+
+// Get GPS coordinates for freeway exit/mile marker
+function freewayToGps(mileMarker, freeway) {
+  const mile = parseFloat(mileMarker);
+  if (isNaN(mile)) return null;
+  
+  let exits = [];
+  let baseLat = 0, baseLon = 0, latPerMile = 0, lonPerMile = 0;
+  
+  switch (freeway?.toUpperCase()) {
+    case "I-15":
+    case "I15":
+      baseLat = 32.7; // San Diego area
+      baseLon = -117.1;
+      latPerMile = 0.014; // Roughly 0.014 degrees latitude per mile
+      lonPerMile = 0.012; // Roughly 0.012 degrees longitude per mile
+      break;
+    case "I-40":
+    case "I40":
+      baseLat = 34.9; // Barstow area
+      baseLon = -117.0;
+      latPerMile = 0.014;
+      lonPerMile = 0.012;
+      break;
+    case "I-10":
+    case "I10":
+      baseLat = 34.1; // Indio area
+      baseLon = -116.2;
+      latPerMile = 0.014;
+      lonPerMile = 0.012;
+      break;
+    case "SR-58":
+    case "SR58":
+      baseLat = 35.0; // Barstow area
+      baseLon = -117.0;
+      latPerMile = 0.014;
+      lonPerMile = 0.012;
+      break;
+    default:
+      return null;
+  }
+  
+  return {
+    lat: baseLat + (mile * latPerMile),
+    lon: baseLon + (mile * lonPerMile)
+  };
+}
+
+// Extract freeway and mile marker from CHP location
+function extractFreewayInfo(location) {
+  const raw = String(location || "").trim();
+  if (!raw) return null;
+  
+  const upperLocation = raw.toUpperCase();
+  
+  // Check for freeway mentions, including the CHP feed's shorthand forms:
+  //   "I15 N", "NB 15" / "SB 15" (I-15 northbound/southbound),
+  //   "Mm15 S" / "MM 15 N" (scraper's "Sbd R101.00" report format)
+  let freeway = null;
+  if (upperLocation.includes("I-15") || upperLocation.includes("I15")
+      || /\bMM\s*15\s*[NS]\b/.test(upperLocation) || /\bNB\s*15\b/.test(upperLocation) || /\bSB\s*15\b/.test(upperLocation)) {
+    freeway = "I-15";
+  } else if (upperLocation.includes("I-40") || upperLocation.includes("I40")
+      || /\bMM\s*40\s*[NS]\b/.test(upperLocation) || /\bNB\s*40\b/.test(upperLocation) || /\bSB\s*40\b/.test(upperLocation)) {
+    freeway = "I-40";
+  } else if (upperLocation.includes("I-10") || upperLocation.includes("I10")
+      || /\bMM\s*10\s*[NS]\b/.test(upperLocation) || /\bNB\s*10\b/.test(upperLocation) || /\bSB\s*10\b/.test(upperLocation)) {
+    freeway = "I-10";
+  } else if (upperLocation.includes("SR-58") || upperLocation.includes("SR58") || upperLocation.includes("CA-58")
+      || /\bMM\s*58\s*[NS]\b/.test(upperLocation) || /\bNB\s*58\b/.test(upperLocation) || /\bSB\s*58\b/.test(upperLocation)) {
+    freeway = "SR-58";
+  }
+  
+  if (!freeway) return null;
+  
+  // Strip freeway designators and direction/report tokens so their numbers
+  // ("I-15" -> 15, "NB 15", "Sbd R101.00") aren't mistaken for mile markers
+  let stripped = upperLocation
+    .replace(/\bI\s*-?\s*15\b/g, " ")
+    .replace(/\bI\s*-?\s*40\b/g, " ")
+    .replace(/\bI\s*-?\s*10\b/g, " ")
+    .replace(/\bSR\s*-?\s*58\b/g, " ")
+    .replace(/\bCA\s*-?\s*58\b/g, " ")
+    .replace(/\bMM\s*15\s*[NS]\b/g, " ")
+    .replace(/\bMM\s*40\s*[NS]\b/g, " ")
+    .replace(/\bMM\s*10\s*[NS]\b/g, " ")
+    .replace(/\bMM\s*58\s*[NS]\b/g, " ")
+    .replace(/\b(?:NB|SB)\s*1?5\b/g, " ")
+    .replace(/\b(?:NB|SB)\s*40\b/g, " ")
+    .replace(/\b(?:NB|SB)\s*10\b/g, " ")
+    .replace(/\b(?:NB|SB)\s*58\b/g, " ")
+    .replace(/\b(?:NBD|SBD)\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*MILES?\b/g, " ")
+    .replace(/\b\d+\s*\/\s*\d+\s*MILE\b/g, " ")
+    .replace(/\b\d+\s*\/\s*\d+\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*MILE\b/g, " ");
+  
+  const exitList = freeway === "I-15" ? I15_EXITS
+    : freeway === "I-40" ? I40_EXITS
+    : freeway === "I-10" ? I10_EXITS
+    : SR58_EXITS;
+  
+  let mileMarker = null;
+  
+  // 1. Explicit mile marker ("MM 178" / "MILE MARKER 178")
+  const explicitMatch = stripped.match(/(?:MM|MILE\s*MARKER)\s*(\d+(?:\.\d+)?)/i);
+  if (explicitMatch) {
+    mileMarker = explicitMatch[1];
+  }
+  
+  // 2. CHP report format: "Sbd R101.00" / "Nbd R127.70" carry the exact mile
+  if (mileMarker == null) {
+    const reportMatch = stripped.match(/\bR(\d+(?:\.\d+)?)\b/i);
+    if (reportMatch) mileMarker = reportMatch[1];
+  }
+  
+  // 3. Known exit name in the text (e.g. "Lenwood Rd" -> mile 160), which is far
+  //    more reliable than a bare number that could be part of an intersection name
+  if (mileMarker == null) {
+    for (const exit of exitList) {
+      if (upperLocation.includes(exit.name.toUpperCase())) {
+        mileMarker = String(exit.mile);
+        break;
+      }
+    }
+  }
+  
+  // 4. Any remaining number as a mile marker (ignore 0 / trivial values)
+  if (mileMarker == null) {
+    const anyMatch = stripped.match(/(\d+(?:\.\d+)?)/);
+    if (anyMatch) {
+      const val = parseFloat(anyMatch[1]);
+      if (val > 0) mileMarker = anyMatch[1];
+    }
+  }
+  
+  if (mileMarker == null) return null;
+  
+  return {
+    freeway,
+    mileMarker
+  };
+}
+
+// Get GPS coordinates for CHP call location
+function getChpCallGps(location) {
+  const freewayInfo = extractFreewayInfo(location);
+  if (freewayInfo) {
+    return freewayToGps(freewayInfo.mileMarker, freewayInfo.freeway);
+  }
+  
+  // Fallback to area-based GPS (single source of truth: SHERIFF_AREA_GPS)
+  const area = convertChpLocation(location, "CHP");
+  const areaUpper = String(area || "").toUpperCase();
+  const areaGps = SHERIFF_AREA_GPS[areaUpper]
+    || SHERIFF_AREA_GPS[area]
+    || SHERIFF_AREA_GPS[areaUpper.replace(/ AREA$/, "")]
+    || SHERIFF_AREA_GPS["BARSTOW"];
+  if (areaGps) {
+    return { lat: areaGps.lat, lon: areaGps.lon, area: areaGps.name };
+  }
+  
+  return null;
+}
+
+// Convert lightning strike to call log format
+function lightningToCallLog(strike) {
+  const location = gpsToAreaLocation(strike.lat, strike.lon);
+  const ageMinutes = Math.max(0, Math.round((Date.now() / 1000 - strike.t) / 60));
+  const timeStr = ageMinutes < 1 ? "Just now" : `${ageMinutes} min ago`;
+  
+  return {
+    dt: timeStr,
+    agency: "WEATHER",
+    station: "BLITZ",
+    callno: `LTG-${strike.t}`,
+    report: "",
+    type: "Lightning Strike",
+    dispo: "NA",
+    loc: location,
+    rev_at: new Date(strike.t * 1000).toISOString(),
+    revNum: 0,
+    extra: {
+      kind: "lightning_strike",
+      lat: strike.lat,
+      lon: strike.lon,
+      time: strike.t,
+      age_minutes: ageMinutes
+    }
+  };
+}
+
+// Convert power outage to call log format
+function outageToCallLog(outage) {
+  const location = gpsToAreaLocation(outage.lat, outage.lon);
+  const startTime = outage.start_iso ? new Date(outage.start_iso).toLocaleString() : "Unknown";
+  
+  return {
+    dt: startTime,
+    agency: "UTILITY",
+    station: "SCE",
+    callno: `OUT-${outage.incident_id || outage.oan || "UNKNOWN"}`,
+    report: "",
+    type: "Power Outage",
+    dispo: outage.crew_status || "Active",
+    loc: `${outage.city || "Unknown"} - ${location}`,
+    rev_at: outage.start_iso || new Date().toISOString(),
+    revNum: 0,
+    extra: {
+      kind: "power_outage",
+      lat: outage.lat,
+      lon: outage.lon,
+      city: outage.city,
+      customers: outage.customers,
+      cause: outage.cause,
+      ert: outage.ert,
+      crew_status: outage.crew_status,
+      incident_id: outage.incident_id,
+      oan: outage.oan,
+      sce_url: outage.sce_url
+    }
+  };
 }
 
 function renderArea(area) {
@@ -1118,7 +2665,7 @@ async function loadCallDescriptions() {
     };
     callDescriptionsError = "";
   } catch (error) {
-    callDescriptionsError = error && error.message ? error.message : "description load failed";
+    callDescriptionsError = formatError(error);
   }
 }
 
@@ -1743,6 +3290,70 @@ function mergeGroupCollections(...collections) {
 function rebuildCombinedGroups() {
   const historySource = historyGroups.length ? historyGroups : apiPreviewGroups;
   combinedGroups = mergeGroupCollections(historySource, liveGroups);
+  
+  // Add lightning strikes if enabled
+  if (showLightningInLog && lightningStrikes.length > 0) {
+    const lightningGroups = lightningStrikes.map(strike => {
+      const callData = lightningToCallLog(strike);
+      return {
+        baseCallNo: callData.callno,
+        prefix: "LTG",
+        agency: callData.agency,
+        station: callData.station,
+        chain: [callData],
+        latest: callData,
+        originalDt: callData.dt,
+        sortMs: Date.now() - (strike.t * 1000), // Sort by recency
+        revisionCount: 0,
+        searchText: [
+          callData.callno,
+          callData.agency,
+          callData.station,
+          callData.type,
+          callData.loc,
+          "lightning",
+          "weather"
+        ].join(" ").toLowerCase(),
+        isExternalEvent: true,
+        eventType: "lightning"
+      };
+    });
+    combinedGroups = mergeGroupCollections(combinedGroups, lightningGroups);
+  }
+  
+  // Add power outages if enabled
+  if (showOutagesInLog && powerOutages.length > 0) {
+    const outageGroups = powerOutages.map(outage => {
+      const callData = outageToCallLog(outage);
+      return {
+        baseCallNo: callData.callno,
+        prefix: "OUT",
+        agency: callData.agency,
+        station: callData.station,
+        chain: [callData],
+        latest: callData,
+        originalDt: callData.dt,
+        sortMs: outage.start_iso ? new Date(outage.start_iso).getTime() : Date.now(),
+        revisionCount: 0,
+        searchText: [
+          callData.callno,
+          callData.agency,
+          callData.station,
+          callData.type,
+          callData.loc,
+          outage.city || "",
+          "power",
+          "outage",
+          "utility",
+          "electric"
+        ].join(" ").toLowerCase(),
+        isExternalEvent: true,
+        eventType: "outage"
+      };
+    });
+    combinedGroups = mergeGroupCollections(combinedGroups, outageGroups);
+  }
+  
   return combinedGroups;
 }
 
@@ -1767,6 +3378,21 @@ function setStatus(text, state) {
   const node = document.getElementById("statusText");
   node.textContent = text;
   node.className = state === "warn" ? "status warn" : state === "good" ? "status good" : "status";
+}
+
+// Include the failing source line in user-visible error messages to make debugging easier.
+function formatError(error) {
+  const message = error && error.message ? error.message : "unknown error";
+  if (!error || typeof error.stack !== "string") return message;
+  let firstLine = null;
+  for (const frame of error.stack.split("\n")) {
+    const m = frame.match(/\(([^()]*):(\d+):\d+\)/);
+    if (!m) continue;
+    if (firstLine === null) firstLine = m[2];
+    // Prefer a frame inside this page's own script over libraries (leaflet, etc.)
+    if (/sbsd\.html|sbco/i.test(m[1])) return `${message} (line ${m[2]})`;
+  }
+  return firstLine !== null ? `${message} (line ${firstLine})` : message;
 }
 
 function formatLocal(value) {
@@ -1851,6 +3477,7 @@ function renderHistory(group) {
   if (!group.chain || group.chain.length <= 1) {
     return '<div class="muted">No revisions recorded for this call.</div>';
   }
+  const agency = group.agency || "";
   return `
     <table class="history">
       <thead>
@@ -1867,13 +3494,14 @@ function renderHistory(group) {
         ${group.chain.map((row) => `
           ${(() => {
             const locationParts = splitLocation(row.loc || "");
+            const convertedLocation = convertChpLocation(locationParts.location || row.loc || "", agency);
             return `
           <tr>
             <td>${row.revNum === 0 ? "Original" : "Rev " + row.revNum}</td>
             <td>${escapeHtml(row.callno)}</td>
             <td>${escapeHtml(row.type)}</td>
             <td>${renderDispo(row.dispo)}</td>
-            <td>${escapeHtml(locationParts.location || row.loc || "")}</td>
+            <td>${escapeHtml(convertedLocation)}</td>
             <td>${renderArea(locationParts.area)}</td>
           </tr>
         `;
@@ -1887,6 +3515,7 @@ function renderHistory(group) {
 function renderDetails(group) {
   const current = group.latest || {};
   const locationParts = splitLocation(current.loc || "");
+  const convertedLocation = convertChpLocation(locationParts.location || current.loc || "", group.agency);
   const prefixText = String(group.prefix || "").trim().toUpperCase();
   const prefixTextDescription = prefixDescription(group);
   const typeTextDescription = callTypeDescription(current.type, group);
@@ -1927,7 +3556,7 @@ function renderDetails(group) {
         </div>
         <div class="detail-block">
           <h4>Location</h4>
-          <div class="value">${escapeHtml(locationParts.location || current.loc || "")}</div>
+          <div class="value">${escapeHtml(convertedLocation)}</div>
         </div>
         <div class="detail-block">
           <h4>Area</h4>
@@ -1943,6 +3572,85 @@ function renderDetails(group) {
   `;
 }
 
+function renderExternalEventDetails(group) {
+  const current = group.latest || {};
+  const extra = current.extra || {};
+  
+  if (group.eventType === "lightning") {
+    return `
+      <div class="detail-card">
+        <div class="detail-grid">
+          <div class="detail-block">
+            <h4>Event Type</h4>
+            <div class="value">Lightning Strike</div>
+          </div>
+          <div class="detail-block">
+            <h4>Time</h4>
+            <div class="value">${escapeHtml(current.dt)}</div>
+          </div>
+          <div class="detail-block">
+            <h4>Location</h4>
+            <div class="value">${escapeHtml(current.loc)}</div>
+          </div>
+          <div class="detail-block">
+            <h4>GPS Coordinates</h4>
+            <div class="value">${escapeHtml(String(extra.lat))}, ${escapeHtml(String(extra.lon))}</div>
+          </div>
+          <div class="detail-block">
+            <h4>Age</h4>
+            <div class="value">${extra.age_minutes ? `${escapeHtml(String(extra.age_minutes))} minutes ago` : "Unknown"}</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: #fff9c3; border-radius: 8px; border: 1px solid #eab308;">
+          <h4 style="margin: 0 0 8px; color: #854d0e;">⚡ Lightning Information</h4>
+          <p style="margin: 0; font-size: 13px; color: #713f12;">This lightning strike data is provided by the Blitzortung community network. Lightning data is approximate and may not reflect exact strike locations.</p>
+        </div>
+      </div>
+    `;
+  }
+  
+  if (group.eventType === "outage") {
+    return `
+      <div class="detail-card">
+        <div class="detail-grid">
+          <div class="detail-block">
+            <h4>Event Type</h4>
+            <div class="value">Power Outage</div>
+          </div>
+          <div class="detail-block">
+            <h4>Started</h4>
+            <div class="value">${escapeHtml(current.dt)}</div>
+          </div>
+          <div class="detail-block">
+            <h4>Location</h4>
+            <div class="value">${escapeHtml(current.loc)}</div>
+          </div>
+          <div class="detail-block">
+            <h4>City</h4>
+            <div class="value">${escapeHtml(extra.city || "Unknown")}</div>
+          </div>
+          <div class="detail-block">
+            <h4>Customers Affected</h4>
+            <div class="value">${extra.customers ? escapeHtml(String(extra.customers)) : "Unknown"}</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: #fee2e2; border-radius: 8px; border: 1px solid #ef4444;">
+          <h4 style="margin: 0 0 8px; color: #7f1d1d;">🔌 Outage Details</h4>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 13px;">
+            ${extra.cause ? `<div style="font-weight: 700;">Cause:</div><div>${escapeHtml(extra.cause)}</div>` : ""}
+            ${extra.crew_status ? `<div style="font-weight: 700;">Crew Status:</div><div>${escapeHtml(extra.crew_status)}</div>` : ""}
+            ${extra.ert ? `<div style="font-weight: 700;">ETR:</div><div>${escapeHtml(extra.ert)}</div>` : ""}
+            ${extra.incident_id ? `<div style="font-weight: 700;">Incident ID:</div><div>${escapeHtml(String(extra.incident_id))}</div>` : ""}
+          </div>
+          ${extra.sce_url ? `<p style="margin: 8px 0 0;"><a href="${escapeHtml(extra.sce_url)}" target="_blank" rel="noreferrer" style="color: #7f1d1d; font-weight: 700;">View on Edison's outage map →</a></p>` : ""}
+        </div>
+      </div>
+    `;
+  }
+  
+  return `<div class="detail-card"><div class="muted">No additional details available.</div></div>`;
+}
+
 function applyFilters() {
   const groups = combinedGroups;
   updateFilters(groups);
@@ -1952,6 +3660,7 @@ function applyFilters() {
   lastFilteredGroups = filtered.slice();
 
   const sliced = filtered.slice(0, limit);
+  lastShownGroups = sliced.slice();
   const rowsNode = document.getElementById("rows");
   const emptyNode = document.getElementById("emptyState");
   const visibleRows = totalRows(sliced);
@@ -1961,6 +3670,11 @@ function applyFilters() {
     const current = group.latest || {};
     const isOpen = expanded.has(group.baseCallNo);
     const locationParts = splitLocation(current.loc || "");
+    const convertedLocation = convertChpLocation(locationParts.location || current.loc || "", group.agency);
+    
+    // Handle external events differently in details
+    const detailContent = group.isExternalEvent ? renderExternalEventDetails(group) : renderDetails(group);
+    
     return `
       <tr class="${rowClass(group)}" data-base="${escapeHtml(group.baseCallNo)}">
         <td class="toggle-cell">
@@ -1973,10 +3687,10 @@ function applyFilters() {
         <td>${escapeHtml(current.report || "")}</td>
         <td>${escapeHtml(current.type || "")}</td>
         <td>${renderDispo(current.dispo)}</td>
-        <td>${escapeHtml(locationParts.location || current.loc || "")}</td>
+        <td>${escapeHtml(convertedLocation)}</td>
         <td>${renderArea(locationParts.area)}</td>
       </tr>
-      ${isOpen ? `<tr class="detail-row"><td colspan="10">${renderDetails(group)}</td></tr>` : ""}
+      ${isOpen ? `<tr class="detail-row"><td colspan="10">${detailContent}</td></tr>` : ""}
     `;
   }).join("");
 
@@ -2018,6 +3732,11 @@ function applyFilters() {
   document.getElementById("uploadText").textContent = uploadParts.join(" | ");
   updateApiPreviewControls(filters);
   scheduleApiPreviewForFilters(filters);
+  
+  // Update map to reflect filtered calls
+  if (gridMapReady && (chpOn || sbsoOn)) {
+    renderChpCalls();
+  }
 }
 
 function updateApiPreviewControls(filters) {
@@ -2061,7 +3780,7 @@ function scheduleApiPreviewForFilters(filters) {
       })
       .catch((error) => {
         setStatus(
-          `Filtered history preview failed: ${error && error.message ? error.message : "unknown error"}`,
+          `Filtered history preview failed: ${formatError(error)}`,
           "warn"
         );
         applyFilters();
@@ -2233,7 +3952,7 @@ async function loadApiPreview(options = {}) {
     return apiPreviewGroups.length;
   })()
     .catch((error) => {
-      apiPreviewError = error && error.message ? error.message : "API preview load failed";
+      apiPreviewError = formatError(error);
       throw error;
     })
     .finally(() => {
@@ -2351,7 +4070,7 @@ async function loadFullHistory(options = {}) {
     return historyGroups.length;
   })()
     .catch((error) => {
-      historyError = error && error.message ? error.message : "history load failed";
+      historyError = formatError(error);
       throw error;
     })
     .finally(() => {
@@ -2385,7 +4104,7 @@ async function loadCallAnnotations(options = {}) {
     return callAnnotations.size;
   })()
     .catch((error) => {
-      callAnnotationsError = error && error.message ? error.message : "annotation load failed";
+      callAnnotationsError = formatError(error);
       throw error;
     })
     .finally(() => {
@@ -2446,6 +4165,10 @@ async function refreshPage(options = {}) {
     rebuildCombinedGroups();
     applyInitialFiltersFromQuery();
     applyFilters();
+    
+    // Check for new calls against user alerts
+    checkNewCallsAgainstAlerts();
+    
     const shouldLoadApiPreview = !historyGroups.length && !apiPreviewGroups.length && !apiPreviewPromise;
     const shouldLoadHistory = forceHistory && !historyLoadPromise;
     const shouldLoadAnnotations = forceHistory || (!callAnnotationsLoadedAt && !callAnnotationsPromise);
@@ -2487,7 +4210,7 @@ async function refreshPage(options = {}) {
         })
         .catch((error) => {
           setStatus(
-            `Live feed loaded, but full term history failed: ${error && error.message ? error.message : "unknown error"}`,
+            `Live feed loaded, but full term history failed: ${formatError(error)}`,
             "warn"
           );
           applyFilters();
@@ -2500,8 +4223,11 @@ async function refreshPage(options = {}) {
         "good"
       );
     }
+    
+    // Update CHP layer on map
+    renderChpCalls();
   } catch (error) {
-    setStatus(error && error.message ? error.message : "Unable to load live call feed", "warn");
+    setStatus(formatError(error), "warn");
   }
 }
 
@@ -2522,6 +4248,26 @@ document.getElementById("helpToggle").addEventListener("click", (event) => {
   event.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
 });
 
+document.getElementById("alertSettingsBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  const panel = document.getElementById("alertSettingsPanel");
+  panel.hidden = !panel.hidden;
+  event.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
+  
+  if (!panel.hidden) {
+    loadUserAlerts();
+    renderAlertList();
+  }
+});
+
+document.getElementById("addAlertBtn").addEventListener("click", addAlert);
+
+// Initialize notification system
+loadUserAlerts();
+if ("Notification" in window) {
+  notificationPermission = Notification.permission;
+}
+
 document.getElementById("searchBox").addEventListener("input", scheduleApplyFilters);
 document.getElementById("agencyFilter").addEventListener("change", applyFilters);
 document.getElementById("stationFilter").addEventListener("change", applyFilters);
@@ -2539,30 +4285,195 @@ document.getElementById("loadMoreApiBtn").addEventListener("click", () => {
       applyFilters();
     })
     .catch((error) => {
-      setStatus(`History load failed: ${error && error.message ? error.message : "unknown error"}`, "warn");
+      setStatus(`History load failed: ${formatError(error)}`, "warn");
       applyFilters();
     });
 });
+
+// Open map in new window
+const openMapWindowBtn = document.getElementById("openMapWindowBtn");
+if (openMapWindowBtn) {
+  openMapWindowBtn.addEventListener("click", () => {
+    const mapUrl = window.location.href.split('?')[0] + '?mapOnly=true';
+    window.open(mapUrl, 'sbcoMapWindow', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+  });
+}
+
 document.getElementById("exportCsvBtn").addEventListener("click", () => exportFilteredData("csv"));
 document.getElementById("exportJsonBtn").addEventListener("click", () => exportFilteredData("json"));
 
-refreshPage({ forceHistory: false });
-// ---------- Power & Weather map (lightning strikes + SCE outages) ----------
-const GRID_CENTER = [34.9, -116.9];
-const GRID_ZOOM = 9;
+// Toggle buttons for external events in log
+const toggleLightningInLogBtn = document.getElementById("toggleLightningInLogBtn");
+const toggleOutagesInLogBtn = document.getElementById("toggleOutagesInLogBtn");
+const toggleMapBtn = document.getElementById("toggleMapBtn");
 
-let gridMap = null;
-let lightningLayer = null;
-let outageLayer = null;
-let lightningOn = false;
-let outagesOn = true;
-let gridMapReady = false;
-try {
-  lightningOn = localStorage.getItem("gridLightning") === "1";
-  outagesOn = localStorage.getItem("gridOutages") !== "0";
-} catch (_) {
-  // Storage can be blocked (private mode / sandboxed iframe); fall back to defaults.
+if (toggleLightningInLogBtn) {
+  toggleLightningInLogBtn.addEventListener("click", () => {
+    showLightningInLog = !showLightningInLog;
+    toggleLightningInLogBtn.textContent = showLightningInLog ? "Hide Lightning in Log" : "Show Lightning in Log";
+    toggleLightningInLogBtn.classList.toggle("secondary-btn", !showLightningInLog);
+    rebuildCombinedGroups();
+    applyFilters();
+  });
 }
+
+if (toggleOutagesInLogBtn) {
+  toggleOutagesInLogBtn.addEventListener("click", () => {
+    showOutagesInLog = !showOutagesInLog;
+    toggleOutagesInLogBtn.textContent = showOutagesInLog ? "Hide Outages in Log" : "Show Outages in Log";
+    toggleOutagesInLogBtn.classList.toggle("secondary-btn", !showOutagesInLog);
+    rebuildCombinedGroups();
+    applyFilters();
+  });
+}
+
+if (toggleMapBtn) {
+  toggleMapBtn.addEventListener("click", () => {
+    const mapCard = document.querySelector(".grid-card");
+    if (mapCard) {
+      mapCard.hidden = !mapCard.hidden;
+      toggleMapBtn.textContent = mapCard.hidden ? "Show Map" : "Hide Map";
+      if (!mapCard.hidden && gridMapReady) {
+        // Leaflet needs a size recalc after its container becomes visible
+        gridMap.invalidateSize();
+        renderChpCalls();
+      }
+    }
+  });
+  // Hide map by default
+  const mapCard = document.querySelector(".grid-card");
+  if (mapCard) {
+    mapCard.hidden = true;
+    toggleMapBtn.textContent = "Show Map";
+  }
+}
+
+refreshPage({ forceHistory: false });
+
+// ---------- Mobile Navigation ----------
+const hamburgerBtn = document.getElementById("hamburgerBtn");
+const mobileNavMenu = document.getElementById("mobileNavMenu");
+const mobileNavOverlay = document.getElementById("mobileNavOverlay");
+
+function toggleMobileNav() {
+  const isOpen = mobileNavMenu.classList.toggle("open");
+  mobileNavOverlay.classList.toggle("open", isOpen);
+  hamburgerBtn.setAttribute("aria-expanded", String(isOpen));
+}
+
+function closeMobileNav() {
+  mobileNavMenu.classList.remove("open");
+  mobileNavOverlay.classList.remove("open");
+  hamburgerBtn.setAttribute("aria-expanded", "false");
+}
+
+if (hamburgerBtn) {
+  hamburgerBtn.addEventListener("click", toggleMobileNav);
+}
+
+if (mobileNavOverlay) {
+  mobileNavOverlay.addEventListener("click", closeMobileNav);
+}
+
+// Handle mobile navigation items
+document.querySelectorAll(".mobile-nav-item[data-view]").forEach(item => {
+  item.addEventListener("click", (e) => {
+    e.preventDefault();
+    const view = item.getAttribute("data-view");
+    
+    // Update active state
+    document.querySelectorAll(".mobile-nav-item").forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    
+    if (view === "map") {
+      // Scroll to map section
+      const mapSection = document.querySelector(".grid-card");
+      if (mapSection) {
+        mapSection.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+    
+    closeMobileNav();
+  });
+});
+
+// Handle mobile area filters
+document.querySelectorAll(".mobile-filter-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const area = btn.getAttribute("data-area");
+    const filterArea = document.getElementById("filterArea");
+    if (filterArea) {
+      const currentValue = filterArea.value.trim().toUpperCase();
+      if (currentValue === area) {
+        filterArea.value = "";
+        btn.textContent = "Toggle";
+      } else {
+        filterArea.value = area;
+        btn.textContent = "Active";
+      }
+      applyFilters();
+    }
+  });
+});
+
+// Handle mobile quick filters
+document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(item => {
+  item.addEventListener("click", (e) => {
+    e.preventDefault();
+    const filter = item.getAttribute("data-filter");
+    const searchBox = document.getElementById("searchBox");
+    
+    switch(filter) {
+      case "arrests":
+        searchBox.value = "ARR WAR ABA CIA";
+        break;
+      case "deaths":
+        searchBox.value = "DB CO";
+        break;
+      case "chp":
+        document.getElementById("agencyFilter").value = "CHP";
+        break;
+      case "fire":
+        document.getElementById("agencyFilter").value = "SBCFIRE";
+        break;
+    }
+    
+    applyFilters();
+    closeMobileNav();
+  });
+});
+
+// Mobile alert settings (placeholder for notification system)
+const mobileAlertSettings = document.getElementById("mobileAlertSettings");
+if (mobileAlertSettings) {
+  mobileAlertSettings.addEventListener("click", () => {
+    // Open the alert settings panel
+    const alertPanel = document.getElementById("alertSettingsPanel");
+    const alertBtn = document.getElementById("alertSettingsBtn");
+    if (alertPanel && alertBtn) {
+      alertPanel.hidden = false;
+      alertBtn.setAttribute("aria-expanded", "true");
+      loadUserAlerts();
+      renderAlertList();
+    }
+    closeMobileNav();
+  });
+}
+
+// Mobile custom filter add button
+const mobileAddFilterBtn = document.getElementById("mobileAddFilterBtn");
+if (mobileAddFilterBtn) {
+  mobileAddFilterBtn.addEventListener("click", () => {
+    addCustomFilter();
+  });
+}
+
+// Initialize custom filters
+loadCustomFilters();
+renderCustomFilters();
+
+// ---------- Power & Weather map (lightning strikes + SCE outages) ----------
+// State (gridMap, layers, toggle flags) is declared at the top of the script.
 
 function gridMapInit() {
   const container = document.getElementById("gridMap");
@@ -2577,6 +4488,7 @@ function gridMapInit() {
   }).addTo(gridMap);
   lightningLayer = L.layerGroup().addTo(gridMap);
   outageLayer = L.layerGroup().addTo(gridMap);
+  chpLayer = L.layerGroup().addTo(gridMap);
   gridMapReady = true;
   gridMap.invalidateSize();
   updateGridToggles();
@@ -2585,15 +4497,27 @@ function gridMapInit() {
 function updateGridToggles() {
   const lightningBtn = document.getElementById("lightningToggleBtn");
   const outageBtn = document.getElementById("outageToggleBtn");
+  const chpBtn = document.getElementById("chpToggleBtn");
+  const sbsoBtn = document.getElementById("sbsoToggleBtn");
   if (lightningBtn) {
-    lightningBtn.textContent = lightningOn ? "Lightning strikes: on" : "Lightning strikes: off";
+    lightningBtn.textContent = lightningOn ? "Hide lightning strikes" : "Show lightning strikes";
     lightningBtn.classList.toggle("on", lightningOn);
     lightningBtn.setAttribute("aria-pressed", String(lightningOn));
   }
   if (outageBtn) {
-    outageBtn.textContent = outagesOn ? "SCE outages: on" : "SCE outages: off";
+    outageBtn.textContent = outagesOn ? "Hide SCE outages" : "Show SCE outages";
     outageBtn.classList.toggle("on", outagesOn);
     outageBtn.setAttribute("aria-pressed", String(outagesOn));
+  }
+  if (chpBtn) {
+    chpBtn.textContent = chpOn ? "Hide CHP Calls" : "Show CHP Calls";
+    chpBtn.classList.toggle("on", chpOn);
+    chpBtn.setAttribute("aria-pressed", String(chpOn));
+  }
+  if (sbsoBtn) {
+    sbsoBtn.textContent = sbsoOn ? "Hide Sheriff Calls" : "Show Sheriff Calls";
+    sbsoBtn.classList.toggle("on", sbsoOn);
+    sbsoBtn.setAttribute("aria-pressed", String(sbsoOn));
   }
   if (lightningLayer) {
     if (lightningOn && gridMap) gridMap.addLayer(lightningLayer);
@@ -2602,6 +4526,10 @@ function updateGridToggles() {
   if (outageLayer) {
     if (outagesOn && gridMap) gridMap.addLayer(outageLayer);
     else if (gridMap) gridMap.removeLayer(outageLayer);
+  }
+  if (chpLayer) {
+    if ((chpOn || sbsoOn) && gridMap) gridMap.addLayer(chpLayer);
+    else if (gridMap) gridMap.removeLayer(chpLayer);
   }
 }
 
@@ -2669,6 +4597,92 @@ function renderOutages(payload) {
   }
 }
 
+function renderChpCalls() {
+  if (!chpLayer) return;
+  chpLayer.clearLayers();
+  
+  // Never build markers on a hidden map: building thousands of Leaflet markers
+  // synchronously freezes the page. Markers are rendered when the map is shown.
+  const mapCardEl = document.querySelector(".grid-card");
+  if (mapCardEl && getComputedStyle(mapCardEl).display === "none") return;
+  
+  // Markers mirror exactly what's displayed in the call log table (pageSize-limited)
+  const filteredCalls = lastShownGroups.length ? lastShownGroups
+    : lastFilteredGroups.length ? lastFilteredGroups
+    : combinedGroups;
+  
+  // Get only active agency calls (CHP + Sheriff) from filtered results,
+  // respecting the per-agency map toggles, capped for performance
+  const activeCalls = filteredCalls.filter(group => {
+    const agency = String(group.agency || "").toUpperCase();
+    if (group.isExternalEvent) return false;
+    if (agency === "CHP") return chpOn;
+    if (agency === "SBSO") return sbsoOn;
+    return false;
+  }).slice(0, MAX_MAP_MARKERS);
+  
+  for (const call of activeCalls) {
+    const current = call.latest || {};
+    const location = current.loc || "";
+    const areaCode = call.area || extractAreaToken(location);
+    const agencyUpper = String(call.agency || "").toUpperCase();
+    
+    // CHP rows carry exact GPS in their JSON payload; use it when available
+    let gps = null;
+    const extraMap = current.extra && current.extra.map;
+    if (agencyUpper === "CHP" && extraMap && Number.isFinite(Number(extraMap.lat)) && Number.isFinite(Number(extraMap.lon))) {
+      gps = {
+        lat: Number(extraMap.lat),
+        lon: Number(extraMap.lon),
+        area: current.extra.area || areaCode || "",
+        type: "chp_gps",
+      };
+    } else {
+      gps = getCallGps(location, call.agency, areaCode);
+    }
+    
+    // If a throttled OSM geocode completed for this address, prefer it
+    const osmResult = osmGeocodeResults.get(osmCacheKey(location));
+    if (osmResult && Number.isFinite(Number(osmResult.lat)) && Number.isFinite(Number(osmResult.lon))) {
+      gps = { lat: Number(osmResult.lat), lon: Number(osmResult.lon), area: osmResult.formatted || gps.area || "", type: "osm" };
+    }
+    
+    if (!gps) continue; // Skip if we can't determine GPS coordinates
+    
+    const convertedLocation = agencyUpper === "CHP" 
+      ? convertChpLocation(location, "CHP")
+      : location;
+    
+    const isChp = agencyUpper === "CHP";
+    const markerColor = isChp ? "#1d5fbf" : "#2a5d95";
+    const fillColor = isChp ? "#3b82f6" : "#4a90d9";
+    
+    const popup = `
+      <div class="outage-popup">
+        <h4>${isChp ? "CHP" : "Sheriff"} Call: ${escapeHtml(call.baseCallNo)}</h4>
+        <div class="pop-grid">
+          <div class="pop-key">Type</div><div>${escapeHtml(current.type || "Unknown")}</div>
+          <div class="pop-key">Location</div><div>${escapeHtml(convertedLocation)}</div>
+          <div class="pop-key">Time</div><div>${escapeHtml(current.dt || "Unknown")}</div>
+          ${current.report ? `<div class="pop-key">Report</div><div>${escapeHtml(current.report)}</div>` : ""}
+          ${current.dispo ? `<div class="pop-key">Dispo</div><div>${escapeHtml(current.dispo)}</div>` : ""}
+          ${gps.area ? `<div class="pop-key">GPS Area</div><div>${escapeHtml(gps.area)}</div>` : ""}
+          ${gps.type ? `<div class="pop-key">GPS Type</div><div>${escapeHtml(gps.type)}</div>` : ""}
+        </div>
+      </div>`;
+    
+    L.circleMarker([gps.lat, gps.lon], {
+      radius: 8,
+      color: markerColor,
+      weight: 2,
+      fillColor: fillColor,
+      fillOpacity: 0.6,
+    })
+      .bindPopup(popup, { maxWidth: 320 })
+      .addTo(chpLayer);
+  }
+}
+
 async function loadGridData() {
   if (!gridMapReady) gridMapInit();
   if (!gridMapReady) return;
@@ -2678,16 +4692,31 @@ async function loadGridData() {
       fetch(`${LIGHTNING_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
       fetch(`${OUTAGES_URL}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
     ]);
+    
+    // Store globally for call log integration
+    lightningStrikes = Array.isArray(lightningRes && lightningRes.strikes) ? lightningRes.strikes : [];
+    powerOutages = Array.isArray(outagesRes && outagesRes.outages) ? outagesRes.outages : [];
+    
     renderLightning(lightningRes);
     renderOutages(outagesRes);
+    renderChpCalls();
     const parts = [];
     parts.push(`${lightningRes && lightningRes.count != null ? lightningRes.count : "\u2013"} strikes in window`);
     parts.push(`${outagesRes && outagesRes.count != null ? outagesRes.count : "\u2013"} outages`);
     const updated = (lightningRes && lightningRes.generated_at) || (outagesRes && outagesRes.generated_at);
     if (updated) parts.push(`updated ${formatLocal(updated)}`);
     if (statusNode) statusNode.textContent = parts.join(" \u00b7 ");
+    
+    // Refresh call log if external events are enabled
+    if (showLightningInLog || showOutagesInLog) {
+      rebuildCombinedGroups();
+      applyFilters();
+    }
+    
+    // Refresh CHP layer on map
+    renderChpCalls();
   } catch (error) {
-    if (statusNode) statusNode.textContent = `Grid data unavailable: ${error && error.message ? error.message : "load failed"}`;
+    if (statusNode) statusNode.textContent = `Grid data unavailable: ${formatError(error)}`;
   }
 }
 
@@ -2781,12 +4810,13 @@ async function loadFloodData() {
     renderFlood(payload);
   } catch (error) {
     renderFlood(null);
-    if (statusNode) statusNode.textContent = `Flood data unavailable: ${error && error.message ? error.message : "load failed"}`;
+    if (statusNode) statusNode.textContent = `Flood data unavailable: ${formatError(error)}`;
   }
 }
 
 const lightningToggleBtn = document.getElementById("lightningToggleBtn");
 const outageToggleBtn = document.getElementById("outageToggleBtn");
+const chpToggleBtn = document.getElementById("chpToggleBtn");
 if (lightningToggleBtn) {
   lightningToggleBtn.addEventListener("click", () => {
     lightningOn = !lightningOn;
@@ -2801,6 +4831,56 @@ if (outageToggleBtn) {
     updateGridToggles();
   });
 }
+if (chpToggleBtn) {
+  chpToggleBtn.addEventListener("click", () => {
+    chpOn = !chpOn;
+    try { localStorage.setItem("gridChp", chpOn ? "1" : "0"); } catch (_) {}
+    updateGridToggles();
+    renderChpCalls();
+  });
+}
+const sbsoToggleBtn = document.getElementById("sbsoToggleBtn");
+if (sbsoToggleBtn) {
+  sbsoToggleBtn.addEventListener("click", () => {
+    sbsoOn = !sbsoOn;
+    try { localStorage.setItem("gridSbso", sbsoOn ? "1" : "0"); } catch (_) {}
+    updateGridToggles();
+    renderChpCalls();
+  });
+}
+
+// Dedicated map-only window (opened via "Open Map in New Window")
+function initMapOnlyMode() {
+  // Hide everything except the map
+  document.querySelector('.topbar').style.display = 'none';
+  document.querySelector('.notice').style.display = 'none';
+  document.querySelector('.controls').style.display = 'none';
+  document.querySelector('.column-filters').style.display = 'none';
+  document.querySelector('.summary').style.display = 'none';
+  document.querySelector('.table-shell').style.display = 'none';
+  document.querySelector('.empty').style.display = 'none';
+  
+  // Show only the map card
+  const mapCard = document.querySelector('.grid-card');
+  if (mapCard) {
+    mapCard.style.display = 'block';
+    mapCard.style.margin = '20px auto';
+    mapCard.style.maxWidth = '95%';
+  }
+  
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close Map Window';
+  closeBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px 20px; background: #163c69; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;';
+  closeBtn.onclick = () => window.close();
+  document.body.appendChild(closeBtn);
+  
+  // Auto-enable agency calls on map view
+  chpOn = true;
+  sbsoOn = true;
+  updateGridToggles();
+  renderChpCalls();
+}
 
 loadGridData();
 loadFloodData();
@@ -2809,6 +4889,40 @@ setInterval(() => {
   loadGridData();
   loadFloodData();
 }, REFRESH_MS);
+
+if (new URLSearchParams(window.location.search).get('mapOnly') === 'true') {
+  initMapOnlyMode();
+}
+
+// GDPR / cookie consent notice
+function initPrivacyNotice() {
+  const notice = document.getElementById("privacyNotice");
+  if (!notice) return;
+  let dismissed = false;
+  try {
+    dismissed = localStorage.getItem("privacyNoticeDismissed") === "1";
+  } catch (_) {
+    // Storage blocked (private mode / sandboxed iframe); just show the notice this visit.
+  }
+  if (dismissed) return;
+  notice.hidden = false;
+  const acceptBtn = document.getElementById("privacyAcceptBtn");
+  if (acceptBtn) {
+    acceptBtn.addEventListener("click", () => {
+      try { localStorage.setItem("privacyNoticeDismissed", "1"); } catch (_) {}
+      notice.hidden = true;
+    });
+  }
+  const clearBtn = document.getElementById("privacyClearBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      try { localStorage.clear(); } catch (_) {}
+      location.reload();
+    });
+  }
+}
+
+initPrivacyNotice();
 </script>
 </body>
 </html>
